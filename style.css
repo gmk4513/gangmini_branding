@@ -1,0 +1,318 @@
+/* ---------------------------------------------------------------
+   gangmin — maker log
+   컨셉: 모눈 위에 붙인 작업일지. 강조는 빨간 번호 스탬프 한 곳에만.
+   --------------------------------------------------------------- */
+
+:root {
+  --paper:     #E9EBE5;
+  --grid:      #D4D8CE;
+  --card:      #FCFCFA;
+  --ink:       #1A1D18;
+  --ink-soft:  #6E7469;
+  --line:      #CFD4C7;
+  --mark:      #DC4327;
+
+  --pad: 20px;
+  --radius: 3px;
+
+  --sans: "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+          "Malgun Gothic", "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--sans);
+  color: var(--ink);
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 28px 28px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.sheet {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px var(--pad) 64px;
+}
+
+/* ---------- masthead ---------- */
+
+.masthead { padding-bottom: 28px; }
+
+.masthead__id {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  display: grid;
+  place-items: center;
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: 50%;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.masthead__who h1 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.masthead__who h1 span {
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+.masthead__links {
+  display: flex;
+  gap: 14px;
+  margin-top: 2px;
+}
+.masthead__links a {
+  font-size: 13px;
+  color: var(--ink-soft);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+.masthead__links a:hover { color: var(--ink); border-bottom-color: var(--ink); }
+
+.eyebrow {
+  margin: 0 0 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  color: var(--mark);
+  text-transform: uppercase;
+}
+
+.masthead__title {
+  margin: 0 0 16px;
+  font-size: clamp(30px, 8.5vw, 46px);
+  line-height: 1.18;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+}
+
+.masthead__lede {
+  margin: 0;
+  max-width: 34em;
+  font-size: 15px;
+  color: var(--ink-soft);
+}
+.masthead__lede strong {
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: inset 0 -0.42em 0 rgba(220, 67, 39, 0.16);
+}
+
+.ledger {
+  display: flex;
+  gap: 28px;
+  margin: 28px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.ledger div { margin: 0; }
+.ledger dt {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+}
+.ledger dd {
+  margin: 3px 0 0;
+  font-family: var(--mono);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* ---------- sections ---------- */
+
+.section { margin-top: 44px; }
+
+.section__head {
+  margin: 0;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.section__note {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.grid {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.empty {
+  margin: 22px 0 0;
+  padding: 26px 20px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  text-align: center;
+  font-size: 14px;
+  color: var(--ink-soft);
+  background: rgba(252, 252, 250, 0.6);
+}
+
+/* ---------- card ---------- */
+
+.card {
+  display: block;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: inherit;
+  overflow: hidden;
+  box-shadow: 0 1px 0 rgba(26, 29, 24, 0.05);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+.card:hover,
+.card:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--ink);
+  box-shadow: 0 6px 18px rgba(26, 29, 24, 0.11);
+}
+.card:focus-visible {
+  outline: 2px solid var(--mark);
+  outline-offset: 3px;
+}
+
+.card__cover {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  background: #E3E6DE;
+  overflow: hidden;
+}
+.card__cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.card__cover.is-blank {
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      transparent 0 10px,
+      rgba(26, 29, 24, 0.045) 10px 20px
+    );
+}
+
+/* 시그니처: 빨간 번호 스탬프 */
+.stamp {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  padding: 3px 9px 4px;
+  background: var(--mark);
+  color: #fff;
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  border-radius: 2px;
+}
+
+.card__body { padding: 16px 16px 14px; }
+
+.card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.card__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.card__date {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+.card__desc {
+  margin: 7px 0 0;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.tag {
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+.card__cta {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mark);
+}
+
+/* ---------- foot ---------- */
+
+.foot {
+  margin-top: 56px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.foot p {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+/* ---------- wide ---------- */
+
+@media (min-width: 620px) {
+  .sheet { padding-top: 56px; }
+  .grid { grid-template-columns: 1fr 1fr; gap: 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}

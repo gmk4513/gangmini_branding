@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>강민 · gangmin — 생각나는 건 일단 만들어보는 개발자의 일지</title>
+<meta name="description" content="생각나는 건 일단 만들어봅니다. 전부 30초 안에 해볼 수 있습니다.">
+
+<!-- 인스타그램/카톡에 링크 붙일 때 보이는 미리보기.
+     cover.png(1200x630)를 레포 루트에 넣으면 자동으로 잡힙니다. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="강민 · gangmin">
+<meta property="og:description" content="생각나는 건 일단 만들어보는 개발자의 일지. 전부 30초 안에 해볼 수 있습니다.">
+<meta property="og:url" content="https://gangmini.com/">
+<meta property="og:image" content="https://gangmini.com/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <div class="masthead__id">
+      <div class="avatar" aria-hidden="true">강</div>
+      <div class="masthead__who">
+        <h1>강민 <span>· gangmin</span></h1>
+        <nav class="masthead__links" aria-label="바깥 링크">
+          <!-- 주소 채워지면 hidden 지우세요 -->
+          <a href="#" hidden>GitHub</a>
+          <a href="#" hidden>Instagram</a>
+        </nav>
+      </div>
+    </div>
+
+    <p class="eyebrow">MAKER&nbsp;LOG</p>
+    <h2 class="masthead__title">생각나는 건<br>일단 만들어봅니다.</h2>
+    <p class="masthead__lede">
+      떠오른 아이디어를 그날 바로 만들어 올립니다.
+      전부 브라우저에서 바로 열리고, <strong>30초면 해볼 수 있습니다.</strong>
+    </p>
+
+    <dl class="ledger">
+      <div><dt>기록</dt><dd id="stat-count">—</dd></div>
+      <div><dt>최근</dt><dd id="stat-updated">—</dd></div>
+    </dl>
+  </header>
+
+  <main>
+    <section class="section" aria-labelledby="h-log">
+      <h3 class="section__head" id="h-log">일지</h3>
+      <div id="log"></div>
+    </section>
+
+    <section class="section" aria-labelledby="h-projects">
+      <h3 class="section__head" id="h-projects">프로젝트</h3>
+      <p class="section__note">번호를 붙이지 않는, 오래 붙잡고 만든 것들.</p>
+      <div id="projects"></div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
