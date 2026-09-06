@@ -30,6 +30,15 @@ const LOG = [
 const PROJECTS = [
 
   {
+    title: "Snake Pet",
+    desc: "화면 위를 돌아다니는 애완 뱀. 먹이를 주면 잡아먹고 몸이 길어집니다.",
+    date: "2026-09-04",
+    href: "https://github.com/gmk4513/snake-pet/releases/latest",
+    cover: "/covers/snake-pet.png",
+    input: "마우스",
+  },
+
+  {
     title: "Bamti Bomb",
     desc: "크레이지아케이드에서 출발한 웹 봄버맨. 한 컴퓨터 2인용과 온라인 멀티플레이를 지원합니다.",
     date: "2026-08-22",
