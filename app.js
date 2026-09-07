@@ -1,12 +1,13 @@
 (function () {
   "use strict";
 
-  var log = (typeof LOG !== "undefined" ? LOG : []).slice();
   var projects = (typeof PROJECTS !== "undefined" ? PROJECTS : []).slice();
 
-  // 최신이 위로. no 가 있으면 no 기준, 없으면 날짜 기준.
-  log.sort(function (a, b) { return (b.no || 0) - (a.no || 0); });
-  projects.sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
+  // 최신이 위로. 번호(no)가 있으면 번호 기준, 같거나 없으면 날짜 기준.
+  projects.sort(function (a, b) {
+    var d = (b.no || 0) - (a.no || 0);
+    return d !== 0 ? d : String(b.date).localeCompare(String(a.date));
+  });
 
   function fmtDate(s) {
     if (!s) return "";
@@ -86,21 +87,7 @@
     mount.appendChild(grid);
   }
 
-  render("log", log, "아직 첫 번째를 안 만들었습니다. 곧 #1이 올라옵니다.");
-  render("projects", projects, "준비 중입니다.");
-
-  // 상단 카운터
-  var all = log.concat(projects);
-  var latest = all
-    .map(function (i) { return i.date; })
-    .filter(Boolean)
-    .sort()
-    .pop();
-
-  var cEl = document.getElementById("stat-count");
-  var uEl = document.getElementById("stat-updated");
-  if (cEl) cEl.textContent = log.length ? String(log.length).padStart(3, "0") + "건" : "000건";
-  if (uEl) uEl.textContent = latest ? fmtDate(latest) : "—";
+  render("projects", projects, "아직 첫 번째를 안 만들었습니다. 곧 #1이 올라옵니다.");
 
   var y = document.getElementById("year");
   if (y) y.textContent = new Date().getFullYear();

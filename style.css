@@ -45,7 +45,12 @@ body {
 
 /* ---------- masthead ---------- */
 
-.masthead { padding-bottom: 28px; }
+/* 아래 구분선은 원래 ledger(기록/최근)의 위쪽 선이 하던 역할이다.
+   그 블록을 걷어내면서 상단과 본문 사이가 그냥 빈 공간으로 남아 선을 되살렸다 */
+.masthead {
+  padding-bottom: 26px;
+  border-bottom: 1px solid var(--line);
+}
 
 .masthead__id {
   display: flex;
@@ -119,29 +124,6 @@ body {
   color: var(--ink);
   font-weight: 600;
   box-shadow: inset 0 -0.42em 0 rgba(220, 67, 39, 0.16);
-}
-
-.ledger {
-  display: flex;
-  gap: 28px;
-  margin: 28px 0 0;
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
-}
-.ledger div { margin: 0; }
-.ledger dt {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.16em;
-  color: var(--ink-soft);
-  text-transform: uppercase;
-}
-.ledger dd {
-  margin: 3px 0 0;
-  font-family: var(--mono);
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
 }
 
 /* ---------- sections ---------- */
