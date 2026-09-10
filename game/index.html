@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>학사모 비프리의 아파트 건설현장</title>
+<meta name="description" content="로보트보다 빠르게 아파트를 몇 층까지 지을 수 있을까? 벽돌을 쌓아 위로 도망치는 아케이드 게임.">
+<meta property="og:title" content="학사모 비프리의 아파트 건설현장">
+<meta property="og:description" content="로보트보다 빠르게 아파트를 몇 층까지 지을 수 있을까?">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="wrap"><div id="stage">
+  <canvas id="cv"></canvas>
+
+  <div class="btns" id="btns" style="display:none">
+    <button class="btn" type="button" tabindex="-1" id="bTurn"><span class="lbl">TURN</span><span class="cap">⟳</span></button>
+    <button class="btn" type="button" tabindex="-1" id="bClimb"><span class="lbl">CLIMB</span><span class="cap">▲</span></button>
+  </div>
+
+  <div class="screen home" id="scTitle">
+    <button class="music" type="button" id="bBgm" aria-label="노동요 켜기">
+      <span class="ico" id="bgmIco">♪</span><span class="txt" id="bgmTxt">노동요 틀기</span>
+    </button>
+    <div class="hero">
+      <h1>학사모 비프리의<br>아파트 건설현장</h1>
+      <p class="tag">로보트보다 빠르게 아파트를<br>몇층까지 지을수있을까?</p>
+    </div>
+    <div class="menu">
+      <button class="brick p" type="button" id="bStart"><span>게임 시작</span></button>
+      <button class="brick"   type="button" id="bRank"><span>랭킹 보기</span></button>
+      <button class="brick"   type="button" id="bHelp"><span>게임 방법</span></button>
+    </div>
+  </div>
+
+  <div class="screen hidden" id="scHelp">
+    <div class="card">
+      <h1>게임 방법</h1>
+      <p class="tag">벽돌을 쌓아 위로 도망칩니다</p>
+      <div class="keys">
+        <div class="krow"><span class="kc">⟳</span><b>TURN</b><i>방향을 바꿔 한 칸</i><em>스페이스</em></div>
+        <div class="krow"><span class="kc">▲</span><b>CLIMB</b><i>보던 방향으로 한 칸</i><em>→</em></div>
+        <div class="krow"><span class="kg"></span><b>게이지</b><i>로봇과의 거리 · 0이면 잡힘</i><em></em></div>
+      </div>
+      <div class="note">다음 블록이 없는 쪽으로 올라가면 그대로 끝. 캐릭터 발밑 화살표가 지금 보고 있는 방향입니다. 모바일에서는 화면 아래 좌·우 버튼을 누르세요.</div>
+      <button class="b s" id="bHelpBack">닫기</button>
+    </div>
+  </div>
+
+  <div class="screen hidden over" id="scOver">
+    <div class="ovtop">
+      <div class="ovtitle">GAME OVER</div>
+      <div class="score" id="ovScore">0<small> 층</small></div>
+      <div class="rsn" id="ovRsn"></div>
+    </div>
+    <div class="menu">
+      <button class="brick p" type="button" id="bSave"><span>기록 저장</span></button>
+      <button class="brick"   type="button" id="bAgain"><span>다시 하기</span></button>
+      <button class="brick"   type="button" id="bRank2"><span>랭킹 보기</span></button>
+      <button class="brick"   type="button" id="bHome"><span>홈으로</span></button>
+      <div class="err" id="ovErr"></div>
+    </div>
+  </div>
+
+  <div class="screen hidden" id="scName">
+    <div class="card">
+      <h1>기록 저장</h1>
+      <p class="tag" id="nmScore"></p>
+      <input type="text" id="nick" maxlength="10" placeholder="닉네임 (최대 10자)" autocomplete="off">
+      <button class="b p" id="bNameOk">저장하기</button>
+      <button class="b s" id="bNameCancel">취소</button>
+      <div class="err" id="nmErr"></div>
+    </div>
+  </div>
+
+  <div class="screen hidden" id="scRank">
+    <div class="card">
+      <h1>랭킹</h1>
+      <p class="tag" id="rkSub">불러오는 중…</p>
+      <div class="lb" id="rkList"></div>
+      <button class="b s" id="bBack">닫기</button>
+      <div class="note" id="rkNote"></div>
+    </div>
+  </div>
+</div></div>
+<script src="js/leaderboard.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>

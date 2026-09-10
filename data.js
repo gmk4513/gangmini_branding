@@ -16,6 +16,16 @@
 const PROJECTS = [
 
   {
+    no: 3,
+    title: "학사모 비프리의 아파트 건설현장",
+    desc: "로보트보다 빠르게 아파트를 몇 층까지 지을 수 있을까. 두 버튼으로 계단을 올라가는 아케이드 게임입니다.",
+    date: "2026-09-10",
+    href: "/game/",
+    cover: "/covers/bfree-construction.png",
+    input: "키보드 / 터치",
+  },
+
+  {
     no: 2,
     title: "Snake Pet",
     desc: "화면 위를 돌아다니는 애완 뱀. 먹이를 주면 잡아먹고 몸이 길어집니다.",
