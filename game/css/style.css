@@ -14,7 +14,11 @@
   #stage{position:relative;height:100%;width:100%;max-width:calc(100vh * 0.62);overflow:hidden;background:#0b1018}
   canvas{display:block;width:100%;height:100%}
 
-  .btns{position:absolute;left:0;right:0;bottom:0;display:flex;gap:0;height:30%;pointer-events:none}
+  /* 터치 영역은 화면 전체를 좌우로 반 나눈다 — 왼쪽 TURN, 오른쪽 CLIMB.
+     원래는 아래 30% 안에서만 먹어서, 폰으로 조금만 위를 눌러도 빈 곳이었다.
+     보이는 단추(.cap)는 .btn 아래쪽에 붙어 있으므로 크기·위치는 그대로다.
+     이 층은 게임 중에만 깔린다 (game.js 가 display 로 껐다 켠다) */
+  .btns{position:absolute;inset:0;display:flex;gap:0;pointer-events:none}
   .btn{flex:1;pointer-events:auto;background:transparent;border:0;position:relative;cursor:pointer}
   .btn .cap{position:absolute;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));transform:translateX(-50%);
     width:86px;height:86px;border-radius:50%;
@@ -53,14 +57,46 @@
   .note{font-size:11.5px;color:#8a94ab;line-height:1.6;margin-top:10px}
   .err{font-size:12.5px;color:#ff8b6e;margin-top:8px;text-align:center;min-height:16px}
   .screen.home,.screen.over{background:transparent;backdrop-filter:none;padding:0}
+  /* 결과 화면은 위에서부터 흘려 쌓는다.
+     예전에는 ovtop 과 menu 를 각각 top:3% / top:40% 로 못 박아 뒀는데,
+     글자·단추 높이는 px 이고 위치만 % 라서 화면이 짧아지면 둘이 겹쳤다
+     (세로 620px 에서 간격 0). 이제 흐름에 맡기므로 어떤 높이에서도 안 겹친다.
+     `:not(.hidden)` 조건은 반드시 유지할 것 — 빼면 .screen.hidden 과 우선순위가
+     같아져 게임 중에도 결과 화면이 남는다 */
+  /* `:not(.hidden)` 조건은 반드시 유지할 것 — 빼면 .screen.hidden 과 우선순위가
+     같아져 게임 중에도 결과 화면이 남는다 */
   .screen.over:not(.hidden){display:block}
-  .over .ovtop{position:absolute;left:0;right:0;top:3%;text-align:center;padding:0 18px;pointer-events:none}
+
+  /* 결과 화면 배치 — 아래쪽 기준으로 붙인다.
+
+     캐릭터 말풍선이 화면 세로 57.7% 지점부터 그려진다(js 의 SCENE/FGT 로 계산).
+     위에서부터 쌓으면 글자·단추 높이가 px 이라 화면이 짧을수록 아래로 밀려 말풍선을
+     덮는다. 그래서 덩어리의 "바닥"을 55% 에 못박고 위로 자라게 했다.
+     화면이 길수록 덩어리가 차지하는 비율이 작아져 자연스럽게 아래로 내려온다.
+
+     vh 를 쓰면 안 된다 — 폰 브라우저의 100vh 는 주소창이 숨은 큰 화면 기준이라
+     실제로 보이는 높이(#stage)보다 커서, 그만큼 아래로 밀려 말풍선을 덮는다.
+     여기서 쓰는 % 는 .screen(=무대) 높이 기준이므로 정확하다 */
+  .over .ovwrap{position:absolute;left:0;right:0;bottom:45%;
+    display:flex;flex-direction:column;align-items:center}
+  .over .ovtop{position:static;width:100%;text-align:center;padding:0 18px;pointer-events:none}
   .over .ovtitle{font-size:15px;font-weight:900;letter-spacing:3px;color:#ff8b6e;
     text-shadow:0 2px 8px rgba(0,0,0,.9)}
   .over .score{font-size:52px;margin:2px 0 0;text-shadow:0 3px 12px rgba(0,0,0,.9)}
   .over .rsn{margin:2px 0 0;color:#e4ebf6;text-shadow:0 2px 8px rgba(0,0,0,.95)}
-  .over .menu{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);
+  /* GAME OVER 와 단추 사이 간격 — 덩어리 안이라 px 로 둬도 겹칠 일이 없다 */
+  .over .menu{position:static;margin-top:14px;
     width:min(62%,224px);display:flex;flex-direction:column;gap:9px}
+
+  /* 짧은 화면(작은 폰 + 주소창) 에서는 덩어리가 위로 넘쳐 점수가 잘린다.
+     말풍선 자리는 지켜야 하므로 아래로 내리는 대신 덩어리를 줄인다 */
+  @media (max-height: 700px){
+    .over .score{font-size:40px}
+    .over .rsn{font-size:12px}
+    .over .menu{margin-top:9px;gap:6px}
+    .over .menu .brick{padding:8px 8px;font-size:14px}
+    .over .menu .err{min-height:0;margin-top:4px}
+  }
   .screen.home:not(.hidden){display:block}
   .home .music{position:absolute;left:50%;top:26%;transform:translate(-50%,-50%);z-index:3;
     display:flex;align-items:center;gap:5px;padding:6px 11px 6px 9px;border-radius:999px;cursor:pointer;

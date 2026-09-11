@@ -752,7 +752,26 @@ BGM.src = 'assets/audio/bgm.mp3';
 BGM.loop = true;
 BGM.preload = 'auto';
 BGM.volume = 0;
-let bgmOn = false, bgmFade = null;
+
+/* 들어올 때는 언제나 꺼져 있다.
+
+   예전에는 켠 상태를 localStorage 에 기억해 두고 다음 방문 때 첫 터치에 이어서
+   틀었다. 그런데 그러면 "노동요 틀기" 라고 적힌 화면에서 게임 시작을 눌렀는데
+   노래가 나온다. 버튼 이름이 약속하는 것과 어긋난다.
+   노동요는 직접 트는 것이므로, 기억하지 않는다 */
+let bgmOn = false;
+let bgmFade = null;
+
+/* 아이폰 계열은 volume 설정을 무시한다 (소리는 기기 버튼으로만 조절).
+   예전 페이드는 "volume 이 목표에 가까워졌는가" 로 끝을 판단해서, 그런 기기에서는
+   영영 끝나지 않고 BGM.pause() 까지 못 갔다 — 끄기를 눌러도 노래가 안 꺼졌다.
+   먹히는지 먼저 재보고, 안 먹히면 페이드 없이 바로 멈춘다 */
+let bgmCanFade = false;
+try {
+  BGM.volume = 0.5;
+  bgmCanFade = Math.abs(BGM.volume - 0.5) < 0.01;
+} catch (e) { bgmCanFade = false; }
+BGM.volume = 0;
 
 function bgmPaint(){
   const b=$('bBgm');
@@ -761,43 +780,48 @@ function bgmPaint(){
   $('bgmTxt').textContent = bgmOn ? '노동요 끄기' : '노동요 틀기';
   b.setAttribute('aria-label', bgmOn ? '노동요 끄기' : '노동요 틀기');
 }
-function bgmRamp(to){
-  clearInterval(bgmFade);
+
+/* 걸음 수로 끝을 센다. volume 이 안 먹는 기기에서도 반드시 끝난다 */
+function bgmRamp(to, ms){
+  clearInterval(bgmFade); bgmFade = null;
+  if(!bgmCanFade){
+    if(to === 0) BGM.pause();
+    return;
+  }
+  const from = BGM.volume, steps = Math.max(1, Math.round(ms / 40));
+  let i = 0;
   bgmFade = setInterval(()=>{
-    const d = to - BGM.volume;
-    if(Math.abs(d) < 0.03){ BGM.volume = to; clearInterval(bgmFade); if(to===0) BGM.pause(); return; }
-    BGM.volume = Math.max(0, Math.min(1, BGM.volume + Math.sign(d)*0.03));
+    i++;
+    BGM.volume = Math.max(0, Math.min(1, from + (to - from) * (i / steps)));
+    if(i >= steps){
+      clearInterval(bgmFade); bgmFade = null;
+      BGM.volume = to;
+      if(to === 0) BGM.pause();
+    }
   }, 40);
+}
+
+function bgmStart(){
+  const pr = BGM.play();
+  if(pr && pr.catch) pr.catch(err=>{           // 실패하면 이유를 보여준다 (조용히 꺼지지 않게)
+    bgmOn=false; bgmPaint();
+    $('bgmTxt').textContent = '재생 불가';
+    setTimeout(()=>{ if(!bgmOn) $('bgmTxt').textContent='노동요 틀기'; }, 2500);
+  });
+  bgmRamp(0.45, 600);
+}
+function bgmStop(){
+  // 끌 때는 짧게. 누른 순간 꺼진 것처럼 느껴져야 한다
+  bgmRamp(0, 200);
 }
 function bgmToggle(){
   bgmOn = !bgmOn;
-  localStorage.setItem('bb_bgm', bgmOn ? '1' : '0');
-  if(bgmOn){
-    const pr = BGM.play();
-    if(pr && pr.catch) pr.catch(err=>{           // 실패하면 이유를 보여준다 (조용히 꺼지지 않게)
-      bgmOn=false; bgmPaint();
-      $('bgmTxt').textContent = '재생 불가';
-      setTimeout(()=>{ if(!bgmOn) $('bgmTxt').textContent='노동요 틀기'; }, 2500);
-    });
-    bgmRamp(0.45);
-  } else {
-    bgmRamp(0);
-  }
+  if(bgmOn) bgmStart(); else bgmStop();
   bgmPaint();
 }
 $('bBgm').addEventListener('click', bgmToggle);
 bgmPaint();
-// 이전에 켜둔 사람은 첫 조작이 일어나는 순간 자동으로 이어서 재생 (브라우저 자동재생 정책)
-if(localStorage.getItem('bb_bgm')==='1'){
-  const resume = (e)=>{
-    if(e && e.target && e.target.closest && e.target.closest('#bBgm')) return;  // 버튼은 자기 핸들러에 맡긴다
-    document.removeEventListener('pointerdown', resume);
-    document.removeEventListener('keydown', resume);
-    if(!bgmOn) bgmToggle();
-  };
-  document.addEventListener('pointerdown', resume);
-  document.addEventListener('keydown', resume);
-}
+localStorage.removeItem('bb_bgm');   // 예전에 기억해 두던 값 정리
 
 /* ============================================================
    시작

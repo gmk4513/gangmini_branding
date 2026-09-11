@@ -48,18 +48,23 @@
     </div>
   </div>
 
+  <!-- ovwrap: GAME OVER 와 메뉴를 한 덩어리로 묶어 "아래쪽" 기준으로 붙인다.
+       말풍선이 화면 세로 57% 지점부터 그려지므로 덩어리 바닥을 그 위에 고정해야
+       어떤 화면 비율에서도 안 가린다. 자세한 이유는 css 의 .over .ovwrap 참고 -->
   <div class="screen hidden over" id="scOver">
-    <div class="ovtop">
-      <div class="ovtitle">GAME OVER</div>
-      <div class="score" id="ovScore">0<small> 층</small></div>
-      <div class="rsn" id="ovRsn"></div>
-    </div>
-    <div class="menu">
-      <button class="brick p" type="button" id="bSave"><span>기록 저장</span></button>
-      <button class="brick"   type="button" id="bAgain"><span>다시 하기</span></button>
-      <button class="brick"   type="button" id="bRank2"><span>랭킹 보기</span></button>
-      <button class="brick"   type="button" id="bHome"><span>홈으로</span></button>
-      <div class="err" id="ovErr"></div>
+    <div class="ovwrap">
+      <div class="ovtop">
+        <div class="ovtitle">GAME OVER</div>
+        <div class="score" id="ovScore">0<small> 층</small></div>
+        <div class="rsn" id="ovRsn"></div>
+      </div>
+      <div class="menu">
+        <button class="brick p" type="button" id="bSave"><span>기록 저장</span></button>
+        <button class="brick"   type="button" id="bAgain"><span>다시 하기</span></button>
+        <button class="brick"   type="button" id="bRank2"><span>랭킹 보기</span></button>
+        <button class="brick"   type="button" id="bHome"><span>홈으로</span></button>
+        <div class="err" id="ovErr"></div>
+      </div>
     </div>
   </div>
 
