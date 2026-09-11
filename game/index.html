@@ -84,6 +84,17 @@
     </div>
   </div>
 </div></div>
+<script>
+/* 방문 신호. 이 페이지는 Cloudflare 가 내보내므로 순위표 서버가 방문을 알 수 없다.
+   그래서 열릴 때 1x1 그림을 한 번 불러 준다. <img> 라서 CORS 가 필요 없고,
+   실패해도 게임에는 아무 영향이 없다. 집계는 서버에서 IP 를 그날치 소금과 함께
+   해시로만 남긴다 — 쿠키도, 추적도 없다 (bamti-bomb/server/visits.js) */
+(function () {
+  try {
+    new Image().src = "https://bamti-bomb.fly.dev/beacon.gif?s=bfree&r=" + Date.now();
+  } catch (e) { }
+})();
+</script>
 <script src="js/leaderboard.js"></script>
 <script src="js/game.js"></script>
 </body>
