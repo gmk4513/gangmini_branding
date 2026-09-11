@@ -8,7 +8,12 @@
 <meta property="og:title" content="학사모 비프리의 아파트 건설현장">
 <meta property="og:description" content="로보트보다 빠르게 아파트를 몇 층까지 지을 수 있을까?">
 <meta property="og:type" content="website">
-<link rel="stylesheet" href="css/style.css">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙여서, 고쳐 올려도 전에 들어와 본 사람은 최대 4시간 동안 옛 코드를 받는다.
+     이 파일(index.html)만은 max-age=0 이라 항상 새것이므로, 여기 숫자를 바꾸면
+     주소가 달라져 새 파일을 받아 간다.
+     **js 나 css 를 고쳤으면 이 숫자를 반드시 함께 올릴 것.** -->
+<link rel="stylesheet" href="css/style.css?v=20260911b">
 </head>
 <body>
 <div id="wrap"><div id="stage">
@@ -100,7 +105,7 @@
   } catch (e) { }
 })();
 </script>
-<script src="js/leaderboard.js"></script>
-<script src="js/game.js"></script>
+<script src="js/leaderboard.js?v=20260911b"></script>
+<script src="js/game.js?v=20260911b"></script>
 </body>
 </html>
