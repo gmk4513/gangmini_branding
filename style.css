@@ -54,9 +54,9 @@ body {
 
 .masthead__id {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
-  margin-bottom: 32px;
+  margin-bottom: 18px;
 }
 
 .avatar {
@@ -86,11 +86,14 @@ body {
 
 /* 사이트 안 이동(만든 것 / 기록). 두 섹션이 생긴 뒤로 이게 상단에서
    제일 먼저 눈에 들어와야 해서 글자 링크가 아니라 버튼으로 둔다.
-   모양은 기록 페이지의 필터 칩과 같은 말을 쓴다. */
+   모양은 기록 페이지의 필터 칩과 같은 말을 쓴다.
+
+   아바타 블록 바깥에 둔다. 안에 두면 아바타 폭만큼 밀려나서
+   아래 MAKER LOG·제목과 왼쪽 끝이 안 맞는다. */
 .sitenav {
   display: flex;
   gap: 8px;
-  margin-top: 11px;
+  margin: 0 0 30px;
 }
 .sitenav a {
   padding: 9px 18px;
