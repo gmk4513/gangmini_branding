@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>학창시절 다이어리 — 무엇으로 만들었나 · gangmin</title>
+<meta name="description" content="앱 하나를 두 스토어에 올리기까지 쓴 것들. Expo부터 결제 중개와 AI 서버까지.">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="학창시절 다이어리 — 무엇으로 만들었나">
+<meta property="og:description" content="앱 하나를 두 스토어에 올리기까지 쓴 것들.">
+<meta property="og:url" content="https://gangmini.com/notes/school-diary-stack/">
+<meta property="og:image" content="https://gangmini.com/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002">
+<link rel="stylesheet" href="../note.css?v=20261002">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/notes/">← 기록</a>
+    <p class="eyebrow">STACK</p>
+    <h2 class="masthead__title">학창시절 다이어리<br>— 무엇으로 만들었나</h2>
+    <div class="doc__meta">
+      <span class="badge-mine">내 프로젝트</span>
+      <span class="tag">스택</span>
+      <span class="tag">Expo</span>
+      <span class="tag">React Native</span>
+      <span class="tag">RevenueCat</span>
+      <span class="tag">Vercel</span>
+      <span class="tag">SQLite</span>
+      <time class="note__date">2026.10.02</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      초등학교 때 쓰던 그림일기·독후감·급식표를 그 양식 그대로 옮긴 iOS/Android 앱이다.
+      혼자 만들어 두 스토어에 올렸고, 구독 결제가 붙어 있다.
+      여기서는 <strong>무엇을 왜 골랐는지</strong>를 적는다. 기능 설명이 아니라 선택의 기록이다.
+    </p>
+
+    <h3>전체 그림</h3>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+      <svg viewBox="0 0 640 400" role="img" aria-label="앱 구조도">
+        <!-- 기기 -->
+        <rect class="d-box" x="12" y="40" width="200" height="300" rx="6"/>
+        <text class="d-t" x="26" y="64" font-weight="700">사용자 기기</text>
+        <text class="d-t-m" x="26" y="80">iOS / Android</text>
+
+        <rect class="d-box" x="30" y="96" width="164" height="54" rx="4"/>
+        <text class="d-t" x="42" y="118">앱 (Expo · RN)</text>
+        <text class="d-t-s" x="42" y="134">화면 · 그림 · 입력</text>
+
+        <rect class="d-box" x="30" y="166" width="164" height="54" rx="4"/>
+        <text class="d-t" x="42" y="188">SQLite</text>
+        <text class="d-t-s" x="42" y="204">기록 전부가 여기 산다</text>
+
+        <rect class="d-box" x="30" y="236" width="164" height="54" rx="4"/>
+        <text class="d-t" x="42" y="258">Skia</text>
+        <text class="d-t-s" x="42" y="274">크레파스 질감 셰이더</text>
+
+        <!-- 바깥 -->
+        <rect class="d-box-m" x="400" y="52" width="224" height="72" rx="6"/>
+        <text class="d-t" x="416" y="76" font-weight="700">App Store / Play</text>
+        <text class="d-t-s" x="416" y="94">결제는 스토어가 받는다</text>
+        <text class="d-t-s" x="416" y="110">수수료 15~30%</text>
+
+        <rect class="d-box" x="400" y="156" width="224" height="64" rx="6"/>
+        <text class="d-t" x="416" y="180" font-weight="700">RevenueCat</text>
+        <text class="d-t-s" x="416" y="198">영수증 검증 · 구독 상태</text>
+
+        <rect class="d-box" x="400" y="252" width="224" height="88" rx="6"/>
+        <text class="d-t" x="416" y="276" font-weight="700">Vercel 함수</text>
+        <text class="d-t-s" x="416" y="294">Anthropic 호출을 가린다</text>
+        <text class="d-t-s" x="416" y="312">일기 본문은 저장 안 함</text>
+
+        <!-- 연결. 세 줄 모두 수평으로 편다. 꺾으면 라벨 둘 자리가 사라진다. -->
+        <path class="d-line" d="M212 88 H392"/>
+        <polygon points="396,88 386,83 386,93" fill="#1A1D18"/>
+        <text class="d-t-m" x="248" y="78">구매</text>
+
+        <path class="d-line" d="M212 188 H392"/>
+        <polygon points="396,188 386,183 386,193" fill="#1A1D18"/>
+        <text class="d-t-m" x="248" y="178">구독 상태 확인</text>
+
+        <path class="d-dash" d="M212 296 H392"/>
+        <polygon points="396,296 386,291 386,301" fill="#6E7469"/>
+        <text class="d-t-m" x="248" y="286">일기 본문 (동의한 경우만)</text>
+
+        <path class="d-dash" d="M512 124 V152"/>
+        <polygon points="512,156 507,146 517,146" fill="#6E7469"/>
+        <text class="d-t-m" x="520" y="144">영수증</text>
+
+        <text class="d-t-m" x="12" y="376">실선 = 항상  ·  점선 = 조건부</text>
+
+      </svg>
+      </div>
+      <p class="fig__hint">↔ 그림은 옆으로 밀어서 보세요</p>
+      <figcaption>
+        기록은 기기 밖으로 나가지 않는다. 바깥으로 나가는 건 결제 확인과,
+        사용자가 켰을 때의 일기 본문 하나뿐이다.
+      </figcaption>
+    </figure>
+
+    <h3>앱 — Expo / React Native</h3>
+
+    <p>
+      혼자 만들고 두 스토어에 올려야 했다. 네이티브를 두 벌 쓰면 끝나지 않는다.
+      Flutter도 후보였지만 <strong>Expo의 빌드·배포 자동화</strong>가 결정적이었다.
+      맥이 없어도 클라우드에서 iOS 빌드가 나오고, 명령 한 줄로 스토어까지 올라간다.
+    </p>
+
+    <pre><code>eas build -p android --profile production
+eas submit -p android --profile production</code></pre>
+
+    <p>
+      대가도 있다. 네이티브 모듈이 필요하면 <code>expo-*</code> 패키지가 있느냐가 먼저고,
+      없으면 직접 만들어야 한다. 이 앱에서도 줄공책 입력은 기성품으로 안 돼서
+      Swift와 Kotlin으로 모듈을 하나 썼다.
+    </p>
+
+    <h4>Skia를 쓴 이유</h4>
+    <p>
+      크레파스 질감은 이미지로 흉내 낼 수 없다. 획이 겹치는 곳마다 입자가 다르게 쌓여야 한다.
+      그래서 셰이더를 직접 쓸 수 있는 Skia를 얹었다. 이 앱에서 기술적으로 가장 비싼 부분이고,
+      동시에 사람들이 가장 먼저 알아보는 부분이다.
+    </p>
+
+    <h3>데이터 — 서버가 없다</h3>
+
+    <p>
+      회원가입이 없고 모든 기록은 기기의 SQLite에만 있다. 서버에 사용자 데이터를 두지 않았다.
+    </p>
+
+    <table>
+      <tr><th>얻은 것</th><th>잃은 것</th></tr>
+      <tr><td>서버 비용 0원</td><td>기기를 바꾸면 백업·복원을 직접 해야 한다</td></tr>
+      <tr><td>유출될 데이터가 없다</td><td>여러 기기에서 같이 못 쓴다</td></tr>
+      <tr><td>개인정보 신고가 단순해진다</td><td>통계를 볼 수 없다</td></tr>
+    </table>
+
+    <p>
+      일기는 사람이 쓰는 글 중 가장 내밀하다. "우리 서버에 없다"고 말할 수 있는 쪽이
+      이 앱에서는 기능 하나보다 값지다고 봤다.
+    </p>
+
+    <h3>수익화 — 돈이 도는 순서</h3>
+
+    <p>
+      설치하면 7일 동안 전부 열린다. <strong>결제 정보를 넣지 않아도</strong> 쓸 수 있다.
+      이 7일은 스토어 기능이 아니라 앱이 직접 센다. 설치 시각을 기기에 적어두고 비교한다.
+      7일이 지나면 새 기록을 쓸 때 구독 화면이 뜬다. 이미 쓴 기록은 계속 보고 내보낼 수 있다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+      <svg viewBox="0 0 640 196" role="img" aria-label="결제 흐름">
+        <rect class="d-box" x="10" y="54" width="128" height="60" rx="4"/>
+        <text class="d-t" x="24" y="78" font-weight="700">앱</text>
+        <text class="d-t-s" x="24" y="96">구독 버튼</text>
+
+        <rect class="d-box-m" x="186" y="54" width="128" height="60" rx="4"/>
+        <text class="d-t" x="200" y="78" font-weight="700">스토어</text>
+        <text class="d-t-s" x="200" y="96">실제 결제</text>
+
+        <rect class="d-box" x="362" y="54" width="128" height="60" rx="4"/>
+        <text class="d-t" x="376" y="78" font-weight="700">RevenueCat</text>
+        <text class="d-t-s" x="376" y="96">영수증 검증</text>
+
+        <rect class="d-box" x="528" y="54" width="104" height="60" rx="4"/>
+        <text class="d-t" x="542" y="78" font-weight="700">앱</text>
+        <text class="d-t-s" x="542" y="96">잠금 해제</text>
+
+        <path class="d-line" d="M138 84 H180"/><polygon points="180,84 172,80 172,88" fill="#1A1D18"/>
+        <path class="d-line" d="M314 84 H356"/><polygon points="356,84 348,80 348,88" fill="#1A1D18"/>
+        <path class="d-line" d="M490 84 H522"/><polygon points="522,84 514,80 514,88" fill="#1A1D18"/>
+
+        <text class="d-t-m" x="10" y="150">돈은 스토어가 받아 수수료를 떼고 입금한다.</text>
+        <text class="d-t-m" x="10" y="168">RevenueCat은 돈을 만지지 않는다. "이 사람이 냈는가"만 답한다.</text>
+      </svg>
+      </div>
+      <p class="fig__hint">↔ 그림은 옆으로 밀어서 보세요</p>
+      <figcaption>
+        구독 상품은 월간·연간·평생 셋. 연간에만 스토어의 7일 무료 체험이 붙어 있다.
+      </figcaption>
+    </figure>
+
+    <h4>RevenueCat을 왜 끼웠나</h4>
+    <p>
+      스토어 결제는 "샀다"에서 끝나지 않는다. 영수증이 진짜인지 확인해야 하고,
+      갱신·해지·환불·기기 변경을 계속 따라가야 한다. 이걸 직접 하려면 서버와
+      두 스토어의 API를 붙들어야 한다. <strong>서버를 안 두기로 한 결정과 정면으로 부딪친다.</strong>
+    </p>
+    <p>
+      RevenueCat은 그 중간을 대신 서준다. 앱은 "이 사람 프리미엄이야?"만 묻는다.
+      일정 매출까지 무료이고, 그 위로는 매출의 일부를 가져간다.
+      즉 <strong>안 벌면 안 내는 비용</strong>이라 혼자 시작할 때 유리하다.
+    </p>
+
+    <h3>AI — 서버가 딱 하나 있는 이유</h3>
+
+    <p>
+      일기를 저장하면 선생님 말투의 한두 문장이 붙는다. 이걸 만들려면 Anthropic API를 부르는데,
+      <strong>API 키를 앱에 넣을 수는 없다.</strong> 앱 번들은 전부 뜯어볼 수 있다. 예외 없다.
+      그래서 Vercel에 함수 하나만 뒀다. 이 앱에서 서버라고 부를 만한 건 이것뿐이다.
+    </p>
+
+    <p>그 함수가 하는 일은 셋이다.</p>
+    <ul>
+      <li>키를 숨긴다</li>
+      <li>글의 분위기를 <code>normal / heavy / crisis</code>로 나눈다</li>
+      <li>받은 글을 저장하지 않고 버린다</li>
+    </ul>
+
+    <p>
+      두 번째가 핵심이다. 일기는 힘든 날에 더 많이 쓰인다.
+      "다 그만두고 싶다"에 "오늘도 즐거웠구나!"가 붙으면 그건 위로가 아니라 무시다.
+      그래서 분류를 한 단계 두고, 심각한 신호에는 한마디를 만들지 않고
+      도움받을 곳을 안내하는 화면으로 넘긴다. 기능이 아니라 최소한의 책임에 가깝다.
+    </p>
+
+    <h3>정리 — 왜 이 조합인가</h3>
+
+    <table>
+      <tr><th>선택</th><th>이유</th></tr>
+      <tr><td>Expo</td><td>혼자서 두 스토어. 빌드·제출 자동화가 결정적</td></tr>
+      <tr><td>SQLite</td><td>서버 비용 0. 유출될 데이터가 없다</td></tr>
+      <tr><td>Skia</td><td>크레파스 질감은 이미지로 흉내 낼 수 없다</td></tr>
+      <tr><td>RevenueCat</td><td>구독 생애주기를 서버 없이 넘긴다</td></tr>
+      <tr><td>Vercel 함수</td><td>API 키를 가리는 최소한의 서버</td></tr>
+    </table>
+
+    <p>
+      관통하는 기준은 하나다. <strong>혼자 감당할 수 있는 크기로 유지한다.</strong>
+      서버를 늘리면 비용이 늘고, 비용이 늘면 멈추게 된다.
+      그래서 서버가 꼭 필요한 곳(키 숨기기)에만 두고 나머지는 전부 기기 안이나 남의 서비스에 맡겼다.
+    </p>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 적을 것</p>
+      <ul>
+        <li>RevenueCat 없이 직접 영수증을 검증하면 무슨 일이 생기나</li>
+        <li>스토어 수수료 15% / 30%는 어떻게 갈리나</li>
+        <li>서버리스 함수는 어디에 쓰고 어디에 쓰면 안 되나</li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

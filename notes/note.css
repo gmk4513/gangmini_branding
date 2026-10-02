@@ -1,0 +1,263 @@
+/* ---------------------------------------------------------------
+   gangmin — 기록(notes)
+   style.css 를 먼저 읽고 이 파일을 덧댄다. 토큰은 전부 거기 것을 쓴다.
+
+   목록(필터·카드)과 글 본문(다이어그램·코드)이 함께 들어 있다.
+   파일을 둘로 나누면 한 글을 고칠 때 두 군데를 봐야 해서 하나로 둔다.
+   --------------------------------------------------------------- */
+
+/* ---------- 목록: 필터 ---------- */
+
+.filters { margin-top: 20px; }
+
+.filters__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.filters__row + .filters__row { margin-top: 7px; }
+
+/* 칩. 강조색(--mark)은 안 쓴다. 이 페이지의 빨강은 eyebrow 하나로 족하다. */
+.chip {
+  padding: 6px 13px;
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  background: var(--card);
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-family: inherit;
+  line-height: 1.3;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+}
+.chip:hover { border-color: var(--ink); color: var(--ink); }
+.chip:focus-visible { outline: 2px solid var(--mark); outline-offset: 2px; }
+
+.chip[aria-pressed="true"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+/* 카테고리 줄은 태그 줄보다 한 단계 위라는 걸 굵기로만 알린다 */
+.chip--cat { font-weight: 600; }
+
+.filters__count {
+  margin: 14px 0 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+/* ---------- 목록: 카드 ---------- */
+
+/* 표지 이미지가 없는 기록이라 card를 쓰지 않고 줄글 카드로 간다.
+   4:3 빈 표지가 늘어서면 글이 아니라 빈 상자 목록처럼 보인다. */
+.note-list { margin-top: 18px; display: grid; gap: 12px; }
+
+.note {
+  display: block;
+  padding: 16px 16px 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+.note:hover,
+.note:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--ink);
+  box-shadow: 0 6px 18px rgba(26, 29, 24, 0.11);
+}
+.note:focus-visible { outline: 2px solid var(--mark); outline-offset: 3px; }
+
+.note__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.note__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.note__date {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+.note__desc {
+  margin: 7px 0 0;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+.note__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+/* 내가 만든 것과 엮인 글 표시. 이 아카이브의 핵심이라 유일하게 색을 준다. */
+.badge-mine {
+  padding: 2px 7px 3px;
+  border-radius: 2px;
+  background: rgba(220, 67, 39, 0.1);
+  color: var(--mark);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+/* ---------- 글 본문 ---------- */
+
+.doc { max-width: 42em; }
+
+.doc__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.doc h3 {
+  margin: 40px 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.doc h4 {
+  margin: 26px 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.doc p { margin: 0 0 14px; font-size: 15px; }
+.doc strong { font-weight: 600; }
+
+.doc ul, .doc ol { margin: 0 0 14px; padding-left: 20px; font-size: 15px; }
+.doc li { margin-bottom: 5px; }
+
+.doc a { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+.doc a:hover { color: var(--mark); }
+
+.doc code {
+  padding: 1px 5px;
+  background: rgba(26, 29, 24, 0.06);
+  border-radius: 2px;
+  font-family: var(--mono);
+  font-size: 0.88em;
+}
+.doc pre {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.doc pre code { padding: 0; background: none; font-size: 12.5px; line-height: 1.65; }
+
+.doc table {
+  width: 100%;
+  margin: 0 0 16px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.doc th, .doc td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+.doc th { font-weight: 700; font-size: 13px; }
+.doc td:first-child { white-space: nowrap; }
+
+/* ---------- 다이어그램 ---------- */
+
+/* 그림이 글만큼 중요한 아카이브라 figure에 자리를 넉넉히 준다.
+   SVG는 글 안에 직접 쓴다. 외부 이미지로 두면 나중에 고치기 어렵다. */
+.fig {
+  margin: 22px 0 20px;
+  padding: 18px 14px 12px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+/* 폰에서는 본문 폭이 320px 남지정도라, viewBox를 그대로 줄이면
+   도형 안 글씨가 6px까지 줄어든다. 읽힐 크기를 바닥으로 깔고
+   모자라는 가로로 미는다. 새 도형도 반드시 이 틀 안에 넣는다. */
+.fig__scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.fig__scroll svg { display: block; width: 100%; min-width: 560px; height: auto; }
+
+.fig__hint {
+  display: none;
+  margin: 8px 0 0;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-soft);
+}
+@media (max-width: 619px) {
+  .fig__hint { display: block; }
+}
+
+.fig figcaption {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
+/* SVG 안에서 쓰는 공통 클래스. 글마다 색을 새로 정하지 않게 묶어 둔다. */
+.d-box   { fill: var(--paper); stroke: var(--ink); stroke-width: 1.4; }
+.d-box-m { fill: rgba(220, 67, 39, 0.08); stroke: var(--mark); stroke-width: 1.4; }
+.d-line  { stroke: var(--ink); stroke-width: 1.4; fill: none; }
+.d-dash  { stroke: var(--ink-soft); stroke-width: 1.2; fill: none; stroke-dasharray: 4 3; }
+.d-t     { font-family: var(--sans); font-size: 12px; fill: var(--ink); }
+.d-t-s   { font-family: var(--sans); font-size: 10.5px; fill: var(--ink-soft); }
+.d-t-m   { font-family: var(--mono); font-size: 10px; fill: var(--ink-soft); }
+
+/* ---------- 연결된 기록 ---------- */
+
+.rel {
+  margin: 34px 0 0;
+  padding: 14px 16px;
+  background: rgba(252, 252, 250, 0.7);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+}
+.rel__head {
+  margin: 0 0 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+}
+.rel ul { margin: 0; padding-left: 18px; font-size: 14px; }
+
+/* ---------- 되돌아가기 ---------- */
+
+.back {
+  display: inline-block;
+  margin-bottom: 18px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+.back:hover { color: var(--ink); }
+
+@media (min-width: 620px) {
+  .note-list { gap: 14px; }
+}

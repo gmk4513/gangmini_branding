@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>기록 · gangmin — 만들면서 알게 된 것들</title>
+<meta name="description" content="직접 만든 것에 쓴 기술과 수익화 구조, 그리고 일하기 전에 알아두려는 것들을 그림과 함께 정리합니다.">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="기록 · gangmin">
+<meta property="og:description" content="만들면서 알게 된 것들을 그림과 함께 정리합니다.">
+<meta property="og:url" content="https://gangmini.com/notes/">
+<meta property="og:image" content="https://gangmini.com/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../style.css?v=20261002">
+<link rel="stylesheet" href="note.css?v=20261002">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <div class="masthead__id">
+      <a class="avatar" href="/" aria-label="홈으로">강</a>
+      <div class="masthead__who">
+        <h1>강민 <span>· gangmin</span></h1>
+        <nav class="sitenav" aria-label="사이트 안">
+          <a href="/">만든 것</a>
+          <a href="/notes/" aria-current="page">기록</a>
+        </nav>
+      </div>
+    </div>
+
+    <p class="eyebrow">NOTES</p>
+    <h2 class="masthead__title">만들면서<br>알게 된 것들.</h2>
+    <p class="masthead__lede">
+      직접 만든 것에 <strong>무엇을 왜 썼는지</strong>, 돈은 어떤 구조로 도는지 적습니다.
+      그리고 일하기 전에 알아두려는 것들 — 직무, 이론, 용어, 이 기술이 실제로 어디에 쓰이는지.
+      읽고 넘기는 글이 아니라 나중에 다시 찾아볼 기록이라, 가능하면 그림을 같이 둡니다.
+    </p>
+  </header>
+
+  <main>
+    <section class="section" aria-labelledby="h-notes">
+      <h3 class="section__head" id="h-notes">기록</h3>
+
+      <div id="filters" class="filters"></div>
+      <p id="count" class="filters__count"></p>
+
+      <div id="list" class="note-list"></div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script src="notes.js?v=20261002"></script>
+<script src="notes-app.js?v=20261002"></script>
+</body>
+</html>
