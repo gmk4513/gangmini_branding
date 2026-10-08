@@ -19,7 +19,7 @@
 <!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
      붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
 <link rel="stylesheet" href="../../style.css?v=20261002b">
-<link rel="stylesheet" href="../note.css?v=20261009">
+<link rel="stylesheet" href="../note.css?v=20261009b">
 </head>
 <body>
 
@@ -123,6 +123,11 @@
     <p>
       바탕화면 앱을 웹 기술로 만드는 길은 크게 둘이다. 크로미엄을 통째로 싸 가는 Electron과,
       운영체제에 이미 있는 웹뷰를 빌려 쓰는 Tauri.
+    </p>
+    <p class="gloss">
+      <b>크로미엄(Chromium)</b> — 구글이 이끄는 오픈소스 웹 브라우저. 크롬과 엣지가 이걸 바탕으로 만들어진다.
+      Electron은 앱마다 이 브라우저를 통째로 넣어서 배포한다. 앱 하나가 사실상 브라우저 하나를 들고 다니는 셈이라 무겁다.
+      Tauri는 컴퓨터에 이미 깔린 브라우저 부품(웹뷰)을 빌려 쓰기 때문에 그만큼이 빠진다.
     </p>
 
     <table>
@@ -498,6 +503,13 @@
     <p>
       그래서 화면 코드를 <strong>실제로 한 번 돌려 보는</strong> 검사를 만들었다. 가짜 DOM을 씌워 브라우저 없이
       <code>pet.js</code>를 실행하고, 프레임을 30장 밟는다. 윈도우·맥으로 각각 한 번씩.
+    </p>
+    <p class="gloss">
+      <b>DOM(Document Object Model)</b> — 브라우저가 HTML을 읽어서 만드는 '화면의 나무 구조'.
+      버튼·글자·그림 하나하나가 이 나무의 가지이고, JS는 이 나무를 통해 화면을 읽고 바꾼다
+      (<code>document.getElementById("panel")</code> 같은 식으로).
+      브라우저 밖에서 JS를 돌리면 이 나무가 없어서 화면 코드는 첫 줄에서 바로 죽는다.
+      그래서 무엇을 물어도 그럴듯한 대답은 해 주는 가짜 나무를 만들어 씌우고, 화면 없이 코드만 끝까지 돌려 본다.
     </p>
     <pre><code>$ node tools/smoke.js
   통과  윈도우   (점프 Alt / 공격 Ctrl)

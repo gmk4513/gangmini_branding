@@ -147,6 +147,18 @@
 .doc ul, .doc ol { margin: 0 0 14px; padding-left: 20px; font-size: 15px; }
 .doc li { margin-bottom: 5px; }
 
+/* 본문 속 용어 풀이. 본문보다 한 단계 작고 흐리게 둬서,
+   아는 사람은 건너뛰고 걸린 사람만 읽게 한다. 풀이하는 문단 바로 밑에 붙인다. */
+.doc .gloss {
+  margin: -6px 0 16px;
+  padding: 8px 12px;
+  border-left: 2px solid var(--line);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+.doc .gloss b { color: var(--ink); font-weight: 600; }
+
 .doc a { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
 .doc a:hover { color: var(--mark); }
 
