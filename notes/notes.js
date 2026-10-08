@@ -29,6 +29,16 @@ const CATS = [
 const NOTES = [
 
   {
+    slug: "bfree-construction",
+    title: "학사모 비프리의 아파트 건설현장 — 버튼 두 개짜리 무한 계단",
+    desc: "빌드 없는 캔버스 게임과, 남는 서버에 얹은 순위표. 폰에서만 생기는 문제들과 요청 한 번에 서버가 죽은 이야기까지.",
+    date: "2026-10-09",
+    cat: "stack",
+    tags: ["Canvas", "JavaScript", "Node.js", "Fly.io", "Cloudflare Pages"],
+    mine: true,
+  },
+
+  {
     slug: "bfree-desktop-pet",
     title: "학사모 비프리 데스크톱 펫 — 바탕화면에 캐릭터를 살게 하기",
     desc: "모니터만 한 투명 창 하나로 바탕화면에 사는 캐릭터를. 클릭 통과, 키보드 소유권, 맥 없이 맥 검증하기까지.",
