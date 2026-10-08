@@ -29,6 +29,16 @@ const CATS = [
 const NOTES = [
 
   {
+    slug: "bfree-desktop-pet",
+    title: "학사모 비프리 데스크톱 펫 — 바탕화면에 캐릭터를 살게 하기",
+    desc: "모니터만 한 투명 창 하나로 바탕화면에 사는 캐릭터를. 클릭 통과, 키보드 소유권, 맥 없이 맥 검증하기까지.",
+    date: "2026-10-09",
+    cat: "stack",
+    tags: ["Tauri", "Rust", "WebView", "GitHub Actions", "macOS"],
+    mine: true,
+  },
+
+  {
     slug: "school-diary-stack",
     title: "학창시절 다이어리 — 무엇으로 만들었나",
     desc: "앱 하나를 두 스토어에 올리기까지 쓴 것들. Expo부터 결제 중개와 AI 서버까지 한 장으로.",

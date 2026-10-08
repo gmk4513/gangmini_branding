@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>학사모 비프리 데스크톱 펫 — 바탕화면에 캐릭터를 살게 하기 · gangmin</title>
+<meta name="description" content="모니터만 한 투명 창 하나로 바탕화면에 사는 캐릭터를 만들었다. Tauri, 클릭 통과, 키보드 소유권, 맥 없이 맥 검증하기까지.">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="학사모 비프리 데스크톱 펫 — 바탕화면에 캐릭터를 살게 하기">
+<meta property="og:description" content="모니터만 한 투명 창 하나로 바탕화면에 사는 캐릭터를 만들었다.">
+<meta property="og:url" content="https://gangmini.com/notes/bfree-desktop-pet/">
+<meta property="og:image" content="https://gangmini.com/notes/bfree-desktop-pet/mac.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../note.css?v=20261009">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/notes/">← 기록</a>
+    <p class="eyebrow">STACK</p>
+    <h2 class="masthead__title">학사모 비프리 데스크톱 펫<br>— 바탕화면에 캐릭터를 살게 하기</h2>
+    <div class="doc__meta">
+      <span class="badge-mine">내 프로젝트</span>
+      <span class="tag">스택</span>
+      <span class="tag">Tauri</span>
+      <span class="tag">Rust</span>
+      <span class="tag">WebView</span>
+      <span class="tag">GitHub Actions</span>
+      <span class="tag">macOS</span>
+      <time class="note__date">2026.10.09</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      게임 「학사모 비프리 아파트공사현장」의 주인공이 바탕화면 아래를 걸어 다닌다.
+      가끔 멈춰서 역기를 들고, 랩을 하고, 벽돌을 쌓고, 한마디씩 한다.
+      노인이나 로보트를 불러 싸움을 붙일 수 있고, 직접 조종할 수도 있다.
+      윈도우와 맥에서 돌고, 설치 파일은 6MB다.
+    </p>
+    <p>
+      만들면서 보니 데스크톱 펫의 정체는 <strong>모니터만 한 투명 창 하나</strong>였다.
+      그 창이 화면을 덮고 있으면서도 아무것도 가리지 않게 만드는 일이 이 프로젝트의 거의 전부다.
+      여기서는 그 과정에서 걸린 것들과, 무엇을 왜 골랐는지를 적는다.
+    </p>
+
+    <figure class="fig">
+      <img class="shot" src="mac.png" width="1024" height="768"
+           alt="맥 바탕화면 아래에서 학사모 쓴 캐릭터가 말풍선을 띄우고 있고, 왼쪽에서 노인 캐릭터가 체력 막대를 달고 다가오며, 오른쪽 위에 조작판이 떠 있는 화면">
+      <figcaption>
+        맥에서 도는 모습. 오른쪽 위가 조작판, 왼쪽이 불러낸 노인(머리 위 빨간 막대가 체력)이다.
+        이 사진은 맥 없이 찍었다 — 아래 「맥 없이 맥을 확인하기」에서 다룬다.
+      </figcaption>
+    </figure>
+
+    <h3>전체 그림</h3>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+      <svg viewBox="0 0 640 324" role="img" aria-label="모니터를 덮는 투명 창 구조">
+        <!-- 모니터 -->
+        <rect class="d-box" x="16" y="16" width="420" height="292" rx="8"/>
+        <text class="d-t-m" x="28" y="32">모니터</text>
+
+        <!-- 투명 창 -->
+        <rect class="d-box-m" x="26" y="40" width="400" height="258" rx="4"/>
+        <text class="d-t" x="38" y="62" font-weight="700">투명 창</text>
+        <text class="d-t-s" x="38" y="78">모니터 전체 크기 · 항상 맨 위</text>
+        <text class="d-t-s" x="38" y="93">평소엔 클릭이 뚫고 지나간다</text>
+
+        <!-- 조작판 -->
+        <rect class="d-box" x="318" y="54" width="96" height="62" rx="3"/>
+        <text class="d-t" x="330" y="80" font-weight="700">조작판</text>
+        <text class="d-t-s" x="330" y="98">창 안의 HTML</text>
+
+        <!-- 말풍선 · 캐릭터 · 적 -->
+        <rect class="d-box" x="196" y="162" width="92" height="24" rx="3"/>
+        <text class="d-t-s" x="242" y="178" text-anchor="middle">말풍선</text>
+        <rect class="d-box" x="214" y="194" width="56" height="70" rx="3"/>
+        <text class="d-t" x="242" y="234" text-anchor="middle">비프리</text>
+        <rect class="d-box" x="92" y="204" width="48" height="60" rx="3"/>
+        <text class="d-t" x="116" y="239" text-anchor="middle">적</text>
+
+        <!-- 바닥 · 작업표시줄 -->
+        <path class="d-dash" d="M26 264 H426"/>
+        <rect class="d-box" x="26" y="270" width="400" height="28" rx="2"/>
+        <text class="d-t-s" x="38" y="289">작업표시줄 / 독 — 운영체제가 그린다</text>
+
+        <!-- 설명선 (전부 수평) -->
+        <path class="d-dash" d="M414 84 H446"/>
+        <text class="d-t" x="452" y="80">보이는 건 그림 몇 장</text>
+        <text class="d-t-s" x="452" y="96">나머지 픽셀은 전부 투명</text>
+
+        <path class="d-dash" d="M270 228 H446"/>
+        <text class="d-t" x="452" y="224">캐릭터 · 적</text>
+        <text class="d-t-s" x="452" y="240">그림 한 장을 계속 바꿔 끼운다</text>
+
+        <path class="d-dash" d="M426 284 H446"/>
+        <text class="d-t" x="452" y="280">바닥 높이</text>
+        <text class="d-t-s" x="452" y="296">운영체제한테 물어본다</text>
+      </svg>
+      </div>
+      <p class="fig__hint">↔ 그림은 옆으로 밀어서 보세요</p>
+      <figcaption>
+        창은 다른 모든 창보다 위에 있다. 그래서 문제는 두 가지로 모인다 —
+        <strong>클릭을 어떻게 흘려보낼 것인가</strong>, 그리고 <strong>키보드는 누구 것인가</strong>.
+      </figcaption>
+    </figure>
+
+    <h3>왜 Tauri인가</h3>
+
+    <p>
+      바탕화면 앱을 웹 기술로 만드는 길은 크게 둘이다. 크로미엄을 통째로 싸 가는 Electron과,
+      운영체제에 이미 있는 웹뷰를 빌려 쓰는 Tauri.
+    </p>
+
+    <table>
+      <tr><th></th><th>Electron</th><th>Tauri</th></tr>
+      <tr><td>화면</td><td>크로미엄을 같이 배포</td><td>윈도우는 WebView2, 맥은 WKWebView를 빌린다</td></tr>
+      <tr><td>본체 언어</td><td>Node.js</td><td>Rust</td></tr>
+      <tr><td>설치 파일</td><td>보통 수십 MB를 넘긴다</td><td>이 앱은 6MB (맥은 7MB)</td></tr>
+      <tr><td>대가</td><td>무겁다</td><td>웹뷰가 운영체제마다 달라 같은 코드가 다르게 돈다</td></tr>
+    </table>
+
+    <p>
+      바탕화면에 상주하는 물건이 무거우면 지운다. 받는 사람 대부분이 인스타그램에서 넘어와
+      링크 하나 눌러 보는 사람들이라, 크기가 곧 이탈률이다. 그래서 Tauri를 골랐다.
+      대가는 실제로 치렀다 — 같은 소리 재생 코드가 한쪽 웹뷰에서는 아무 소리도 안 냈다(아래 「소리」).
+    </p>
+
+    <h3>Rust와 화면을 나누는 법</h3>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+      <svg viewBox="0 0 640 268" role="img" aria-label="Rust 본체와 웹뷰 화면의 역할 분담">
+        <rect class="d-box" x="16" y="20" width="196" height="228" rx="6"/>
+        <text class="d-t" x="30" y="44" font-weight="700">Rust · Tauri 본체</text>
+        <text class="d-t-s" x="30" y="72">창 만들기 (투명 · 항상 위)</text>
+        <text class="d-t-s" x="30" y="94">트레이 메뉴</text>
+        <text class="d-t-s" x="30" y="116">커서 위치를 60ms마다</text>
+        <text class="d-t-s" x="30" y="138">포커스 · 창 레벨</text>
+        <text class="d-t-s" x="30" y="160">작업표시줄 높이 재기</text>
+        <text class="d-t-s" x="30" y="182">capabilities (권한 목록)</text>
+        <text class="d-t-m" x="30" y="226">main.rs</text>
+
+        <rect class="d-box" x="428" y="20" width="196" height="228" rx="6"/>
+        <text class="d-t" x="442" y="44" font-weight="700">웹뷰 · 화면</text>
+        <text class="d-t-s" x="442" y="72">상태 (걷기 · 포즈 · 싸움 · 수동)</text>
+        <text class="d-t-s" x="442" y="94">그리기 — 매 프레임</text>
+        <text class="d-t-s" x="442" y="116">클릭 통과 판정</text>
+        <text class="d-t-s" x="442" y="138">조작판 · 키 입력</text>
+        <text class="d-t-s" x="442" y="160">말풍선 · 소리</text>
+        <text class="d-t-s" x="442" y="182">설정 (pet.config.json)</text>
+        <text class="d-t-m" x="442" y="226">pet.js · 프레임워크 없음</text>
+
+        <!-- 이벤트: Rust → 화면 -->
+        <text class="d-t-m" x="228" y="86">이벤트 (Rust → 화면)</text>
+        <path class="d-line" d="M212 96 H420"/>
+        <polygon points="424,96 414,91 414,101" fill="#1A1D18"/>
+        <text class="d-t-m" x="228" y="114">menu · cursor · trayopen</text>
+
+        <!-- 명령: 화면 → Rust -->
+        <text class="d-t-m" x="228" y="166">명령 (화면 → Rust)</text>
+        <path class="d-line" d="M428 176 H220"/>
+        <polygon points="216,176 226,171 226,181" fill="#1A1D18"/>
+        <text class="d-t-m" x="228" y="194">set_manual · floor_offset</text>
+        <text class="d-t-m" x="228" y="208">quit_app</text>
+      </svg>
+      </div>
+      <p class="fig__hint">↔ 그림은 옆으로 밀어서 보세요</p>
+      <figcaption>
+        운영체제를 만져야 하는 일만 Rust가 하고, 나머지는 전부 화면 쪽 JS가 한다.
+      </figcaption>
+    </figure>
+
+    <p>
+      트레이 메뉴는 누른 항목의 id(<code>spawn:robot</code>, <code>mode:manual</code> 같은 것)만
+      화면으로 던진다. <strong>Rust는 그게 무슨 뜻인지 모른다.</strong> 해석은 JS가 한다.
+      그래서 메뉴에 기능을 하나 더할 때 Rust를 다시 컴파일할 일이 거의 없다.
+    </p>
+
+    <h4>권한 파일이 없으면 전부 조용히 죽는다</h4>
+    <p>
+      처음 실제로 띄웠을 때 트레이 메뉴가 하나도 안 먹었다. 소환도, 포즈도, 수동 조작도.
+      오류창도 콘솔 메시지도 없었다. 원인은 <code>src-tauri/capabilities/</code> 폴더가 아예 없던 것.
+      Tauri 2는 거기 적힌 권한만 화면에 내주고, 나머지 호출은 <strong>조용히 거부한다.</strong>
+      이벤트를 듣는 것(<code>event.listen</code>)조차 권한이라, 메뉴 신호를 받는 귀가 처음부터 없었다.
+    </p>
+    <pre><code>{
+  "identifier": "default",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-set-ignore-cursor-events",
+    "core:window:allow-set-focus"
+  ]
+}</code></pre>
+    <p>
+      창 설정을 바꾸는 권한(setter)은 <code>core:default</code>에 안 들어 있다. 읽는 것만 있다.
+      그래서 쓰는 것만 골라 따로 적는다.
+    </p>
+
+    <h3>문제 1 — 덮었는데 눌러져야 한다</h3>
+
+    <p>
+      모니터만 한 창이 맨 위에 있으면, 바탕화면도 다른 창도 누를 수 없다. 그래서 평소엔 창을
+      <strong>클릭 통과</strong>로 둔다. 클릭이 창을 뚫고 밑으로 떨어진다.
+      그런데 그러면 캐릭터와 조작판도 안 눌린다. 필요한 순간에만 통과를 꺼야 한다.
+    </p>
+    <p>
+      문제는 통과 중에는 마우스 이벤트가 창으로 아예 안 온다는 것이다. 커서가 캐릭터 위에 왔는지
+      화면 혼자서는 알 수 없다. 그래서 Rust가 운영체제한테서 커서 위치를 직접 읽어 넘겨준다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+      <svg viewBox="0 0 640 176" role="img" aria-label="클릭 통과를 켜고 끄는 흐름">
+        <rect class="d-box" x="12" y="28" width="134" height="64" rx="4"/>
+        <text class="d-t" x="26" y="54" font-weight="700">커서 이동</text>
+        <text class="d-t-s" x="26" y="72">사용자</text>
+
+        <rect class="d-box" x="170" y="28" width="134" height="64" rx="4"/>
+        <text class="d-t" x="184" y="54" font-weight="700">Rust</text>
+        <text class="d-t-s" x="184" y="72">60ms마다 위치 읽기</text>
+
+        <rect class="d-box" x="328" y="28" width="134" height="64" rx="4"/>
+        <text class="d-t" x="342" y="54" font-weight="700">pet.js</text>
+        <text class="d-t-s" x="342" y="72">캐릭터·조작판 위?</text>
+
+        <rect class="d-box-m" x="486" y="28" width="134" height="64" rx="4"/>
+        <text class="d-t" x="500" y="54" font-weight="700">창</text>
+        <text class="d-t-s" x="500" y="72">위라면 통과를 끈다</text>
+
+        <path class="d-line" d="M146 60 H164"/><polygon points="168,60 160,56 160,64" fill="#1A1D18"/>
+        <path class="d-line" d="M304 60 H322"/><polygon points="326,60 318,56 318,64" fill="#1A1D18"/>
+        <path class="d-line" d="M462 60 H480"/><polygon points="484,60 476,56 476,64" fill="#1A1D18"/>
+
+        <text class="d-t-m" x="12" y="130">커서가 캐릭터나 조작판 위에 올라왔을 때만 창이 클릭을 받는다.</text>
+        <text class="d-t-m" x="12" y="150">수동 조작 중에는 판정 없이 항상 받는다 — 옆 창으로 클릭이 새지 않게.</text>
+      </svg>
+      </div>
+      <p class="fig__hint">↔ 그림은 옆으로 밀어서 보세요</p>
+      <figcaption>
+        사람은 마우스를 버튼까지 움직이는 데 수백 ms를 쓰니 60ms 간격이면 넉넉하다.
+        기계는 아니다 — 이 간격 때문에 자동 점검에서 한 번 크게 헤맸다(아래).
+      </figcaption>
+    </figure>
+
+    <h3>문제 2 — 키보드는 누구 것인가</h3>
+
+    <p>
+      펫은 두 모드가 있다. 혼자 걸어 다니는 <strong>자동</strong>, 방향키로 직접 움직이고 치는 <strong>수동</strong>.
+      처음엔 화면 코드에서 "자동일 땐 키를 무시한다"만 했다. 그걸로는 모자랐다.
+    </p>
+    <p>
+      <strong>키는 포커스를 쥔 창으로만 간다.</strong> 펫 창이 포커스를 쥐고 있으면, 펫이 그 키를 무시하는 순간
+      그 키는 원래 쓰려던 메모장에도 안 가고 그냥 사라진다. 그래서 모드에 따라
+      <strong>창이 포커스를 받을 수 있는지 자체</strong>를 바꾼다.
+    </p>
+
+    <table>
+      <tr><th></th><th>자동</th><th>수동</th></tr>
+      <tr><td>포커스</td><td>못 받는 창 (<code>set_focusable(false)</code>)</td><td>받고, 놓지 않는다</td></tr>
+      <tr><td>클릭</td><td>캐릭터·조작판 위에서만 받는다</td><td>화면 전체를 받는다</td></tr>
+      <tr><td>키</td><td>하나도 안 가져간다</td><td>전부 캐릭터로 간다</td></tr>
+      <tr><td>켜는 법</td><td>—</td><td>조작판 버튼으로만</td></tr>
+    </table>
+
+    <p>
+      마지막 줄이 중요하다. 처음 버전은 방향키를 누르면 수동으로 넘어갔다. 다른 일을 하다
+      방향키를 누르는 순간 펫이 키보드를 가로챈다. 바탕화면에 사는 물건이 그러면 그건 고장이다.
+      켜는 길은 버튼 하나로 좁혔다.
+    </p>
+
+    <h4>"받지 마"와 "놓아라"는 다르다</h4>
+    <p>
+      <code>set_focusable(false)</code>는 <em>앞으로 새로 받지 말라</em>는 설정이지,
+      <em>지금 쥔 걸 놓으라</em>는 뜻이 아니다. 수동에서 자동으로 넘어가는 순간 창은 이미 포커스를 쥐고 있다.
+      윈도우에서는 클릭 통과가 돌아오니 사용자가 아무 데나 한 번 누르면 저절로 정리된다.
+      맥에서는 그 일이 안 일어나서, 앱 자체에 <code>NSApp.deactivate()</code>를 걸어 직접 내려놓게 했다.
+    </p>
+
+    <h4>수동이면 화면 전체를 받는다 — 그러니 출구를 둘 둔다</h4>
+    <p>
+      수동 중엔 옆 창을 눌러도 클릭이 펫 창에서 멈춘다. 그래야 포커스가 넘어가지 않는다.
+      대신 트레이(작업표시줄)도 못 누른다. 갇히지 않게 <strong>조작판의 끄기 버튼</strong>과
+      <strong>Esc</strong> 두 출구를 항상 열어 두고, 수동을 켤 때 조작판을 강제로 띄운다.
+    </p>
+
+    <h4>트레이 메뉴를 버리고 조작판을 만든 이유</h4>
+    <p>
+      처음엔 소환·포즈를 전부 트레이 메뉴에 넣었다. 두 가지가 틀어졌다. 트레이 메뉴는 한 번 고르면
+      닫혀서 적을 둘 부르려면 매번 다시 열어야 했고, 트레이를 누르는 순간 펫 창이 포커스를 놓쳤다.
+      같은 창 안에 HTML 조작판을 두니 둘 다 사라졌다. 트레이에는 조작판 여닫기와 끝내기만 남겼다.
+    </p>
+
+    <h3>그림 — 생성한 이미지를 스프라이트로</h3>
+
+    <p>
+      캐릭터 그림은 이미지 생성 모델로 뽑은 시트를 잘라 쓴다. 잘라서 바로 쓰면 안 되는 이유가 셋 있었다.
+    </p>
+
+    <h4>배경을 지우다 바지까지 지웠다</h4>
+    <p>
+      배경은 그림 테두리에서부터 같은 색을 따라 들어가며 지운다(flood fill). 여러 번 돌리는데,
+      네 번째 패스가 <strong>검은 바지를 배경색으로 착각</strong>해 학사모와 바지를 통째로 날렸다.
+      "배경이라고 잡은 색이 어두우면 멈춘다"는 조건 하나로 막았다.
+    </p>
+
+    <h4>걸을 때 캐릭터가 출렁였다</h4>
+    <p>
+      프레임마다 "이 그림 높이를 목표 키에 맞춘다"로 배율을 잡았더니, 다리를 뻗은 프레임과 모은 프레임의
+      높이가 달라 <strong>얼굴이 커졌다 작아졌다</strong> 했다. 모자 폭을 재 보니 11% 차이였다.
+      배율을 프레임이 아니라 <strong>동작 묶음마다 한 번</strong>(그 묶음에서 가장 큰 프레임 기준) 잡도록 바꿨다.
+    </p>
+
+    <h4>벽돌을 쌓을수록 캐릭터가 위로 떠올랐다</h4>
+    <p>
+      벽돌 더미가 커지면 그림의 아래쪽 경계가 내려가니, 발 기준으로 맞추면 사람이 28px 표류한다.
+      이 동작만 <strong>머리 기준</strong>으로 정렬해 2px로 줄였다. 어디를 기준점으로 삼을지는 동작마다 다르다.
+    </p>
+
+    <h3>소리 — 같은 코드, 다른 웹뷰</h3>
+
+    <p>
+      효과음은 같은 소리가 1초 간격으로 반복 녹음된 파일이라, 첫 소리가 시작되는 지점을 찾아 한 방만 잘라 썼다.
+      그런데 앱에서 소리가 안 났다. <code>new Audio()</code>로 연 파일이
+      <strong>"받는 중" 상태에서 영원히 멈춰 있었다.</strong> 오류도 안 나고, <code>play()</code>도 거부되지 않는다.
+      재생 중이라고 해 놓고 재생 위치가 0에서 안 움직인다.
+    </p>
+    <p>
+      같은 파일을 <code>fetch</code>로 받아 WebAudio(<code>decodeAudioData</code>)로 풀면 바로 됐다.
+      셋을 처음에 한 번 디코드해 두고 울릴 때마다 노드를 하나씩 띄운다.
+      이 일 이후로 소리를 못 읽으면 반드시 경고를 남긴다. 조용히 삼켜서 원인을 못 찾았기 때문이다.
+    </p>
+
+    <h3>맥 — 맥 없이 맥을 확인하기</h3>
+
+    <p>
+      Tauri는 교차 빌드가 안 된다. 맥용은 맥에서 컴파일해야 한다. 맥이 없어서 깃허브 액션의 맥 러너를 빌렸다.
+      처음엔 빌드만 맡겼는데, 러너가 화면이 켜진 진짜 맥이라는 걸 알고 나서 <strong>확인까지</strong> 맡겼다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+      <svg viewBox="0 0 640 244" role="img" aria-label="깃허브 맥 러너에서 앱을 띄워 재는 흐름">
+        <rect class="d-box" x="12" y="24" width="140" height="56" rx="4"/>
+        <text class="d-t" x="26" y="48" font-weight="700">push</text>
+        <text class="d-t-s" x="26" y="66">또는 버튼 한 번</text>
+
+        <rect class="d-box" x="182" y="24" width="180" height="56" rx="4"/>
+        <text class="d-t" x="196" y="48" font-weight="700">깃허브 맥 러너</text>
+        <text class="d-t-s" x="196" y="66">빌드 → .app → 띄우기</text>
+
+        <rect class="d-box-m" x="392" y="24" width="236" height="128" rx="4"/>
+        <text class="d-t" x="406" y="48" font-weight="700">재기</text>
+        <text class="d-t-s" x="406" y="72">창 레벨 — CGWindowList</text>
+        <text class="d-t-s" x="406" y="92">화면 — screencapture</text>
+        <text class="d-t-s" x="406" y="112">누르기 — cliclick · osascript</text>
+        <text class="d-t-s" x="406" y="132">판정 — 픽셀을 숫자로</text>
+
+        <rect class="d-box" x="392" y="178" width="236" height="52" rx="4"/>
+        <text class="d-t" x="406" y="200" font-weight="700">결과물</text>
+        <text class="d-t-s" x="406" y="218">사진 10장 · 판정표</text>
+
+        <path class="d-line" d="M152 52 H176"/><polygon points="180,52 172,48 172,56" fill="#1A1D18"/>
+        <path class="d-line" d="M362 52 H386"/><polygon points="390,52 382,48 382,56" fill="#1A1D18"/>
+        <path class="d-line" d="M510 152 V172"/><polygon points="510,176 506,168 514,168" fill="#1A1D18"/>
+
+        <text class="d-t-m" x="12" y="124">맥이 없어도 맥에서 돌려 본다.</text>
+        <text class="d-t-m" x="12" y="142">공개 저장소면 러너는 무료다.</text>
+        <text class="d-t-m" x="12" y="172">사람이 앉아서 하던 확인을</text>
+        <text class="d-t-m" x="12" y="190">사진과 숫자로 받아 본다.</text>
+      </svg>
+      </div>
+      <p class="fig__hint">↔ 그림은 옆으로 밀어서 보세요</p>
+      <figcaption>
+        조작판 클릭 → 방향키 → 공격·점프 → Esc → 다시 수동 → 적 소환까지 순서대로 밟고, 단계마다 화면을 찍는다.
+      </figcaption>
+    </figure>
+
+    <h4>펫이 독 뒤로 숨었다</h4>
+    <p>
+      첫 사진에서 캐릭터 다리가 독에 잘려 있었다. 창이 "항상 위"인데도. 창 목록을 숫자로 뽑아 보니 이유가 보였다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+      <svg viewBox="0 0 640 262" role="img" aria-label="맥 창 레벨 비교">
+        <text class="d-t-m" x="70" y="14">위로 갈수록 앞에 그려진다</text>
+
+        <text class="d-t-m" x="56" y="44" text-anchor="end">25</text>
+        <rect class="d-box" x="70" y="27" width="250" height="24" rx="2"/>
+        <text class="d-t-s" x="82" y="44">제어 센터</text>
+
+        <text class="d-t-m" x="56" y="78" text-anchor="end">24</text>
+        <rect class="d-box" x="70" y="61" width="250" height="24" rx="2"/>
+        <text class="d-t-s" x="82" y="78">메뉴 막대</text>
+
+        <text class="d-t-m" x="56" y="112" text-anchor="end">21</text>
+        <rect class="d-box-m" x="70" y="95" width="250" height="24" rx="2"/>
+        <text class="d-t" x="82" y="112" font-weight="700">비프리 — 고친 뒤</text>
+
+        <text class="d-t-m" x="56" y="146" text-anchor="end">20</text>
+        <rect class="d-box" x="70" y="129" width="250" height="24" rx="2"/>
+        <text class="d-t-s" x="82" y="146">독</text>
+
+        <text class="d-t-m" x="56" y="180" text-anchor="end">5</text>
+        <rect class="d-dash" x="70" y="163" width="250" height="24" rx="2"/>
+        <text class="d-t-s" x="82" y="180">비프리 — 고치기 전</text>
+
+        <text class="d-t-m" x="56" y="214" text-anchor="end">0</text>
+        <rect class="d-box" x="70" y="197" width="250" height="24" rx="2"/>
+        <text class="d-t-s" x="82" y="214">보통 창</text>
+
+        <!-- 올라간 길 -->
+        <path class="d-line" d="M332 175 V113"/>
+        <polygon points="332,108 328,117 336,117" fill="#1A1D18"/>
+
+        <text class="d-t-s" x="346" y="112">NSWindow에 setLevel 21 — 독 위,</text>
+        <text class="d-t-s" x="346" y="127">메뉴 막대는 안 덮는다</text>
+        <text class="d-t-s" x="346" y="180">"항상 위"의 기본값 — 독보다 아래</text>
+
+        <text class="d-t-m" x="70" y="250">깃허브 맥 러너에서 CGWindowList로 잰 값</text>
+      </svg>
+      </div>
+      <p class="fig__hint">↔ 그림은 옆으로 밀어서 보세요</p>
+      <figcaption>
+        윈도우의 작업표시줄은 보통 창이라 "항상 위" 창이 그 위에 그려진다. 맥의 독은 그보다 높은 층에 산다.
+        Tauri는 그 층을 정할 길을 안 열어 둬서, 맥에서만 NSWindow에 직접 말을 건다.
+      </figcaption>
+    </figure>
+
+    <p>
+      Tauri가 "항상 위" 레벨을 메인 큐에 <strong>비동기로</strong> 거는 탓에, 시작하자마자 한 번 올려 두면
+      나중에 덮어써진다. 잠깐 동안 몇 번 더 눌러 둔다.
+    </p>
+
+    <h4>맥에서만 생긴 것 셋 더</h4>
+    <ul>
+      <li>
+        <strong>메뉴 막대를 차지했다.</strong> 화면 맨 위에 <code>Bfree Pet File Edit View…</code>가 뜨고 독에 아이콘이 생겼다.
+        활성화 정책을 <code>Accessory</code>로 바꿔 트레이에만 살게 했다.
+      </li>
+      <li>
+        <strong><code>Ctrl + 방향키</code>는 맥의 데스크톱 전환이다.</strong> 공격하며 걸으면 화면이 넘어간다.
+        맥에서는 공격 Z · 점프 C로 갈랐다. 키는 <code>e.key</code>가 아니라 <code>e.code</code>로 본다 —
+        한글 입력 상태에서도, 자판 배열이 달라도 자리가 같으면 같은 키다.
+      </li>
+      <li>
+        <strong>발이 독에 잠겼다.</strong> 바닥 높이를 48px로 박아 뒀는데 독이 그보다 컸다.
+        독 크기는 사람마다 다르고, 자동 숨김도 있고, 옆에 붙이기도 한다. 운영체제가 아는
+        <code>work_area</code>(작업표시줄을 뺀 영역)와 화면 아래 끝의 차이를 재서 바닥으로 쓴다.
+        윈도우에서 작업표시줄을 크게 쓰는 사람도 같이 맞아졌다.
+      </li>
+    </ul>
+
+    <h4>점검이 틀렸던 두 번</h4>
+    <p>
+      자동 점검은 처음 두 번 <strong>멀쩡한 걸 고장이라고 했다.</strong> 둘 다 기계가 사람과 다르게 움직여서였다.
+    </p>
+    <ul>
+      <li>
+        <strong>클릭이 바탕화면으로 샜다.</strong> <code>osascript</code>의 클릭은 커서를 순간이동시키고 바로 누른다.
+        펫 창은 커서가 버튼 위에 온 걸 60ms마다 확인하고서야 통과를 끄는데, 그 전에 클릭이 지나가 버렸다.
+        <code>cliclick</code>으로 커서를 먼저 올려놓고 0.6초 기다렸다 누르게 했다. 사람이 마우스를 끌고 오는 시간을 흉내 낸 것이다.
+      </li>
+      <li>
+        <strong>수동을 두 번째로 켜면 키가 안 들어온다고 나왔다.</strong> 요즘 맥은 사용자가 최근에 건드린 앱이 아니면
+        스스로 앞에 나서는 걸 막는다. 점검 코드가 버튼을 안 누르고 내부 신호만 쏴서 재니 막힌 것이다.
+        진짜로 버튼을 누르게 바꾸자 두 번째도 정상이었다.
+      </li>
+    </ul>
+    <p>
+      판정도 눈으로 하지 않았다. 조작판 영역의 주황색 픽셀 수로 수동 on/off를,
+      캐릭터 픽셀의 가로 위치로 이동 방향을, 머리 꼭대기 높이로 점프를 쟀다.
+      눈으로 보면 "움직인 것 같다"에서 멈춘다. 숫자로 보면 오른쪽 키에 +25, 왼쪽 키에 −14, 점프에 46px가 나온다.
+    </p>
+
+    <h3>사고를 줄이는 그물</h3>
+
+    <p>
+      같은 종류의 실수를 세 번 했다. 상수를 쓰는 곳보다 아래에 선언했고(두 번), 없는 함수를 불렀다.
+      셋 다 <strong>문법은 멀쩡하다.</strong> 문법 검사로는 안 걸리고, 읽는 순간에야 스크립트가 통째로 죽는다.
+      마지막 건 맥 스크린샷이 텅 빈 채로 나와서야 알았고, 윈도우에서도 똑같이 죽는 코드였다.
+    </p>
+    <p>
+      그래서 화면 코드를 <strong>실제로 한 번 돌려 보는</strong> 검사를 만들었다. 가짜 DOM을 씌워 브라우저 없이
+      <code>pet.js</code>를 실행하고, 프레임을 30장 밟는다. 윈도우·맥으로 각각 한 번씩.
+    </p>
+    <pre><code>$ node tools/smoke.js
+  통과  윈도우   (점프 Alt / 공격 Ctrl)
+  통과  맥       (점프 C / 공격 Z)</code></pre>
+    <p>
+      이걸 빌드 단계 앞에 끼웠다. 20분짜리 빌드에서 터질 사고가 2초에 걸린다.
+      고치기 전 코드에 돌려 보니 문제의 줄을 정확히 짚었다. 덤으로 매 프레임은 <code>try/catch</code>로 감쌌다.
+      한 줄의 오류로 화면 전체가 얼어붙는 일(적을 지운 다음 줄에서 그 적을 읽는 실수)을 그 전에 세 번 겪었다.
+    </p>
+
+    <h3>배포 — 서명 없이 내보낸다는 것</h3>
+
+    <p>
+      버전 태그를 밀면 깃허브가 컴퓨터 세 대(윈도우, 맥 애플 실리콘, 맥 인텔)를 동시에 빌려 설치 파일을 만들고,
+      릴리스 초안에 올린다. 사람이 확인하고 공개 버튼을 누른다.
+    </p>
+
+    <table>
+      <tr><th></th><th>윈도우</th><th>맥</th></tr>
+      <tr><td>경고</td><td>"일반적으로 다운로드되지 않습니다"</td><td>"확인되지 않은 개발자"</td></tr>
+      <tr><td>넘는 법</td><td>⋯ → 유지 → 그래도 계속</td><td>시스템 설정 → 개인정보 보호 및 보안 → 그래도 열기</td></tr>
+      <tr><td>없애려면</td><td>평판이 쌓여야 한다. 인증서를 사도 바로는 안 된다</td><td>개발자 프로그램 가입 + 공증</td></tr>
+    </table>
+
+    <p>
+      재 보니 재미있는 게 하나 있었다. 엣지에서 <strong>"그래도 계속"</strong>을 누르면 받은 파일에
+      "인터넷에서 온 파일"이라는 표식(Mark of the Web)이 안 붙는다. 실행할 때 뜨는 두 번째 경고(PC 보호 파란 창)는
+      그 표식이 있는 파일에만 뜬다. 그래서 엣지로 받으면 경고가 사실상 한 번이다.
+    </p>
+    <p>
+      다음 단계는 마이크로소프트 스토어다. 이제는 일반 <code>.exe</code> 설치 파일을 그대로 받고,
+      개인 개발자 등록이 무료이며, 스토어로 받으면 이 경고들이 통째로 없다. 인증은 최대 3영업일.
+      다만 설치 중에 인터넷에서 뭘 받아 오면 탈락이라, 웹뷰 런타임을 설치 파일에 넣어야 할 수 있다.
+    </p>
+
+    <h3>유입 — 이걸 왜 만들었나</h3>
+
+    <p>
+      앞으로 만들 앱들을 알릴 인스타그램 계정을 키우는 게 목적이었다. 게임 영상 릴스 하나가 30만 조회를 넘겼는데,
+      그 릴스로 생긴 팔로우는 58명이었다. 숫자를 뜯어 보니 이유가 보였다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+      <svg viewBox="0 0 640 168" role="img" aria-label="릴스에서 설치까지의 유입 흐름">
+        <rect class="d-box" x="8" y="20" width="108" height="60" rx="4"/>
+        <text class="d-t" x="20" y="44" font-weight="700">릴스</text>
+        <text class="d-t-s" x="20" y="62">게임 영상</text>
+
+        <rect class="d-box" x="134" y="20" width="108" height="60" rx="4"/>
+        <text class="d-t" x="146" y="44" font-weight="700">댓글</text>
+        <text class="d-t-s" x="146" y="62">키워드 하나</text>
+
+        <rect class="d-box-m" x="260" y="20" width="108" height="60" rx="4"/>
+        <text class="d-t" x="272" y="44" font-weight="700">자동 DM</text>
+        <text class="d-t-s" x="272" y="62">+ 자동 대댓글</text>
+
+        <rect class="d-box" x="386" y="20" width="108" height="60" rx="4"/>
+        <text class="d-t" x="398" y="44" font-weight="700">링크 페이지</text>
+        <text class="d-t-s" x="398" y="62">설치법 · 문의</text>
+
+        <rect class="d-box" x="512" y="20" width="108" height="60" rx="4"/>
+        <text class="d-t" x="524" y="44" font-weight="700">깃허브</text>
+        <text class="d-t-s" x="524" y="62">설치 파일</text>
+
+        <path class="d-line" d="M116 50 H128"/><polygon points="132,50 124,46 124,54" fill="#1A1D18"/>
+        <path class="d-line" d="M242 50 H254"/><polygon points="258,50 250,46 250,54" fill="#1A1D18"/>
+        <path class="d-line" d="M368 50 H380"/><polygon points="384,50 376,46 376,54" fill="#1A1D18"/>
+        <path class="d-line" d="M494 50 H506"/><polygon points="510,50 502,46 502,54" fill="#1A1D18"/>
+
+        <text class="d-t-m" x="8" y="118">릴스 하나    조회 298,227 · 공유 1.2만 · 댓글 57 · 팔로우 58</text>
+        <text class="d-t-m" x="8" y="138">자동 DM 이후  DM 93 · 읽음 89 · 링크 클릭 79 → 팔로워 132</text>
+      </svg>
+      </div>
+      <p class="fig__hint">↔ 그림은 옆으로 밀어서 보세요</p>
+      <figcaption>
+        댓글이 키워드를 담으면 대댓글과 DM이 자동으로 나간다. DM 버튼은 깃허브가 아니라 링크 페이지로 보낸다 —
+        깃허브 릴리스 화면은 처음 보는 사람에겐 외계 화면이라 설치법을 먼저 보여 줘야 한다.
+      </figcaption>
+    </figure>
+
+    <p>
+      <strong>공유가 1.2만인데 댓글이 57개.</strong> 보고 친구에게 넘기는 영상이지 댓글을 다는 영상이 아니었다.
+      30만 명이 봤는데 팔로우가 안 생긴 건 볼 사람이 없어서가 아니라 <strong>팔로우할 이유와 경로가 없어서</strong>였다.
+      그래서 이유(공짜로 주는 데스크톱 펫)를 만들고, 경로(댓글 하나로 받아 가기)를 깔았다.
+      DM 자동화는 댓글이 방아쇠라, 캡션에서 댓글을 분명히 시켜야 돈다.
+    </p>
+    <p>
+      DM에는 "팔로우했어요" 확인 버튼을 붙였다. 다만 비공개 계정은 팔로우 여부를 확인할 수 없어서
+      팔로우해 놓고도 막히는 사람이 생긴다. 막혀서 욕을 하는 사람을 실제로 만났다.
+      문구에 "계속 안 되면 DM 주세요"라는 출구를 하나 넣었다. 막힌 사람에게 출구가 없으면 분노가 되고,
+      출구가 있으면 답장할 수 있는 메시지가 된다.
+    </p>
+
+    <h3>만드는 방식 — 미리보기 페이지를 따로 둔다</h3>
+
+    <p>
+      앱을 매번 빌드해서 보면 느리다. 같은 로직을 담은 브라우저 미리보기 페이지를 따로 두고,
+      슬라이더로 캐릭터 키·걷는 속도·말풍선 간격 같은 숫자를 맞춘 다음 그 숫자만 앱 설정 파일로 옮겼다.
+      값이 정해지면 그 슬라이더는 미리보기에서 뺐다. <strong>못 바꾸는 값을 조절판에 두면 거짓말이 된다.</strong>
+    </p>
+    <p>
+      대가도 있었다. 미리보기와 앱이 같은 로직의 두 벌이라, 한쪽만 고치고 다른 쪽을 빠뜨린 일이 세 번 있었다.
+      "자동일 땐 키를 안 받는다"를 미리보기에만 넣어서, 앱에서 방향키를 누르면 수동으로 넘어가 버린 게 그중 하나다.
+    </p>
+
+    <h3>정리 — 왜 이 조합인가</h3>
+
+    <table>
+      <tr><th>선택</th><th>이유</th></tr>
+      <tr><td>Tauri</td><td>운영체제 웹뷰를 빌려 6MB. 상주하는 물건은 가벼워야 안 지운다</td></tr>
+      <tr><td>순수 JS</td><td>화면 하나에 상태 하나. 프레임워크가 할 일이 없다</td></tr>
+      <tr><td>클릭 통과 + 커서 감시</td><td>덮고 있으면서 아무것도 안 가린다</td></tr>
+      <tr><td>포커스 가능 여부 전환</td><td>무시하는 것만으론 키가 사라진다</td></tr>
+      <tr><td>창 안 조작판</td><td>트레이 메뉴는 닫히고, 포커스를 뺏는다</td></tr>
+      <tr><td>WebAudio</td><td>&lt;audio&gt;가 오류 없이 멈춰 있었다</td></tr>
+      <tr><td>work_area</td><td>작업표시줄 높이는 사람마다 다르다</td></tr>
+      <tr><td>깃허브 맥 러너</td><td>맥 없이 빌드하고, 맥 없이 눌러 본다</td></tr>
+    </table>
+
+    <p>
+      관통하는 교훈은 하나다. <strong>"안 된다"보다 "조용히 안 된다"가 비싸다.</strong>
+      권한 없는 호출, 열리지 않는 소리, 읽는 순간 죽는 상수 — 이번에 시간을 가장 많이 먹은 건 전부 오류를 내지 않는 것들이었다.
+      그래서 실패를 소리 내게 만드는 장치(경고 로그, 실행 검사, 숫자로 재는 점검)에 손이 가장 많이 갔다.
+    </p>
+
+    <p>
+      소스는 <a href="https://github.com/gmk4513/bfree-pet">github.com/gmk4513/bfree-pet</a>에 있다.
+    </p>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 적을 것</p>
+      <ul>
+        <li>Tauri 2의 권한 모델 — capabilities는 왜 기본이 '전부 막힘'인가</li>
+        <li>코드 서명과 SmartScreen 평판은 어떻게 쌓이나</li>
+        <li>맥의 창 레벨과 활성화 정책 — 앱이 앞에 나설 자격</li>
+        <li>CI에서 GUI를 검증하기 — 사진이 아니라 숫자로</li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

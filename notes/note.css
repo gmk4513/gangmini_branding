@@ -211,6 +211,15 @@
   .fig__hint { display: block; }
 }
 
+/* 실제 화면을 찍은 사진. 그림(SVG)과 같은 틀에 넣는다.
+   width/height 속성을 같이 적어 두면 읽어 오는 동안 자리가 안 흔들린다. */
+.fig .shot {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 3px;
+}
+
 .fig figcaption {
   margin-top: 12px;
   padding-top: 10px;
