@@ -40,11 +40,11 @@ const NOTES = [
 
   {
     slug: "school-diary-stack",
-    title: "학창시절 다이어리 — 무엇으로 만들었나",
-    desc: "앱 하나를 두 스토어에 올리기까지 쓴 것들. Expo부터 결제 중개와 AI 서버까지 한 장으로.",
+    title: "학창시절 다이어리 — 무엇으로, 어떻게 만들었나",
+    desc: "앱 하나를 두 스토어에 올리기까지. 세 번 갈아엎은 줄공책 입력, 데이터를 깨뜨리는 규칙들, 한 번 반려된 심사, 서버가 딱 하나인 이유.",
     date: "2026-10-02",
     cat: "stack",
-    tags: ["Expo", "React Native", "RevenueCat", "Vercel", "SQLite"],
+    tags: ["Expo", "React Native", "Skia", "SQLite", "RevenueCat", "Vercel", "네이티브 모듈"],
     mine: true,
   },
 

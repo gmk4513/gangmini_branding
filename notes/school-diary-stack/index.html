@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 
-<title>학창시절 다이어리 — 무엇으로 만들었나 · gangmin</title>
-<meta name="description" content="앱 하나를 두 스토어에 올리기까지 쓴 것들. Expo부터 결제 중개와 AI 서버까지.">
+<title>학창시절 다이어리 — 무엇으로, 어떻게 만들었나 · gangmin</title>
+<meta name="description" content="앱 하나를 두 스토어에 올리기까지. 세 번 갈아엎은 줄공책 입력, 데이터를 깨뜨리는 규칙들, 한 번 반려된 심사, 서버가 딱 하나인 이유.">
 
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="gangmin">
-<meta property="og:title" content="학창시절 다이어리 — 무엇으로 만들었나">
-<meta property="og:description" content="앱 하나를 두 스토어에 올리기까지 쓴 것들.">
+<meta property="og:title" content="학창시절 다이어리 — 무엇으로, 어떻게 만들었나">
+<meta property="og:description" content="앱 하나를 두 스토어에 올리기까지 쓴 것들과 걸린 것들.">
 <meta property="og:url" content="https://gangmini.com/notes/school-diary-stack/">
 <meta property="og:image" content="https://gangmini.com/cover.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -28,15 +28,17 @@
   <header class="masthead">
     <a class="back" href="/notes/">← 기록</a>
     <p class="eyebrow">STACK</p>
-    <h2 class="masthead__title">학창시절 다이어리<br>— 무엇으로 만들었나</h2>
+    <h2 class="masthead__title">학창시절 다이어리<br>— 무엇으로, 어떻게 만들었나</h2>
     <div class="doc__meta">
       <span class="badge-mine">내 프로젝트</span>
       <span class="tag">스택</span>
       <span class="tag">Expo</span>
       <span class="tag">React Native</span>
+      <span class="tag">Skia</span>
+      <span class="tag">SQLite</span>
       <span class="tag">RevenueCat</span>
       <span class="tag">Vercel</span>
-      <span class="tag">SQLite</span>
+      <span class="tag">네이티브 모듈</span>
       <time class="note__date">2026.10.02</time>
     </div>
   </header>
@@ -44,9 +46,13 @@
   <main class="doc">
 
     <p>
-      초등학교 때 쓰던 그림일기·독후감·급식표를 그 양식 그대로 옮긴 iOS/Android 앱이다.
+      초등학교 때 쓰던 그림일기·독후감·방학숙제·가정통신문·급식표를 그 양식 그대로 옮긴 iOS/Android 앱이다.
       혼자 만들어 두 스토어에 올렸고, 구독 결제가 붙어 있다.
-      여기서는 <strong>무엇을 왜 골랐는지</strong>를 적는다. 기능 설명이 아니라 선택의 기록이다.
+      대상은 실제 초등학생이 아니라 <strong>그 시절을 그리워하는 20~30대</strong>다.
+      그래서 급식표나 가정통신문은 실용 기능이 아니라 그 시절의 형식을 빌린 기록 도구다.
+    </p>
+    <p>
+      여기서는 <strong>무엇을 왜 골랐는지</strong>와, 만들면서 <strong>어디서 걸렸고 어떻게 풀었는지</strong>를 적는다.
     </p>
 
     <h3>전체 그림</h3>
@@ -64,7 +70,7 @@
         <text class="d-t-s" x="42" y="134">화면 · 그림 · 입력</text>
 
         <rect class="d-box" x="30" y="166" width="164" height="54" rx="4"/>
-        <text class="d-t" x="42" y="188">SQLite</text>
+        <text class="d-t" x="42" y="188">SQLite + 파일</text>
         <text class="d-t-s" x="42" y="204">기록 전부가 여기 산다</text>
 
         <rect class="d-box" x="30" y="236" width="164" height="54" rx="4"/>
@@ -104,7 +110,6 @@
         <text class="d-t-m" x="520" y="144">영수증</text>
 
         <text class="d-t-m" x="12" y="376">실선 = 항상  ·  점선 = 조건부</text>
-
       </svg>
       </div>
       <p class="fig__hint">↔ 그림은 옆으로 밀어서 보세요</p>
@@ -120,28 +125,190 @@
       혼자 만들고 두 스토어에 올려야 했다. 네이티브를 두 벌 쓰면 끝나지 않는다.
       Flutter도 후보였지만 <strong>Expo의 빌드·배포 자동화</strong>가 결정적이었다.
       맥이 없어도 클라우드에서 iOS 빌드가 나오고, 명령 한 줄로 스토어까지 올라간다.
+      Expo SDK 57 · React Native 0.86 · React 19.2 기준이다.
     </p>
 
-    <pre><code>eas build -p android --profile production
-eas submit -p android --profile production</code></pre>
+    <pre><code>eas build -p ios --profile production
+eas submit -p ios --latest</code></pre>
 
     <p>
-      대가도 있다. 네이티브 모듈이 필요하면 <code>expo-*</code> 패키지가 있느냐가 먼저고,
-      없으면 직접 만들어야 한다. 이 앱에서도 줄공책 입력은 기성품으로 안 돼서
-      Swift와 Kotlin으로 모듈을 하나 썼다.
+      대가도 있다. 네이티브 기능이 필요하면 <code>expo-*</code> 패키지가 있느냐가 먼저고,
+      없으면 직접 만들어야 한다. 이 앱에서 그렇게 된 게 줄공책 입력이다(아래).
+      또 Skia·Reanimated·RevenueCat이 네이티브 모듈이라 Expo Go로는 안 돌고,
+      내 앱 전용 개발 빌드를 따로 만들어 설치해야 한다.
     </p>
 
-    <h4>Skia를 쓴 이유</h4>
+    <h4>윈도우 노트북 하나로 개발하기</h4>
+    <p>
+      화면은 에뮬레이터에 띄워 두고, 코드를 고치면 1~2초 안에 반영(Fast Refresh)되는 흐름으로 만들었다.
+      거기까지 가는 데 걸린 것들:
+    </p>
+    <ul>
+      <li>
+        <strong>프로젝트 경로에 한글과 공백이 있으면 안드로이드 빌드(Gradle)가 깨진다.</strong>
+        그래서 네이티브 빌드는 <code>C:\dev\</code> 아래 영문 경로 사본에서만 한다.
+        화면 코드는 원본 폴더에서 바로 공급되니, 사본은 네이티브 부분을 바꿀 때만 맞춘다.
+      </li>
+      <li>
+        <strong>앱 이름이 한글이면 빌드 프로젝트 이름에도 한글이 들어가 실패한다.</strong>
+        설정 단계에서 프로젝트 이름만 영문으로 바꿔 끼우는 작은 플러그인을 하나 만들었다.
+      </li>
+      <li>
+        <strong>npm 최신판은 설치 후 실행되는 스크립트를 기본으로 막는다.</strong>
+        Skia는 그 스크립트로 엔진을 내려받아서, 새 환경마다 한 번 허락해 줘야 한다.
+      </li>
+      <li>
+        <strong>에뮬레이터 화면이 검게 깨졌다.</strong> 앱 문제가 아니라 그래픽 처리 방식 문제였다.
+        렌더러를 <code>angle_indirect</code>로 고정했다.
+      </li>
+      <li>
+        <strong>메모리 16GB로는 에뮬레이터와 빌드를 같이 못 돌린다.</strong>
+        빌드할 땐 에뮬레이터를 끄고, 에뮬레이터용 CPU 구조 하나만 빌드해 4배 빨리 끝낸다.
+      </li>
+      <li>
+        <strong>앱을 완전히 껐다 켜면 빈 화면이 떴다.</strong> DB를 여는 부품 안에 화면 이동 장치를 두었더니,
+        이동 장치가 첫 화면보다 늦게 준비됐다. DB 여는 부분을 직접 만들고, "준비될 때까지 기다리기"를 화면 안쪽으로 옮겼다.
+      </li>
+    </ul>
+
+    <h3>홈 — 그림 한 장 위에 버튼을 얹는다</h3>
+
+    <p>
+      홈 화면은 교실 책상이다. 서랍에서 책 다섯 권 중 하나를 꺼내 기록하고, 책상 위 탁상달력을 누르면 달력이 열린다.
+      이 화면 전체가 <strong>852×1846 픽셀 일러스트 한 장</strong>이다. 버튼은 그 위에 투명하게 얹혀 있다.
+    </p>
+    <p>
+      문제는 폰마다 화면 비율이 달라서, 그림이 잘리는 위치도 다르다는 것이다. 그래서 터치 영역을
+      화면 좌표가 아니라 <strong>그림의 픽셀 좌표</strong>로 적어 두고, 그림이 화면에 깔릴 때의 확대 배율과
+      잘린 만큼의 이동량을 코드가 계산해 버튼 위치로 바꾼다. 어떤 폰에서도 버튼이 책 위에 정확히 얹힌다.
+    </p>
+    <p>
+      탁상달력에는 오늘 날짜가 찍힌다. 그런데 달력이 비스듬히 그려져 있어서 숫자도 비스듬해야 한다.
+      그림에서 달력 종이 네 모서리를 재고, Skia로 원근을 적용한 이미지를 만들어 그 자리에 얹는다.
+      한국 시간 자정이 지나거나 앱으로 돌아오면 날짜가 바뀐다.
+    </p>
+
+    <h3>가장 오래 걸린 것 — 줄공책 입력</h3>
+
+    <p>
+      일기와 독후감은 줄공책 위에 쓴다. 글자가 종이의 줄 위에 정확히 올라앉아야 한다.
+      기능 목록에서는 한 줄짜리인데, 이 앱에서 가장 오래 붙잡은 일이다. 두 가지가 계속 깨졌다.
+    </p>
+    <ul>
+      <li><strong>줄이 어긋난다.</strong> 첫 줄은 맞는데 아래로 갈수록 글줄과 종이 줄이 조금씩 벌어진다.</li>
+      <li><strong>중간 글자를 지우면 다른 글이 사라진다.</strong> 한글은 자음·모음이 조합되는 중간 상태가 있어서 더 잘 깨졌다.</li>
+    </ul>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+      <svg viewBox="0 0 640 230" role="img" aria-label="줄공책 입력을 세 번 다시 만든 과정">
+        <!-- 1차 -->
+        <rect class="d-box" x="12" y="20" width="196" height="196" rx="5"/>
+        <text class="d-t" x="26" y="44" font-weight="700">1차 — 기본 입력창</text>
+        <text class="d-t-s" x="26" y="68">줄 간격 숫자를 종이에 맞춤</text>
+        <text class="d-t-s" x="26" y="88">글자를 칠 때마다</text>
+        <text class="d-t-s" x="26" y="106">전체 글을 다시 넣음</text>
+        <path class="d-dash" d="M26 150 H194"/>
+        <text class="d-t" x="26" y="174">아래로 갈수록 어긋남</text>
+        <text class="d-t" x="26" y="194">중간 삭제 때 글 유실</text>
+
+        <!-- 2차 -->
+        <rect class="d-box" x="222" y="20" width="196" height="196" rx="5"/>
+        <text class="d-t" x="236" y="44" font-weight="700">2차 — 숨은 입력창으로 재기</text>
+        <text class="d-t-s" x="236" y="68">안 보이는 입력창 두 개로</text>
+        <text class="d-t-s" x="236" y="88">1줄 · 9줄 높이를 잼</text>
+        <text class="d-t-s" x="236" y="106">(9줄 − 1줄) ÷ 8 = 실제 행간</text>
+        <text class="d-t-s" x="236" y="124">글은 처음에 한 번만 넣음</text>
+        <path class="d-dash" d="M236 150 H404"/>
+        <text class="d-t" x="236" y="174">삭제는 나아짐</text>
+        <text class="d-t" x="236" y="194">폰에서 줄은 여전히 어긋남</text>
+
+        <!-- 3차 -->
+        <rect class="d-box-m" x="432" y="20" width="196" height="196" rx="5"/>
+        <text class="d-t" x="446" y="44" font-weight="700">3차 — 네이티브 모듈</text>
+        <text class="d-t-s" x="446" y="68">iOS는 UITextView</text>
+        <text class="d-t-s" x="446" y="88">Android는 EditText</text>
+        <text class="d-t-s" x="446" y="106">입력창이 아는 실제 줄 좌표에</text>
+        <text class="d-t-s" x="446" y="124">종이 줄을 그림</text>
+        <path class="d-dash" d="M446 150 H614"/>
+        <text class="d-t" x="446" y="174" font-weight="700">글줄과 종이 줄이 일치</text>
+        <text class="d-t" x="446" y="194">한글 조합도 OS가 처리</text>
+
+        <path class="d-line" d="M208 118 H216"/><polygon points="220,118 214,114 214,122" fill="#1A1D18"/>
+        <path class="d-line" d="M418 118 H426"/><polygon points="430,118 424,114 424,122" fill="#1A1D18"/>
+      </svg>
+      </div>
+      <p class="fig__hint">↔ 그림은 옆으로 밀어서 보세요</p>
+      <figcaption>
+        1·2차는 "글자가 어디 찍힐지 짐작해서 줄을 그리는" 방식이었다. 3차는 짐작을 그만두고 입력창한테 직접 물었다.
+      </figcaption>
+    </figure>
+
+    <h4>왜 짐작이 안 맞았나</h4>
+    <p>
+      손글씨 폰트(개구체) 파일을 열어 보면 줄과 줄 사이에 글자 크기의 25%만큼 여백(lineGap)이 들어 있다.
+      이 여백을 iOS와 안드로이드가 다르게 처리하고, 같은 플랫폼에서도 입력창과 일반 글자가 다르게 처리한다.
+      그래서 "줄 간격 숫자가 같다"는 것만으로는 화면에서 같은 간격이라는 보장이 없다.
+      2차에서 실제 높이를 재서 맞췄는데도 폰에서 어긋난 건, 잰 대상(숨은 입력창)과 실제로 글을 쓰는 입력창이 미묘하게 달랐기 때문으로 본다.
+    </p>
+
+    <h4>3차 — 입력창한테 직접 묻는다</h4>
+    <p>
+      iOS의 <code>UITextView</code>는 글자를 배치할 때 줄마다 위치(line fragment)를 계산해 둔다.
+      안드로이드의 <code>EditText</code>도 줄마다 끝 좌표를 갖고 있다. 이 값을 그대로 받아 그 위치에 종이 줄을 그리면
+      <strong>짐작이 아니라 실제</strong>가 된다. 그래서 Swift와 Kotlin으로 입력 모듈(<code>NotebookInput</code>)을 하나 만들었다.
+    </p>
+    <ul>
+      <li>입력창은 일기 전체가 <strong>하나</strong>다. 줄마다 쪼개면 한글 조합과 붙여넣기가 깨진다.</li>
+      <li>처음 글을 한 번 넣고 나면, 쓰는 동안은 <strong>JS가 입력창에 아무것도 다시 넣지 않는다.</strong> 조합·커서·삭제는 OS가 맡고, JS는 저장할 내용만 받아 적는다. 중간 삭제 문제가 여기서 끝났다.</li>
+      <li>글이 길어지면 입력창 높이를 네이티브 쪽에서 계산해 종이를 같이 늘리고, 커서가 키보드 밑으로 내려가면 바깥 페이지를 스크롤한다. 종이와 글이 함께 움직인다.</li>
+    </ul>
+    <p class="gloss">
+      <b>네이티브 모듈</b> — React Native 앱의 화면 코드는 JavaScript로 쓰지만, 그 아래에서 실제로 화면을 그리는 건
+      iOS(Swift)·안드로이드(Kotlin)의 원래 부품이다. JavaScript가 할 수 없는 일을 하려면 그 원래 부품을 직접 다루는
+      코드를 두 언어로 따로 써서 JavaScript 쪽에 연결해야 한다. 그 연결된 덩어리가 네이티브 모듈이다.
+    </p>
+
+    <h4>같은 구간에서 만난 것 둘</h4>
+    <ul>
+      <li>
+        <strong>iOS에서 책 제목의 받침이 잘렸다.</strong> 한 줄짜리 입력창에 줄 간격을 지정하면 iOS가 글자 아래쪽을 잘라 그린다.
+        한 줄 입력에서는 줄 간격을 빼고, 높이를 고정한 뒤 아래 여백으로 글자를 살짝 올렸다.
+      </li>
+      <li>
+        <strong>'왤·풜·퉐'만 다른 글씨체로 나왔다.</strong> 입력 오류인 줄 알았는데, 폰트 파일을 열어 보니
+        현대 한글 11,172자 중 <strong>2,350자</strong>만 들어 있었다. 없는 글자는 OS가 다른 폰트로 대신 그린다.
+        코드로 고칠 수 있는 문제가 아니라, 글자를 보충한 폰트가 있어야 하는 문제다.
+      </li>
+    </ul>
+
+    <h3>그림 — Skia와 크레파스</h3>
+
     <p>
       크레파스 질감은 이미지로 흉내 낼 수 없다. 획이 겹치는 곳마다 입자가 다르게 쌓여야 한다.
-      그래서 셰이더를 직접 쓸 수 있는 Skia를 얹었다. 이 앱에서 기술적으로 가장 비싼 부분이고,
+      그래서 셰이더를 직접 쓸 수 있는 Skia를 얹었다. 선택한 색은 유지하면서 종이 결이 비치게 하고,
+      덧칠하면 진해지고 가장자리에는 옅은 층이 생긴다. 이 앱에서 기술적으로 가장 비싼 부분이고,
       동시에 사람들이 가장 먼저 알아보는 부분이다.
+    </p>
+
+    <h4>지우개가 지워야 할 것은 '획'이 아니라 '픽셀'</h4>
+    <p>
+      처음엔 지우개가 지나간 획을 통째로 없앴다. 크레파스로 칠한 면 일부만 지우고 싶을 때 그게 안 된다.
+      지우개를 "지나간 자리의 픽셀을 투명하게 만드는" 방식으로 바꿨다.
+    </p>
+    <p>
+      그러자 다른 데서 깨졌다. 그림을 PNG로 내보내도 공용 이미지 저장 함수가 <strong>JPEG로 바꿔 저장</strong>하고 있었다.
+      JPEG에는 투명이 없어서 지운 자리가 흰색으로 메워졌다. 그림 원본과 썸네일은 PNG로 따로 보관하게 했다.
+    </p>
+    <p>
+      또 그림을 이미지 한 장으로만 저장하면 다시 열었을 때 되돌리기가 안 된다. 미리보기 이미지와 함께
+      <strong>획·색·굵기·지우개·되돌리기 위치를 JSON으로</strong> 저장한다. 다시 열어도 되돌리기와 다시 하기가 이어진다.
     </p>
 
     <h3>데이터 — 서버가 없다</h3>
 
     <p>
-      회원가입이 없고 모든 기록은 기기의 SQLite에만 있다. 서버에 사용자 데이터를 두지 않았다.
+      회원가입이 없고 모든 기록은 기기의 SQLite와 파일에만 있다. 서버에 사용자 데이터를 두지 않았다.
     </p>
 
     <table>
@@ -153,14 +320,43 @@ eas submit -p android --profile production</code></pre>
 
     <p>
       일기는 사람이 쓰는 글 중 가장 내밀하다. "우리 서버에 없다"고 말할 수 있는 쪽이
-      이 앱에서는 기능 하나보다 값지다고 봤다.
+      이 앱에서는 기능 하나보다 값지다고 봤다. 대신 설정에 내보내기·불러오기를 두었다.
     </p>
+
+    <h4>어기면 데이터가 깨지는 규칙 넷</h4>
+    <p>
+      기기 안에만 데이터가 있으면 서버에서 고쳐 줄 수가 없다. 한 번 잘못 저장되면 그 사람 폰에서 영영 잘못된 채로 남는다.
+      그래서 처음부터 못 박아 둔 규칙이 있다.
+    </p>
+
+    <table>
+      <tr><th>규칙</th><th>어기면</th></tr>
+      <tr><td>날짜는 한국 시간으로만</td><td>보통 쓰는 날짜 함수는 세계 표준시(UTC)를 준다. <strong>오전 9시 전에 쓴 일기가 전날로 저장된다.</strong> 밤에 쓰는 일기 앱에서 치명적이다</td></tr>
+      <tr><td>사진 경로는 상대 경로로</td><td>iOS는 앱을 업데이트하면 앱 폴더의 절대 경로가 바뀐다. 절대 경로를 저장했다면 <strong>업데이트 직후 사진이 전부 깨진다</strong></td></tr>
+      <tr><td>DB 변경은 추가만</td><td>이미 배포한 변경을 고치면 기존 사용자에겐 다시 실행되지 않는다. 새로 깐 사람과 원래 쓰던 사람의 DB 구조가 갈라진다</td></tr>
+      <tr><td>지우는 건 표시만</td><td>바로 지우면 되돌릴 수 없다. 지운 시각만 적어 두고, 파일은 30일 뒤에 정리한다</td></tr>
+    </table>
+
+    <h3>자잘하지만 손에 걸리던 것들</h3>
+
+    <p>
+      폰에서 직접 써 보며 나온 피드백들이다. 하나하나는 작은데, 고치기 전엔 앱이 고장 난 것처럼 느껴졌다.
+    </p>
+
+    <table>
+      <tr><th>증상</th><th>원인과 고침</th></tr>
+      <tr><td>시간 휠이 멈춘다</td><td>값이 바뀌면 휠을 굴리고, 휠이 구르면 값을 바꾸는 <strong>되먹임 고리</strong>가 있었다. 구르는 동안은 값을 읽기만 하고, 칸에 맞추는 건 OS의 스냅 기능에 맡겼다</td></tr>
+      <tr><td>종이가 늦게 뜬다</td><td>안드로이드 이미지에는 기본 0.3초 페이드가 있고, 종이 이미지가 장당 2MB가 넘어 해석에도 시간이 든다. 첫 로딩 화면 동안 미리 읽어 두고(최대 4초), 페이드는 껐다</td></tr>
+      <tr><td>도장이 사라진다</td><td>다시 열면 도장이 안 보였다. 도장 표시를 애니메이션 값에 기대고 있었다. 저장된 도장은 일반 상태로 그리고, 방금 찍은 도장만 애니메이션한다</td></tr>
+      <tr><td>키보드가 바로 닫힌다</td><td>"바깥을 누르면 키보드 닫기" 로직이 아직 포커스 안 된 입력창의 첫 탭을 '바깥'으로 셌다</td></tr>
+      <tr><td>확대가 끊긴다</td><td>방학숙제 포스터의 제스처를 직접 계산하던 방식에서, 이동·확대·회전을 동시에 인식하는 제스처 라이브러리로 바꿨다. 두 손가락 중 하나를 떼도 이동이 이어진다</td></tr>
+    </table>
 
     <h3>수익화 — 돈이 도는 순서</h3>
 
     <p>
       설치하면 7일 동안 전부 열린다. <strong>결제 정보를 넣지 않아도</strong> 쓸 수 있다.
-      이 7일은 스토어 기능이 아니라 앱이 직접 센다. 설치 시각을 기기에 적어두고 비교한다.
+      이 7일은 스토어 기능이 아니라 앱이 직접 센다. 첫 실행 시각을 기기에 적어두고 비교한다.
       7일이 지나면 새 기록을 쓸 때 구독 화면이 뜬다. 이미 쓴 기록은 계속 보고 내보낼 수 있다.
     </p>
 
@@ -193,9 +389,23 @@ eas submit -p android --profile production</code></pre>
       </div>
       <p class="fig__hint">↔ 그림은 옆으로 밀어서 보세요</p>
       <figcaption>
-        구독 상품은 월간·연간·평생 셋. 연간에만 스토어의 7일 무료 체험이 붙어 있다.
+        상품은 월간 2,200원 · 연간 9,900원 · 평생 19,000원 셋. 연간에만 스토어의 7일 무료 체험이 붙어 있다.
+        평생권은 구독이 아니라 한 번 사면 끝나는 인앱 구입으로 따로 등록해야 한다.
       </figcaption>
     </figure>
+
+    <h4>7일 체험을 앱이 세게 된 이유 — 한 번 뒤집은 결정</h4>
+    <p>
+      처음엔 체험을 스토어에만 맡겼다. 앱이 날짜를 세면 지웠다 다시 깔 때 초기화되기 때문이다.
+      그런데 출시 직전에 다시 보니, 스토어 체험은 <strong>사용자가 구독 화면에서 연간을 골라야</strong> 시작된다.
+      그 전까지는 무료 사용자라 <strong>다운로드하자마자 새 기록을 하나도 못 쓰는</strong> 구조였다.
+      써 보지도 못한 앱에 결제할 사람은 없다.
+    </p>
+    <p>
+      그래서 앱이 직접 7일을 세는 체험을 더했다. 재설치로 초기화되는 약점은 그대로지만,
+      재설치하면 <strong>기록도 함께 사라지므로</strong> 그걸 반복할 사람은 드물다고 보고 감수했다.
+      두 체험은 겹쳐서 쓸 수 있다. 7일 써 보고, 연간을 고르면 스토어 체험 7일이 더 붙는다.
+    </p>
 
     <h4>RevenueCat을 왜 끼웠나</h4>
     <p>
@@ -209,6 +419,36 @@ eas submit -p android --profile production</code></pre>
       즉 <strong>안 벌면 안 내는 비용</strong>이라 혼자 시작할 때 유리하다.
     </p>
 
+    <h3>심사 — 한 번 반려됐다</h3>
+
+    <p>
+      첫 제출은 Apple 심사 가이드라인 2.1(b) <strong>"앱 완성도"</strong>로 반려됐다.
+      심사자가 구독 화면에 들어갔는데 <strong>살 수 있는 상품이 없었다</strong>는 이유였다.
+    </p>
+    <p>
+      상품은 다 만들어 두었고 상태도 "제출 준비 완료"였다. 그런데 App Store Connect에서 인앱 상품은
+      <strong>앱 버전과 같은 제출 건에 함께 담아야</strong> 심사에 들어간다. 준비만 해 두면 앱만 올라가고 상품은 빠진다.
+      이번 경우엔 다섯 개를 다 담아야 제출 버튼이 켜졌다.
+    </p>
+    <ul>
+      <li>iOS 앱 버전 1.0</li>
+      <li>구독 그룹 "프리미엄"</li>
+      <li>월간 · 연간 구독 — <strong>그룹만 넣으면 안 되고 하나씩 각각</strong></li>
+      <li>평생권 (인앱 구입)</li>
+    </ul>
+    <p>
+      반려 메일에 "새 바이너리를 올려라"는 문구가 있지만 정형 문구였다. 앱을 다시 빌드하지 않고 담아서 다시 내는 것으로 끝났다.
+    </p>
+
+    <h4>심사 전에 정리한 것들</h4>
+    <ul>
+      <li><strong>앱 이름</strong> — 처음엔 키워드를 늘어놓은 이름이었다. 이름에 검색어를 쌓으면 반려 사유(2.3.7)가 될 수 있어 "학창시절 다이어리"로 줄였다.</li>
+      <li><strong>아이패드는 껐다</strong> — 켜 두면 아이패드용 화면과 스크린샷까지 갖춰야 한다. 아이폰 전용으로 냈다.</li>
+      <li><strong>약관·개인정보처리방침</strong> — 앱 안에서도 보이고, 스토어가 요구하는 공개 주소도 있어야 한다. 문서 원본 하나에서 둘 다 만들고, 시행일은 상수 하나로 관리한다.</li>
+      <li><strong>"앱 개인정보" 신고</strong> — 일기 본문은 처리 후 바로 버리니 수집이 아니다. 하지만 RevenueCat이 구매 내역과 기기 식별자를 받으므로 그건 신고했다.</li>
+      <li><strong>스크린샷</strong> — 에뮬레이터 DB에 예시 기록을 직접 넣고 캡처한 뒤, 문구와 폰 테두리를 입히는 스크립트로 9장을 만들었다.</li>
+    </ul>
+
     <h3>AI — 서버가 딱 하나 있는 이유</h3>
 
     <p>
@@ -216,6 +456,51 @@ eas submit -p android --profile production</code></pre>
       <strong>API 키를 앱에 넣을 수는 없다.</strong> 앱 번들은 전부 뜯어볼 수 있다. 예외 없다.
       그래서 Vercel에 함수 하나만 뒀다. 이 앱에서 서버라고 부를 만한 건 이것뿐이다.
     </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+      <svg viewBox="0 0 640 238" role="img" aria-label="선생님 한마디가 만들어지는 흐름">
+        <rect class="d-box" x="12" y="92" width="112" height="52" rx="4"/>
+        <text class="d-t" x="24" y="114" font-weight="700">저장</text>
+        <text class="d-t-s" x="24" y="132">글이 5자 이상</text>
+
+        <rect class="d-box" x="150" y="92" width="118" height="52" rx="4"/>
+        <text class="d-t" x="162" y="114" font-weight="700">AI 사용 동의?</text>
+        <text class="d-t-s" x="162" y="132">처음 저장 때 한 번</text>
+
+        <rect class="d-box-m" x="300" y="92" width="136" height="52" rx="4"/>
+        <text class="d-t" x="312" y="114" font-weight="700">Vercel 함수</text>
+        <text class="d-t-s" x="312" y="132">키 숨김 · 글 분류</text>
+
+        <rect class="d-box" x="474" y="20" width="150" height="48" rx="4"/>
+        <text class="d-t" x="486" y="40" font-weight="700">normal · heavy</text>
+        <text class="d-t-s" x="486" y="57">한두 문장 한마디</text>
+
+        <rect class="d-box-m" x="474" y="94" width="150" height="48" rx="4"/>
+        <text class="d-t" x="486" y="114" font-weight="700">crisis</text>
+        <text class="d-t-s" x="486" y="131">한마디 대신 상담 안내</text>
+
+        <rect class="d-box" x="474" y="168" width="150" height="48" rx="4"/>
+        <text class="d-t" x="486" y="188" font-weight="700">실패 · 8초 초과</text>
+        <text class="d-t-s" x="486" y="205">미리 써 둔 응원 문구</text>
+
+        <path class="d-line" d="M124 118 H144"/><polygon points="148,118 140,114 140,122" fill="#1A1D18"/>
+        <path class="d-line" d="M268 118 H294"/><polygon points="298,118 290,114 290,122" fill="#1A1D18"/>
+        <text class="d-t-m" x="276" y="110">예</text>
+
+        <path class="d-line" d="M436 118 H468"/><polygon points="472,118 464,114 464,122" fill="#1A1D18"/>
+        <path class="d-line" d="M436 104 H452 V44 H468"/><polygon points="472,44 464,40 464,48" fill="#1A1D18"/>
+        <path class="d-line" d="M436 132 H452 V192 H468"/><polygon points="472,192 464,188 464,196" fill="#1A1D18"/>
+
+        <path class="d-dash" d="M209 144 V178"/>
+        <text class="d-t-m" x="150" y="196">아니오 → 본문을 보내지 않음</text>
+      </svg>
+      </div>
+      <p class="fig__hint">↔ 그림은 옆으로 밀어서 보세요</p>
+      <figcaption>
+        본문은 사용자가 켰을 때만 나간다. 서버는 받은 글로 한마디를 만들고 바로 버린다. 디버깅 기록에도 본문은 남기지 않는다.
+      </figcaption>
+    </figure>
 
     <p>그 함수가 하는 일은 셋이다.</p>
     <ul>
@@ -227,9 +512,42 @@ eas submit -p android --profile production</code></pre>
     <p>
       두 번째가 핵심이다. 일기는 힘든 날에 더 많이 쓰인다.
       "다 그만두고 싶다"에 "오늘도 즐거웠구나!"가 붙으면 그건 위로가 아니라 무시다.
-      그래서 분류를 한 단계 두고, 심각한 신호에는 한마디를 만들지 않고
-      도움받을 곳을 안내하는 화면으로 넘긴다. 기능이 아니라 최소한의 책임에 가깝다.
+      그래서 분류를 한 단계 두고, <code>heavy</code>에는 들뜬 말투 대신 담담하게 공감하고,
+      <code>crisis</code>에는 한마디를 만들지 않고 도장도 찍지 않은 채 상담 전화 카드(누르면 바로 연결)를 보여 준다.
+      기능이 아니라 최소한의 책임에 가깝다.
     </p>
+
+    <h4>한마디의 기준</h4>
+    <ul>
+      <li>초등학교 담임 선생님 말투로 1~2문장, 40자 안팎</li>
+      <li>글에 실제로 나온 내용 하나를 <strong>구체적으로</strong> 짚는다 — 아무 글에나 붙는 칭찬은 금방 들킨다</li>
+      <li>채점·맞춤법 지적·훈계는 하지 않는다</li>
+      <li>글을 고쳐서 다시 저장하면 한마디도 새로 받는다</li>
+    </ul>
+
+    <h4>지키는 장치</h4>
+    <ul>
+      <li>빠르고 싼 모델(Claude Haiku)을 쓴다. 한마디 한두 문장에 큰 모델은 필요 없다</li>
+      <li>서울 지역 엣지 함수로 띄워 응답을 빨리 받는다</li>
+      <li>인증 없는 공개 주소라, 같은 곳에서 분당 10회 · 본문 16KB · 앞 2,000자까지만 받는다</li>
+      <li>8초 안에 답이 없거나 실패하면 미리 써 둔 응원 문구로 대신한다. 이때는 "기본 문구"라고 따로 표시한다 — 글을 읽은 척하지 않기 위해서다</li>
+    </ul>
+
+    <h3>기획과 다르게 만든 것</h3>
+
+    <p>
+      처음 기획 그림과 다른 부분이다. 이유가 있어서 바꿨다.
+    </p>
+
+    <table>
+      <tr><th>기획</th><th>바꾼 것과 이유</th></tr>
+      <tr><td>하단 탭바</td><td>없앴다. 서랍·달력·설정이 이미 교실 화면 안에 있어서 전부 중복이고, 탭바가 교실을 가린다</td></tr>
+      <tr><td>급식표 월~금</td><td>일~토. 하루 세 끼를 적는데 주말이 빠지면 기록이 끊긴다</td></tr>
+      <tr><td>원고지 칸</td><td>가로줄만. 글자마다 폭이 다른 손글씨 폰트는 칸에 안 맞아서 어긋남이 더 거슬린다</td></tr>
+      <tr><td>도장은 AI 검사 후</td><td>저장하면 무조건 찍는다. 도장을 못 받는 경험은 이 앱에서 즐겁지 않다</td></tr>
+      <tr><td>체크리스트 장식</td><td>누르면 그 주제로 방학숙제가 시작된다. 눌러도 아무 일이 없으면 죽은 화면이다</td></tr>
+      <tr><td>체험 후 전부 잠금</td><td>새 기록 쓰기만 잠근다. 이미 쓴 기록을 못 보게 하면 환불과 악평의 원인이 된다</td></tr>
+    </table>
 
     <h3>정리 — 왜 이 조합인가</h3>
 
@@ -238,6 +556,7 @@ eas submit -p android --profile production</code></pre>
       <tr><td>Expo</td><td>혼자서 두 스토어. 빌드·제출 자동화가 결정적</td></tr>
       <tr><td>SQLite</td><td>서버 비용 0. 유출될 데이터가 없다</td></tr>
       <tr><td>Skia</td><td>크레파스 질감은 이미지로 흉내 낼 수 없다</td></tr>
+      <tr><td>네이티브 입력 모듈</td><td>줄공책 줄은 짐작이 아니라 입력창한테 물어야 맞는다</td></tr>
       <tr><td>RevenueCat</td><td>구독 생애주기를 서버 없이 넘긴다</td></tr>
       <tr><td>Vercel 함수</td><td>API 키를 가리는 최소한의 서버</td></tr>
     </table>
@@ -247,6 +566,11 @@ eas submit -p android --profile production</code></pre>
       서버를 늘리면 비용이 늘고, 비용이 늘면 멈추게 된다.
       그래서 서버가 꼭 필요한 곳(키 숨기기)에만 두고 나머지는 전부 기기 안이나 남의 서비스에 맡겼다.
     </p>
+    <p>
+      그리고 하나 더 배웠다. <strong>짐작으로 맞춘 건 다른 폰에서 깨진다.</strong>
+      줄공책의 줄, 홈 화면의 버튼 위치, 탁상달력의 원근 — 오래 붙잡은 것들은 전부
+      "대충 이쯤"을 그만두고 실제 값을 재서 쓰자 풀렸다.
+    </p>
 
     <aside class="rel">
       <p class="rel__head">이어서 적을 것</p>
@@ -254,6 +578,7 @@ eas submit -p android --profile production</code></pre>
         <li>RevenueCat 없이 직접 영수증을 검증하면 무슨 일이 생기나</li>
         <li>스토어 수수료 15% / 30%는 어떻게 갈리나</li>
         <li>서버리스 함수는 어디에 쓰고 어디에 쓰면 안 되나</li>
+        <li>폰트의 lineGap과 플랫폼별 줄 간격 처리</li>
       </ul>
     </aside>
 
