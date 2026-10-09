@@ -29,6 +29,16 @@ const CATS = [
 const NOTES = [
 
   {
+    slug: "bamti-bomb",
+    title: "Bamti Bomb — 서버가 판정하지 않는 온라인 대전",
+    desc: "껌으로 붙여 잡는 2인 대전 게임. 기획서의 서버 권위를 버리고 방장 권위 + WebRTC 직통 + 소유권 분할로 간 이유와, 재 보고 뺀 것들.",
+    date: "2026-10-10",
+    cat: "stack",
+    tags: ["WebRTC", "WebSocket", "Node.js", "Fly.io", "JavaScript", "Claude Design"],
+    mine: true,
+  },
+
+  {
     slug: "snake-pet",
     title: "Snake Pet — 사진 속 뱀을 바탕화면에 풀어놓기",
     desc: "사진에서 벗겨 낸 뱀 피부를 척추에 입혀 화면 위를 기어다니게. 브라우저 프로토타입에서 Tauri 앱까지, 클릭 통과의 닭과 달걀 문제와 유휴 CPU 0.8%.",
