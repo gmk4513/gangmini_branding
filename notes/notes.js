@@ -29,40 +29,10 @@ const CATS = [
 const NOTES = [
 
   {
-    slug: "bamti-bomb",
-    title: "Bamti Bomb — 서버가 판정하지 않는 온라인 대전",
-    desc: "껌으로 붙여 잡는 2인 대전 게임. 기획서의 서버 권위를 버리고 방장 권위 + WebRTC 직통 + 소유권 분할로 간 이유와, 재 보고 뺀 것들.",
-    date: "2026-10-10",
-    cat: "stack",
-    tags: ["WebRTC", "WebSocket", "Node.js", "Fly.io", "JavaScript", "Claude Design"],
-    mine: true,
-  },
-
-  {
-    slug: "snake-pet",
-    title: "Snake Pet — 사진 속 뱀을 바탕화면에 풀어놓기",
-    desc: "사진에서 벗겨 낸 뱀 피부를 척추에 입혀 화면 위를 기어다니게. 브라우저 프로토타입에서 Tauri 앱까지, 클릭 통과의 닭과 달걀 문제와 유휴 CPU 0.8%.",
-    date: "2026-10-10",
-    cat: "stack",
-    tags: ["Tauri", "Rust", "Canvas", "WebView", "Claude Design"],
-    mine: true,
-  },
-
-  {
-    slug: "bfree-construction",
-    title: "학사모 비프리의 아파트 건설현장 — 버튼 두 개짜리 무한 계단",
-    desc: "빌드 없는 캔버스 게임과, 남는 서버에 얹은 순위표. 폰에서만 생기는 문제들과 요청 한 번에 서버가 죽은 이야기까지.",
-    date: "2026-10-09",
-    cat: "stack",
-    tags: ["Canvas", "JavaScript", "Node.js", "Fly.io", "Cloudflare Pages"],
-    mine: true,
-  },
-
-  {
     slug: "bfree-desktop-pet",
     title: "학사모 비프리 데스크톱 펫 — 바탕화면에 캐릭터를 살게 하기",
     desc: "모니터만 한 투명 창 하나로 바탕화면에 사는 캐릭터를. 클릭 통과, 키보드 소유권, 맥 없이 맥 검증하기까지.",
-    date: "2026-10-09",
+    date: "2026-10-07",
     cat: "stack",
     tags: ["Tauri", "Rust", "WebView", "GitHub Actions", "macOS"],
     mine: true,
@@ -72,9 +42,39 @@ const NOTES = [
     slug: "school-diary-stack",
     title: "학창시절 다이어리 — 무엇으로, 어떻게 만들었나",
     desc: "앱 하나를 두 스토어에 올리기까지. 세 번 갈아엎은 줄공책 입력, 데이터를 깨뜨리는 규칙들, 한 번 반려된 심사, 서버가 딱 하나인 이유.",
-    date: "2026-10-02",
+    date: "2026-09-23",
     cat: "stack",
     tags: ["Expo", "React Native", "Skia", "SQLite", "RevenueCat", "Vercel", "네이티브 모듈"],
+    mine: true,
+  },
+
+  {
+    slug: "bfree-construction",
+    title: "학사모 비프리의 아파트 건설현장 — 버튼 두 개짜리 무한 계단",
+    desc: "빌드 없는 캔버스 게임과, 남는 서버에 얹은 순위표. 폰에서만 생기는 문제들과 요청 한 번에 서버가 죽은 이야기까지.",
+    date: "2026-09-11",
+    cat: "stack",
+    tags: ["Canvas", "JavaScript", "Node.js", "Fly.io", "Cloudflare Pages"],
+    mine: true,
+  },
+
+  {
+    slug: "snake-pet",
+    title: "Snake Pet — 사진 속 뱀을 바탕화면에 풀어놓기",
+    desc: "사진에서 벗겨 낸 뱀 피부를 척추에 입혀 화면 위를 기어다니게. 브라우저 프로토타입에서 Tauri 앱까지, 클릭 통과의 닭과 달걀 문제와 유휴 CPU 0.8%.",
+    date: "2026-09-07",
+    cat: "stack",
+    tags: ["Tauri", "Rust", "Canvas", "WebView", "Claude Design"],
+    mine: true,
+  },
+
+  {
+    slug: "bamti-bomb",
+    title: "Bamti Bomb — 서버가 판정하지 않는 온라인 대전",
+    desc: "껌으로 붙여 잡는 2인 대전 게임. 기획서의 서버 권위를 버리고 방장 권위 + WebRTC 직통 + 소유권 분할로 간 이유와, 재 보고 뺀 것들.",
+    date: "2026-08-19",
+    cat: "stack",
+    tags: ["WebRTC", "WebSocket", "Node.js", "Fly.io", "JavaScript", "Claude Design"],
     mine: true,
   },
 
