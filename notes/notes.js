@@ -29,6 +29,16 @@ const CATS = [
 const NOTES = [
 
   {
+    slug: "snake-pet",
+    title: "Snake Pet — 사진 속 뱀을 바탕화면에 풀어놓기",
+    desc: "사진에서 벗겨 낸 뱀 피부를 척추에 입혀 화면 위를 기어다니게. 브라우저 프로토타입에서 Tauri 앱까지, 클릭 통과의 닭과 달걀 문제와 유휴 CPU 0.8%.",
+    date: "2026-10-10",
+    cat: "stack",
+    tags: ["Tauri", "Rust", "Canvas", "WebView", "Claude Design"],
+    mine: true,
+  },
+
+  {
     slug: "bfree-construction",
     title: "학사모 비프리의 아파트 건설현장 — 버튼 두 개짜리 무한 계단",
     desc: "빌드 없는 캔버스 게임과, 남는 서버에 얹은 순위표. 폰에서만 생기는 문제들과 요청 한 번에 서버가 죽은 이야기까지.",

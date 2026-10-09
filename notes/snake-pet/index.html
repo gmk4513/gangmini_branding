@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>Snake Pet — 사진 속 뱀을 바탕화면에 풀어놓기 · gangmin</title>
+<meta name="description" content="사진에서 벗겨 낸 뱀 피부를 척추에 입혀 화면 위를 기어다니게 했다. 브라우저 프로토타입에서 Tauri 데스크톱 앱까지, 클릭 통과의 닭과 달걀 문제와 유휴 CPU 0.8%.">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="Snake Pet — 사진 속 뱀을 바탕화면에 풀어놓기">
+<meta property="og:description" content="사진에서 벗겨 낸 뱀 피부를 척추에 입혀 화면 위를 기어다니게 했다.">
+<meta property="og:url" content="https://gangmini.com/notes/snake-pet/">
+<meta property="og:image" content="https://gangmini.com/notes/snake-pet/species.jpg">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../note.css?v=20261009b">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/notes/">← 기록</a>
+    <p class="eyebrow">STACK</p>
+    <h2 class="masthead__title">Snake Pet<br>— 사진 속 뱀을 바탕화면에 풀어놓기</h2>
+    <div class="doc__meta">
+      <span class="badge-mine">내 프로젝트</span>
+      <span class="tag">스택</span>
+      <span class="tag">Tauri</span>
+      <span class="tag">Rust</span>
+      <span class="tag">Canvas</span>
+      <span class="tag">WebView</span>
+      <span class="tag">Claude Design</span>
+      <time class="note__date">2026.10.10</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      파충류를 좋아해서 만들었다. 컴퓨터를 쓰는 동안 뱀 한 마리가 모든 창 위를 기어다닌다.
+      밀크스네이크, 볼파이톤, 캘리포니아킹스네이크, 그린맘바 중에 고를 수 있고, 쥐를 풀어 주면 쫓아가 잡아먹는다.
+      그러면 몸통에 볼록한 덩어리가 지나가고 몸이 조금 길어진다. 쉬게 하고 싶으면 상자 집으로 보낸다.
+    </p>
+    <p>
+      뱀은 코드로 그린 도형이 아니다. <strong>실제 뱀 사진에서 피부를 벗겨 내</strong> 길게 펼친 다음,
+      매 프레임 척추 모양에 맞춰 휘어 붙인다. 윈도우용이고, 설치 파일은 4.8MB다.
+      이 글은 그걸 어떤 순서로, 무엇으로 만들었는지와 중간에 걸린 것들을 적는다.
+    </p>
+
+    <figure class="fig">
+      <img class="shot" src="species.jpg" width="1214" height="742"
+           alt="네 종류의 뱀이 회색 바탕 위를 기어가는 화면. 왼쪽 위 빨강·검정·크림 줄무늬의 밀크스네이크, 오른쪽 위 갈색 얼룩의 굵은 볼파이톤, 왼쪽 아래 검정·크림 줄무늬의 캘리포니아킹, 오른쪽 아래 초록색 그린맘바. 몇 장에는 낙엽 지붕을 얹은 골판지 상자 집이 보인다">
+      <figcaption>
+        네 종 모두 실제 앱의 그리기 코드로 찍은 화면이다. 실제로는 바탕이 투명해서 그 뒤에 있는 창들 위를 기어다닌다.
+      </figcaption>
+    </figure>
+
+    <!-- ============================================================ -->
+    <h3>만든 순서 — 브라우저에서 다 끝내고 옮겼다</h3>
+
+    <p>
+      처음부터 데스크톱 앱으로 시작하지 않았다. 뱀이 <strong>뱀처럼 보이고 뱀처럼 움직이는지</strong>가 이 프로젝트의 전부라서,
+      그걸 먼저 브라우저에서 끝내고 창을 다루는 일은 나중에 붙였다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 150" role="img" aria-label="사양서, Claude Design 프로토타입, 핸드오프 문서, Claude Code 로 만든 데스크톱 앱 순서로 진행했다">
+          <rect class="d-box" x="10"  y="24" width="140" height="80" rx="4"/>
+          <text class="d-t"   x="80" y="50" text-anchor="middle">사양서</text>
+          <text class="d-t-s" x="80" y="70" text-anchor="middle">Claude 대화로 정리</text>
+          <text class="d-t-m" x="80" y="90" text-anchor="middle">8월 말</text>
+
+          <rect class="d-box-m" x="170" y="24" width="140" height="80" rx="4"/>
+          <text class="d-t"   x="240" y="50" text-anchor="middle">프로토타입</text>
+          <text class="d-t-s" x="240" y="70" text-anchor="middle">Claude Design</text>
+          <text class="d-t-m" x="240" y="90" text-anchor="middle">HTML 1개 · 2,500줄</text>
+
+          <rect class="d-box" x="330" y="24" width="140" height="80" rx="4"/>
+          <text class="d-t"   x="400" y="50" text-anchor="middle">넘겨줄 문서</text>
+          <text class="d-t-s" x="400" y="70" text-anchor="middle">설계 기록 · 확정값</text>
+          <text class="d-t-m" x="400" y="90" text-anchor="middle">PARAMS.json</text>
+
+          <rect class="d-box" x="490" y="24" width="140" height="80" rx="4"/>
+          <text class="d-t"   x="560" y="50" text-anchor="middle">데스크톱 앱</text>
+          <text class="d-t-s" x="560" y="70" text-anchor="middle">Claude Code · Tauri</text>
+          <text class="d-t-m" x="560" y="90" text-anchor="middle">9.4 · v0.1.0 배포</text>
+
+          <path class="d-line" d="M150,64 H163"/><polygon points="170,64 163,60 163,68" fill="#1A1D18"/>
+          <path class="d-line" d="M310,64 H323"/><polygon points="330,64 323,60 323,68" fill="#1A1D18"/>
+          <path class="d-line" d="M470,64 H483"/><polygon points="490,64 483,60 483,68" fill="#1A1D18"/>
+
+          <text class="d-t-s" x="320" y="134" text-anchor="middle">모양과 움직임은 브라우저에서 끝내고, 앱에서는 창 다루는 일만 새로 짰다</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        프로토타입 단계에 가장 오래 머물렀다. 무늬 하나, 움직임 하나를 눈으로 보고 숫자를 고치는 반복이었다.
+      </figcaption>
+    </figure>
+
+    <p>
+      <strong>프로토타입</strong>은 Claude Design에서 HTML 파일 하나로 만들었다. 오른쪽 위에 디버그 패널을 달아 놓고,
+      이동 속도·S자 흔들림의 크기와 빠르기·몸 굵기·무늬 배율·몸 길이를 슬라이더로 만져 가며 "진짜 뱀 같다"는 값을 찾았다.
+      사양서에도 이렇게 적어 뒀다. <em>이 패널이 이 프로토타입의 존재 이유다.</em>
+    </p>
+    <p>
+      값이 정해지면 그 숫자를 <code>PARAMS.json</code>에 굳히고, 왜 그렇게 만들었는지를 설계 문서로 남겨 Claude Code에 넘겼다.
+      앱 쪽에서는 "프로토타입을 처음부터 다시 만드는 게 아니라 옮기는 것"이라고 못 박았다.
+      실제로 옮긴 뒤 원본과 <strong>바이트 단위로 대조</strong>해서, 의도한 세 가지 차이 말고는 같다는 걸 확인했다.
+    </p>
+
+    <h4>종마다 손으로 맞춘 값</h4>
+    <table>
+      <tr><th>종</th><th>속도</th><th>S자 크기</th><th>S자 빠르기</th><th>굵기</th><th>척추 점</th></tr>
+      <tr><td>밀크스네이크</td><td>73</td><td>15.0</td><td>1.15</td><td>22</td><td>69</td></tr>
+      <tr><td>볼파이톤</td><td>68</td><td>15.0</td><td>0.92</td><td>49</td><td>86</td></tr>
+      <tr><td>캘리포니아킹</td><td>75</td><td>15.5</td><td>1.22</td><td>22</td><td>75</td></tr>
+      <tr><td>그린맘바</td><td>82</td><td>17.0</td><td>1.40</td><td>22</td><td>79</td></tr>
+    </table>
+    <p>
+      맘바가 가장 빠르고 크게 흔들고, 볼파이톤은 두 배 넘게 굵은 대신 느리고 덜 흔든다. 실제 뱀의 성격을 숫자로 옮긴 것이다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>피부 — 사진에서 벗겨 내 척추에 입힌다</h3>
+
+    <p>
+      처음 사양서는 반대였다. "이미지 파일 사용 금지, 모든 시각 요소는 코드로 생성."
+      빨강·검정·크림 띠를 코드로 그리고, 원기둥 명암과 비늘 격자를 얹는 방식이었다.
+      그런데 같은 사양서의 품질 기준은 <strong>"코드로 그린 티가 안 나는 뱀"</strong>이었다.
+      프로토타입을 다듬는 사이 결국 사진으로 넘어갔다. 코드로 그리는 방식은 지금도 남아 있지만, 사진을 불러오기 전에 잠깐 쓰는 대체용이다.
+    </p>
+
+    <figure class="fig">
+      <img class="shot" src="skin.jpg" width="1200" height="668"
+           alt="위: 흰 바탕에서 위에서 내려다본 밀크스네이크 사진. 아래: 같은 뱀의 피부를 머리에서 꼬리까지 일자로 길게 펼친 띠 이미지">
+      <figcaption>
+        위는 원본, 아래는 펼친 피부(<code>mk-skin-s.png</code>, 2624×96). 몸의 중심선을 따라가며 그 선에 수직으로 픽셀을 떠서 일자로 폈다.
+      </figcaption>
+    </figure>
+
+    <p>
+      처음 모은 레퍼런스 사진들은 몸이 겹쳐 있거나 배경이 깔린 것이 많았다.
+      밀크스네이크·캘리포니아킹·볼파이톤은 <strong>Gemini로 위에서 내려다본 흰 바탕 사진을 새로 만들어</strong> 원본으로 썼다.
+      몸이 한 번도 겹치지 않는 S자 자세라 중심선을 따라가기 좋다. 상자 집도 Gemini로 만들었다.
+    </p>
+    <p>종마다 파일 세 개가 나온다.</p>
+    <table>
+      <tr><th>파일</th><th>내용</th></tr>
+      <tr><td><code>*-skin.png</code></td><td>펼친 몸통. 가로 = 목에서 꼬리 끝까지의 길이, 세로 = 몸 폭</td></tr>
+      <tr><td><code>*-head.png</code></td><td>머리만 따로 오린 그림. 머리는 휘지 않으니 통째로 붙인다</td></tr>
+      <tr><td><code>*-taper.json</code></td><td>굵기표. 가로 픽셀마다 "여기서 몸이 얼마나 굵은가"를 0~1로 적은 숫자 2,600여 개</td></tr>
+    </table>
+
+    <h4>매 프레임 하는 일</h4>
+<pre><code>척추 점 69~86개
+  → 두 번 부드럽게 다듬기
+  → 3.6px 간격으로 다시 찍기 (위치 · 법선 방향 · 머리부터의 거리 · 굵기)
+  → 조각마다 피부 한 줄을 휘어 붙이기 (ctx.transform + clip)
+  → 원기둥 명암 9줄 + 윤곽선
+  → 머리 그림 붙이기</code></pre>
+
+    <p>
+      몸을 3.6px짜리 조각 수백 개로 자르고, 조각마다 피부 띠의 해당 부분을 기울여 붙인다.
+      몸이 휘면 무늬도 같이 휜다. 그 위에 세로 9줄의 반투명 띠를 겹쳐서 가운데 위쪽이 밝고 가장자리가 어두운 원기둥 느낌을 준다.
+    </p>
+
+    <p class="gloss">
+      <b>텍스처 워핑</b> — 평평한 그림을 휘어진 모양에 맞게 늘이고 기울여 붙이는 것. 여기서는 일자로 편 피부를 뱀의 현재 자세에 맞춰 다시 감는다.<br>
+      <b>법선</b> — 어떤 지점에서 선에 수직인 방향. 몸의 "폭 방향"이다. 피부 띠의 세로를 이 방향으로 세운다.
+    </p>
+
+    <h4>문제 1 — 몸이 마디진 것처럼 보였다</h4>
+    <p>
+      사진에서 잰 굵기표에는 ±10% 정도의 잔잔한 물결이 있었다. 사진 속 뱀이 휘어 있던 자리마다 폭이 조금씩 다르게 재진 것이다.
+      그대로 쓰니 몸통이 대나무처럼 마디져 보였다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 200" role="img" aria-label="실측 굵기는 물결치고, 다듬은 굵기는 최고점 이후 꼬리까지 계속 줄어든다. 목쪽 10% 와 꼬리 22% 는 실측을 따른다">
+          <path class="d-line" d="M40,30 V170 H610"/>
+          <path class="d-dash" d="M40,120 C70,70 100,50 140,52 C170,54 190,40 220,46 C250,52 270,38 300,48 C330,58 350,44 380,56 C410,66 430,52 460,70 C490,86 500,76 520,98 C560,125 590,150 610,160"/>
+          <path class="d-line" style="stroke:var(--mark); stroke-width:2" d="M40,120 C80,60 120,45 180,45 C330,48 430,60 520,100 C570,125 595,150 610,160"/>
+          <path class="d-dash" d="M97,30 V170 M485,30 V170"/>
+          <text class="d-t-s" x="228" y="26">실측 — 물결 때문에 마디져 보인다</text>
+          <text class="d-t-s" style="fill:var(--mark)" x="250" y="136">다듬은 것 — 최고점 뒤로는 줄기만 한다</text>
+          <text class="d-t-s" x="102" y="160">목 10%: 실측에 고정</text>
+          <text class="d-t-s" x="490" y="44">꼬리 22%: 실측</text>
+          <text class="d-t-m" x="40" y="188">목</text>
+          <text class="d-t-m" x="610" y="188" text-anchor="end">꼬리</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        개념도. 가운데만 크게 뭉개고, 목과 꼬리는 사진 그대로 둔다. 목은 머리 그림과 이어지는 자리라 굵기가 조금만 달라도 단차가 보이고,
+        꼬리는 빠르게 가늘어지는 모양 자체가 그 종의 특징이다.
+      </figcaption>
+    </figure>
+
+    <p>
+      넓게 한 번, 좁게 한 번 흐리게 한 값을 위치에 따라 섞고, 가장 굵은 지점 이후로는 <strong>절대 다시 굵어지지 않게</strong> 강제했다.
+      그런데 굵기만 펴면 끝이 아니었다. 실루엣을 바꾼 만큼 피부 그림도 폭 방향으로 되돌려 다시 구워야 했다.
+      안 그러면 원래 좁았던 자리의 무늬가 늘어나 찌그러져 보인다. 픽셀 열마다 <code>원래 굵기 ÷ 다듬은 굵기</code>만큼 세로로 늘이거나 줄였다.
+      파일 이름 끝의 <code>-s</code>가 이렇게 다시 구운 판이다.
+    </p>
+
+    <h4>문제 2 — 볼파이톤만 목이 안 맞았다</h4>
+    <p>
+      머리 그림이 몸에 비해 작아 보여서, 목에서 코끝으로 갈수록 머리를 키우는 장치(<code>headGrow</code>)를 넣었다.
+      밀크·캘리킹은 1.46배, 맘바는 1.18배로 잘 맞았다.
+      볼파이톤은 키우자 머리 그림과 몸통의 무늬 축척이 달라져, 목의 밝은 줄이 몸통 줄무늬와 어긋났다.
+      그래서 <strong>볼파이톤만 원본 그대로 쓰고 머리를 키우지 않는다.</strong> 설계 문서에도 "의도된 결정"이라고 박아 뒀다. 나중에 누가 "왜 볼파이톤만 빠졌지?" 하고 고치지 않도록.
+    </p>
+    <p>
+      볼파이톤은 물리에서도 두개골 구간을 곧게 펴 준다(나머지 셋은 머리도 척추를 따라 휜다).
+      100% 곧게 펴니 급하게 돌 때 목이 프레임마다 튀었고, 그리기 단계에서만 펴니 척추와 어긋나 목 실루엣이 끊겼다.
+      두개골의 <strong>80%만 곧게, 목 쪽 4개 점에 걸쳐 서서히 풀어 주는</strong> 조합에서 둘 다 사라졌다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>움직임 — 머리가 간 길을 몸이 그대로 밟는다</h3>
+
+    <figure class="fig">
+      <img class="shot" src="skel.jpg" width="1080" height="440"
+           alt="밀크스네이크 몸통 위에 흰 점들이 일정한 간격으로 찍혀 있고, 머리 앞에 파란 점이 있는 디버그 화면">
+      <figcaption>
+        디버그 패널의 "척추 뼈대 표시"를 켠 화면. 흰 점 하나하나가 척추 점이고, 9px 간격이다. 파란 점이 머리다.
+      </figcaption>
+    </figure>
+
+    <p>
+      뱀 = 점 69~86개로 된 줄. 스스로 움직이는 건 머리 하나뿐이다. 머리는 목표 방향, S자 흔들림, 벽과 상자 피하기를 합쳐서 방향을 잡는다.
+      나머지 점은 머리를 따라간다. 문제는 "어떻게 따라가게 하느냐"다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 214" role="img" aria-label="왼쪽: 앞 점을 끌려가듯 따라가게 하면 멈췄을 때 몸이 펴진다. 오른쪽: 머리가 지나간 길을 기록하고 그 위에 몸을 놓으면 멈춰도 그대로 있다">
+          <!-- 왼쪽 -->
+          <path class="d-dash" d="M30,160 C80,60 130,60 170,120 S260,180 290,90"/>
+          <path style="stroke:var(--mark); stroke-width:12; stroke-linecap:round; fill:none; opacity:.35" d="M60,150 C130,128 210,116 290,90"/>
+          <circle cx="290" cy="90" r="7" fill="#1A1D18"/>
+          <text class="d-t" x="160" y="24" text-anchor="middle">앞 점에 끌려가기</text>
+          <text class="d-t-s" x="160" y="196" text-anchor="middle">멈추면 몸이 스르르 펴진다 — 줄을 당긴 것처럼</text>
+
+          <!-- 오른쪽 -->
+          <path class="d-dash" d="M350,160 C400,60 450,60 490,120 S580,180 610,90"/>
+          <path style="stroke:var(--mark); stroke-width:12; stroke-linecap:round; fill:none; opacity:.35" d="M362,136 C400,60 450,60 490,120 S580,180 610,90"/>
+          <circle cx="610" cy="90" r="7" fill="#1A1D18"/>
+          <text class="d-t" x="480" y="24" text-anchor="middle">지나간 길 위에 놓기</text>
+          <text class="d-t-s" x="480" y="196" text-anchor="middle">멈추면 그 자세 그대로 선다</text>
+
+          <text class="d-t-s" x="62" y="52">점선 = 머리가 지나간 길</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        오른쪽 방식: 머리가 지나간 자리를 "머리부터 몇 px 왔나"와 함께 기록해 두고, i번째 점을 그 길 위 <code>머리 − i × 9px</code> 지점에 놓는다.
+      </figcaption>
+    </figure>
+
+    <p>
+      흔한 방법은 각 점이 앞 점을 일정 거리로 끌려가듯 따라가게 하는 것이다. 이러면 머리가 멈췄을 때 몸이 계속 당겨지면서 펴진다.
+      실제 뱀은 그러지 않는다. 그래서 <strong>머리의 궤적을 기록하고 몸을 그 위에 놓는</strong> 방식을 택했다.
+      멈추면 몸도 그 자리에 그대로 선다. 관절 하나가 꺾일 수 있는 각도는 0.60 라디안(약 34°)으로 막아서 몸이 접혀 겹치지 않게 했다.
+    </p>
+
+    <p class="gloss">
+      <b>궤적</b> — 지나간 자리의 기록. 여기서는 머리 위치를 매 프레임 적어 두고, 각 위치에 "출발점부터 몇 px 왔나"(호길이)를 함께 붙인다.
+    </p>
+
+    <h4>곡선 안쪽에 틈이 생겼다</h4>
+    <p>
+      피부 조각은 평행사변형이다. 몸이 급하게 휘면 조각과 조각 사이, 곡선 안쪽에 쐐기 모양 빈틈이 생기고 그 사이로 바탕이 비쳤다.
+      꺾인 각도에 비례해 조각 폭을 부풀려 서로 겹치게 하고, 몸 밖으로 넘친 부분은 실루엣으로 잘라 냈다.
+    </p>
+<pre><code>부풀린 폭 = 원래 폭 × (1 + min(0.35, 꺾인 각 × 1.1)) + 1</code></pre>
+
+    <h4>상자 앞에서 제자리를 맴돌았다</h4>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 200" role="img" aria-label="왼쪽: 상자에서 멀어지는 힘과 목표 방향이 싸워 제자리에서 맴돈다. 오른쪽: 돌아갈 쪽을 한 번 정하면 벗어날 때까지 고정해 접선으로 돌아 나간다">
+          <!-- 왼쪽 -->
+          <circle class="d-box" cx="160" cy="100" r="48"/>
+          <text class="d-t-s" x="160" y="104" text-anchor="middle">상자 62px</text>
+          <path class="d-line" d="M30,100 H96 C108,72 84,62 90,88 C96,112 72,120 82,98 C90,82 104,92 98,104"/>
+          <circle cx="30" cy="100" r="4" fill="#1A1D18"/>
+          <text class="d-t" x="282" y="104" text-anchor="middle">★</text>
+          <text class="d-t" x="160" y="30" text-anchor="middle">멀어지는 쪽으로 밀기</text>
+          <text class="d-t-s" x="160" y="176" text-anchor="middle">밀어내는 힘 ↔ 목표 방향이 힘겨루기</text>
+          <text class="d-t-s" x="160" y="192" text-anchor="middle">→ 그 자리에서 맴돈다</text>
+
+          <!-- 오른쪽 -->
+          <circle class="d-box" cx="480" cy="100" r="48"/>
+          <text class="d-t-s" x="480" y="104" text-anchor="middle">상자 62px</text>
+          <path class="d-line" d="M350,100 H408 C418,52 468,36 520,46 C552,54 572,80 592,98"/>
+          <polygon points="598,102 590,96 587,103" fill="#1A1D18"/>
+          <circle cx="350" cy="100" r="4" fill="#1A1D18"/>
+          <text class="d-t" x="606" y="112" text-anchor="middle">★</text>
+          <text class="d-t" x="480" y="30" text-anchor="middle">돌아갈 쪽을 고정</text>
+          <text class="d-t-s" x="480" y="176" text-anchor="middle">한 번 정한 쪽은 반경을 벗어날 때까지 유지</text>
+          <text class="d-t-s" x="480" y="192" text-anchor="middle">→ 접선을 따라 돌아 나간다</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        ★은 가려는 목표. 가까울수록 바깥으로 더 기울어진 접선 방향으로 꺾는다.
+      </figcaption>
+    </figure>
+
+    <p>
+      상자를 피하는 힘을 "상자에서 멀어지는 쪽"으로만 주니, 목표가 상자 건너편에 있을 때 두 힘이 싸워 뱀이 그 자리를 빙글빙글 돌았다.
+      매 프레임 왼쪽·오른쪽을 새로 고르는 것도 원인이었다. 한 번 이쪽으로 돌기로 했으면 상자 반경을 벗어날 때까지 바꾸지 않게 했다.
+      그래도 2.4초 넘게 상자 근처에 머물면 목표를 새로 잡는다. 단, 쥐를 쫓는 중에는 목표를 버리지 않는다. 먹이를 포기하는 뱀은 없다.
+    </p>
+
+    <h4>쥐도 생각보다 손이 갔다</h4>
+    <p>
+      쥐가 방향을 순간이동처럼 바꾸면 장난감 같다. 쥐도 "가고 싶은 각도"만 바꾸고 회전 속도에 상한을 둬 서서히 튼다.
+      짧게 내달리고 잠깐 멈추기를 반복하고, <strong>큰 방향 전환은 멈춰 있을 때만</strong> 한다.
+      뱀 머리가 250px 안으로 들어오면 반대쪽으로 도망가되, 가까울수록 빠르고(140) 멀면 느리다(48). 앱으로 옮기면서 평소 속도와 도망 속도를 같은 비율로 올렸다. 한쪽만 올리면 쥐의 성격이 바뀐다. 구석에 박히지 않게 벽 130px 안에서는 안쪽으로 꺾는다.
+      먹이 주기는 두 가지다. <strong>그냥 풀어주기</strong>는 아무 데나 쥐를 놓고, <strong>내가 직접 주기</strong>는 쥐가 커서에 붙어 따라와서 뱀을 유인할 수 있다.
+    </p>
+
+    <h4>상태 — 뱀이 지금 뭘 하고 있나</h4>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 172" role="img" aria-label="상태 기계. idle 에서 쥐가 나타나면 hunt, strike, eat 을 거쳐 idle 로 돌아온다. 집으로 보내면 gohome, entering, housed, 부르면 exiting 을 거쳐 idle 로 돌아온다">
+          <rect class="d-box-m" x="20" y="60" width="96" height="34" rx="17"/>
+          <text class="d-t" x="68" y="81" text-anchor="middle">idle 배회</text>
+
+          <rect class="d-box" x="160" y="20" width="96" height="34" rx="4"/>
+          <text class="d-t" x="208" y="41" text-anchor="middle">hunt 추적</text>
+          <rect class="d-box" x="290" y="20" width="96" height="34" rx="4"/>
+          <text class="d-t" x="338" y="41" text-anchor="middle">strike 찌르기</text>
+          <rect class="d-box" x="420" y="20" width="96" height="34" rx="4"/>
+          <text class="d-t" x="468" y="41" text-anchor="middle">eat 삼키기</text>
+
+          <rect class="d-box" x="160" y="100" width="96" height="34" rx="4"/>
+          <text class="d-t" x="208" y="121" text-anchor="middle">gohome</text>
+          <rect class="d-box" x="290" y="100" width="96" height="34" rx="4"/>
+          <text class="d-t" x="338" y="121" text-anchor="middle">entering</text>
+          <rect class="d-box" x="420" y="100" width="96" height="34" rx="4"/>
+          <text class="d-t" x="468" y="121" text-anchor="middle">housed 쉼</text>
+          <rect class="d-box" x="536" y="100" width="96" height="34" rx="4"/>
+          <text class="d-t" x="584" y="121" text-anchor="middle">exiting</text>
+
+          <path class="d-line" d="M116,70 H140 V37 H153"/><polygon points="160,37 153,33 153,41" fill="#1A1D18"/>
+          <path class="d-line" d="M116,84 H140 V117 H153"/><polygon points="160,117 153,113 153,121" fill="#1A1D18"/>
+          <path class="d-line" d="M256,37 H283"/><polygon points="290,37 283,33 283,41" fill="#1A1D18"/>
+          <path class="d-line" d="M386,37 H413"/><polygon points="420,37 413,33 413,41" fill="#1A1D18"/>
+          <path class="d-line" d="M256,117 H283"/><polygon points="290,117 283,113 283,121" fill="#1A1D18"/>
+          <path class="d-line" d="M386,117 H413"/><polygon points="420,117 413,113 413,121" fill="#1A1D18"/>
+          <path class="d-line" d="M516,117 H529"/><polygon points="536,117 529,113 529,121" fill="#1A1D18"/>
+          <path class="d-line" d="M468,20 V8 H68 V53"/><polygon points="68,60 64,53 72,53" fill="#1A1D18"/>
+          <path class="d-line" d="M584,134 V156 H68 V101"/><polygon points="68,94 64,101 72,101" fill="#1A1D18"/>
+
+          <text class="d-t-m" x="144" y="30">쥐</text>
+          <text class="d-t-m" x="420" y="72">몸 +2점</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        <code>housed</code>(몸이 상자에 다 들어간 상태)일 때만 "밖으로 부르기"가 먹는다. 들어가는 중에는 버튼이 반응하지 않는다.
+      </figcaption>
+    </figure>
+
+    <p>
+      먹고 나면 몸통에 <strong>볼록한 덩어리</strong>가 생겨 꼬리 쪽으로 천천히 내려간다. 사양서에 "디테일 하나로 완성도가 크게 오르는 부분"이라고 적어 둔 연출이다.
+      볼록이 머리 바로 뒤에서 시작하면 머리 그림과 몸 사이 이음새가 드러난다. 두개골은 단단해서 부풀 수 없으니,
+      <strong>목 뒤 12px부터</strong> 시작하고 목 경계에서는 0으로 사라지게 했다.
+    </p>
+    <p>
+      빠진 것도 있다. 처음 사양서에는 30초 동안 방해가 없으면 제자리에서 <strong>똬리</strong>를 트는 상태가 있었다.
+      작업 메모에는 똬리를 틀고 풀 때 몸이 원래 있던 길로 빠져나오지 않고 엉키는 느낌, 버벅임이 적혀 있다. 최종 프로토타입과 앱에는 똬리 상태가 없다. 쉬는 건 상자에 들어가서 한다.
+      상자에 들어갈 때 뒷벽을 뚫고 들어가는 장면도 메모에 남아 있다. 최종 설계 문서는 상자를 <strong>뚜껑 열린 상자</strong>로 정의한다. 위가 열려 있으니 어느 쪽에서든 벽을 넘어 들어가는 게 말이 된다.
+    </p>
+
+    <figure class="fig">
+      <img class="shot" src="house.jpg" width="1274" height="420"
+           alt="왼쪽: 낙엽 지붕 골판지 상자 위로 밀크, 볼파이톤, 캘리킹, 맘바 네 종의 머리가 빼꼼 나와 있는 종 선택 화면. 오른쪽: 캘리포니아킹이 흰쥐를 향해 다가가는 장면">
+      <figcaption>
+        왼쪽: "밖으로 부르기"를 누르면 상자 지붕 위로 네 종의 머리가 빼꼼 나온다. 고른 종이 기어 나온다.
+        오른쪽: 쥐를 쫓는 중. 버튼은 상자 옆면에 붙어 있어서 상자를 끌면 같이 따라온다.
+      </figcaption>
+    </figure>
+
+    <!-- ============================================================ -->
+    <h3>데스크톱으로 — 구조</h3>
+
+    <p>
+      앱은 <strong>주 모니터 전체를 덮는 투명한 창 하나</strong>다. 테두리가 없고, 항상 맨 위에 있고, 작업표시줄에 안 뜬다.
+      Tauri로 감쌌다. 바깥 껍데기는 Rust, 안쪽은 윈도우에 기본으로 깔린 웹뷰(WebView2)에서 도는 그 프로토타입 코드다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 252" role="img" aria-label="Windows 쪽의 전역 커서, 오버레이 창, 트레이, 단축키와 Rust 껍데기의 커서 폴링, 명령, 디스플레이 감시, 그리고 웹뷰의 히트 판정, 뱀 물리, 렌더러의 관계">
+          <rect class="d-box" x="10"  y="10" width="180" height="232" rx="5"/>
+          <rect class="d-box" x="230" y="10" width="180" height="232" rx="5"/>
+          <rect class="d-box-m" x="450" y="10" width="180" height="232" rx="5"/>
+          <text class="d-t" x="100" y="31" text-anchor="middle">Windows</text>
+          <text class="d-t" x="320" y="31" text-anchor="middle">Rust 껍데기 (Tauri 2)</text>
+          <text class="d-t" x="540" y="31" text-anchor="middle">웹뷰 (WebView2)</text>
+
+          <rect class="d-box" x="22" y="44"  width="156" height="40" rx="3"/>
+          <text class="d-t"   x="100" y="61" text-anchor="middle">전역 커서</text>
+          <text class="d-t-m" x="100" y="76" text-anchor="middle">GetCursorPos</text>
+          <rect class="d-box" x="22" y="92"  width="156" height="40" rx="3"/>
+          <text class="d-t"   x="100" y="109" text-anchor="middle">오버레이 창</text>
+          <text class="d-t-s" x="100" y="124" text-anchor="middle">투명 · 항상 위 · 화면 전체</text>
+          <rect class="d-box" x="22" y="140" width="156" height="40" rx="3"/>
+          <text class="d-t"   x="100" y="157" text-anchor="middle">트레이 아이콘</text>
+          <text class="d-t-s" x="100" y="172" text-anchor="middle">종료</text>
+          <rect class="d-box" x="22" y="188" width="156" height="40" rx="3"/>
+          <text class="d-t"   x="100" y="205" text-anchor="middle">전역 단축키</text>
+          <text class="d-t-m" x="100" y="220" text-anchor="middle">Ctrl+Shift+Q</text>
+
+          <rect class="d-box" x="242" y="44"  width="156" height="40" rx="3"/>
+          <text class="d-t"   x="320" y="61" text-anchor="middle">커서 폴링 스레드</text>
+          <text class="d-t-s" x="320" y="76" text-anchor="middle">60Hz · 통과 켜졌을 때만</text>
+          <rect class="d-box" x="242" y="92"  width="156" height="40" rx="3"/>
+          <text class="d-t"   x="320" y="109" text-anchor="middle">명령 받기</text>
+          <text class="d-t-m" x="320" y="124" text-anchor="middle">set_click_through</text>
+          <rect class="d-box" x="242" y="140" width="156" height="40" rx="3"/>
+          <text class="d-t"   x="320" y="157" text-anchor="middle">디스플레이 감시</text>
+          <text class="d-t-s" x="320" y="172" text-anchor="middle">1초마다 창 크기 다시 맞춤</text>
+
+          <rect class="d-box" x="462" y="44"  width="156" height="40" rx="3"/>
+          <text class="d-t"   x="540" y="61" text-anchor="middle">히트 판정</text>
+          <text class="d-t-m" x="540" y="76" text-anchor="middle">interactiveAt()</text>
+          <rect class="d-box" x="462" y="92"  width="156" height="40" rx="3"/>
+          <text class="d-t"   x="540" y="109" text-anchor="middle">Snake · Rat</text>
+          <text class="d-t-s" x="540" y="124" text-anchor="middle">물리 · 상태. 그리기를 모른다</text>
+          <rect class="d-box" x="462" y="140" width="156" height="40" rx="3"/>
+          <text class="d-t"   x="540" y="157" text-anchor="middle">Renderer</text>
+          <text class="d-t-s" x="540" y="172" text-anchor="middle">Canvas 2D</text>
+          <rect class="d-box" x="462" y="188" width="156" height="40" rx="3"/>
+          <text class="d-t"   x="540" y="205" text-anchor="middle">상자 버튼 · 메뉴</text>
+          <text class="d-t-s" x="540" y="220" text-anchor="middle">HTML</text>
+
+          <path class="d-line" d="M178,64 H235"/><polygon points="242,64 235,60 235,68" fill="#1A1D18"/>
+          <path class="d-line" d="M398,64 H455"/><polygon points="462,64 455,60 455,68" fill="#1A1D18"/>
+          <text class="d-t-m" x="413" y="58">cursor</text>
+          <path class="d-line" d="M462,78 H430 V112 H405"/><polygon points="398,112 405,108 405,116" fill="#1A1D18"/>
+          <text class="d-t-m" x="413" y="128">invoke</text>
+          <path class="d-line" d="M242,112 H185"/><polygon points="178,112 185,108 185,116" fill="#1A1D18"/>
+          <text class="d-t-s" x="196" y="106">켬/끔</text>
+          <path class="d-line" d="M178,208 H220 V122 H235"/>
+          <path class="d-line" d="M178,160 H220"/>
+          <polygon points="242,122 235,118 235,126" fill="#1A1D18"/>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        Rust가 하는 일은 창을 다루는 것뿐이다. 뱀이 어디 있는지, 커서가 뱀 위에 있는지는 전부 웹뷰 쪽 JS가 안다.
+      </figcaption>
+    </figure>
+
+    <p class="gloss">
+      <b>Tauri</b> — 웹 기술(HTML·JS)로 만든 화면을 데스크톱 앱으로 감싸는 도구. 화면은 운영체제에 이미 깔린 웹뷰로 띄우고, 창·트레이 같은 운영체제 일은 Rust 코드로 한다. 그래서 설치 파일이 작다.<br>
+      <b>IPC</b> — 서로 다른 프로그램(여기서는 Rust와 웹뷰)끼리 메시지를 주고받는 것. <code>invoke</code>는 JS가 Rust에게, <code>event</code>는 Rust가 JS에게 보낸다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>클릭 통과 — 닭과 달걀</h3>
+
+    <p>
+      화면 전체를 덮는 창이 클릭을 다 먹으면 컴퓨터를 쓸 수가 없다. 반대로 다 흘려보내면 뱀을 만질 수 없다.
+      필요한 건 <strong>뱀·상자·버튼 위에서만 클릭을 받고, 나머지는 뒤의 앱으로 통과</strong>시키는 것이다.
+    </p>
+    <p>
+      윈도우에는 창 전체를 클릭 통과로 만드는 스위치가 있다. 문제는 이 스위치를 켜면 <strong>웹뷰가 마우스 이벤트를 하나도 못 받는다</strong>는 점이다.
+      그러면 커서가 뱀 위에 왔는지 알 수 없고, 알 수 없으니 스위치를 끌 수도 없다. 판정에 필요한 정보가 판정 결과 때문에 막힌다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 208" role="img" aria-label="통과가 켜져 있을 때는 Rust 가 커서를 읽어 이벤트로 보내고, 꺼져 있을 때는 웹뷰가 pointermove 를 직접 받는다. 어느 쪽이든 JS 가 판정하고, 결과가 바뀔 때만 Rust 에 알린다">
+          <rect class="d-box" x="10" y="24" width="130" height="62" rx="4"/>
+          <text class="d-t"   x="75" y="50" text-anchor="middle">통과 켜짐</text>
+          <text class="d-t-s" x="75" y="70" text-anchor="middle">클릭은 뒤 앱으로</text>
+          <rect class="d-box" x="166" y="24" width="130" height="62" rx="4"/>
+          <text class="d-t"   x="231" y="50" text-anchor="middle">Rust가 커서 읽기</text>
+          <text class="d-t-s" x="231" y="70" text-anchor="middle">1초에 60번</text>
+          <rect class="d-box" x="322" y="24" width="130" height="62" rx="4"/>
+          <text class="d-t"   x="387" y="50" text-anchor="middle">cursor 이벤트</text>
+          <text class="d-t-s" x="387" y="70" text-anchor="middle">커서가 움직일 때만</text>
+
+          <rect class="d-box" x="10" y="118" width="130" height="62" rx="4"/>
+          <text class="d-t"   x="75" y="144" text-anchor="middle">통과 꺼짐</text>
+          <text class="d-t-s" x="75" y="164" text-anchor="middle">뱀 위에 있을 때</text>
+          <rect class="d-box" x="166" y="118" width="286" height="62" rx="4"/>
+          <text class="d-t"   x="309" y="144" text-anchor="middle">웹뷰가 pointermove 를 직접 받음</text>
+          <text class="d-t-s" x="309" y="164" text-anchor="middle">Rust 폴링은 쉰다</text>
+
+          <rect class="d-box-m" x="480" y="24" width="150" height="156" rx="4"/>
+          <text class="d-t"   x="555" y="46" text-anchor="middle">JS 판정</text>
+          <text class="d-t-s" x="555" y="68" text-anchor="middle">커서 위치 하나만 본다</text>
+          <text class="d-t-s" x="555" y="92" text-anchor="middle">뱀 몸통 · 상자</text>
+          <text class="d-t-s" x="555" y="108" text-anchor="middle">+ HTML 요소 전부</text>
+          <text class="d-t-m" x="555" y="124" text-anchor="middle">elementFromPoint</text>
+          <text class="d-t-s" x="555" y="152" text-anchor="middle">바뀔 때만 Rust에</text>
+          <text class="d-t-m" x="555" y="168" text-anchor="middle">set_click_through</text>
+
+          <path class="d-line" d="M140,55 H159"/><polygon points="166,55 159,51 159,59" fill="#1A1D18"/>
+          <path class="d-line" d="M296,55 H315"/><polygon points="322,55 315,51 315,59" fill="#1A1D18"/>
+          <path class="d-line" d="M452,55 H473"/><polygon points="480,55 473,51 473,59" fill="#1A1D18"/>
+          <path class="d-line" d="M140,149 H159"/><polygon points="166,149 159,145 159,153" fill="#1A1D18"/>
+          <path class="d-line" d="M452,149 H473"/><polygon points="480,149 473,145 473,153" fill="#1A1D18"/>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        커서 좌표는 Rust가 대신 읽어 주고, 판정은 JS가 한다. 어느 상태든 JS는 커서 위치 하나만 보면 된다. 출처만 바뀐다.
+      </figcaption>
+    </figure>
+
+    <h4>설계를 구현 직전에 뒤집었다</h4>
+    <p>
+      처음 계획은 반대였다. JS가 뱀의 히트 영역(척추 점 좌표들)을 계속 Rust에 보내고, Rust가 커서와 비교해 판정한다.
+      구현 직전에 따져 보니 이쪽이 훨씬 비쌌다.
+    </p>
+    <table>
+      <tr><th></th><th>계획 (Rust가 판정)</th><th>채택 (JS가 판정)</th></tr>
+      <tr><td>매 프레임 메시지</td><td>척추 점 69~86개 좌표</td><td>없음</td></tr>
+      <tr><td>판정 코드</td><td>Rust에 똑같이 다시 짜기</td><td>이미 있는 <code>snake.hits()</code></td></tr>
+      <tr><td>커서가 가만히 있을 때</td><td>그래도 계속 보냄</td><td>0건</td></tr>
+      <tr><td>버튼·메뉴 판정</td><td>좌표를 따로 넘겨야 함</td><td><code>elementFromPoint</code> 한 줄</td></tr>
+    </table>
+    <p>
+      마지막 줄이 결정적이었다. 버튼이나 메뉴를 좌표로 하나하나 넘기면 UI를 추가할 때마다 판정 코드를 고쳐야 한다.
+      브라우저에는 "이 좌표에 뭐가 있나"를 알려 주는 기능이 이미 있다. 그걸 쓰면 무엇을 추가하든 자동으로 걸린다.
+    </p>
+
+    <h4>경계에서 깜빡이지 않게 — 들어올 땐 넉넉히, 나갈 땐 천천히</h4>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 196" role="img" aria-label="뱀 몸 주변에 12px 진입선과 36px 이탈선이 있다. 12px 안으로 들어오면 즉시 클릭을 받고, 36px 밖에 0.18초 머물러야 다시 통과시킨다">
+          <rect class="d-dash" x="110" y="42" width="356" height="112" rx="56"/>
+          <rect class="d-dash" x="134" y="66" width="308" height="64" rx="32" style="stroke:var(--mark)"/>
+          <rect class="d-box-m" x="146" y="78" width="284" height="40" rx="20"/>
+          <text class="d-t" x="288" y="103" text-anchor="middle">뱀 몸통</text>
+
+          <path class="d-line" d="M442,98 H500"/>
+          <text class="d-t-s" style="fill:var(--mark)" x="506" y="94">12px 진입선</text>
+          <text class="d-t-s" x="506" y="110">넘으면 즉시 클릭 받기</text>
+          <path class="d-line" d="M466,60 H500"/>
+          <text class="d-t-s" x="506" y="56">36px 이탈선</text>
+          <text class="d-t-s" x="506" y="72">밖에서 0.18초 → 통과</text>
+          <text class="d-t-s" x="288" y="184" text-anchor="middle">두 선 사이에서는 지금 상태를 유지한다</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        들어올 때 늦으면, 커서가 뱀에 닿자마자 누른 클릭이 뒤 앱으로 새 버린다. 나갈 때는 급할 이유가 없다.
+      </figcaption>
+    </figure>
+
+    <p class="gloss">
+      <b>히스테리시스</b> — 켜지는 기준과 꺼지는 기준을 일부러 다르게 두는 것. 온도 조절기가 24도에서 켜지고 26도에서 꺼지는 식이다. 경계에서 초당 수십 번 켜졌다 꺼지는 걸 막는다.
+    </p>
+
+    <h4>열 번에 한 번, 영영 안 풀렸다</h4>
+    <p>
+      처음에는 상태를 먼저 바꿔 놓고 Rust에 메시지를 보냈다. 그런데 열 번에 한 번꼴로 메시지가 유실되면 <strong>영영 복구되지 않았다</strong>.
+      코드는 이미 바꿨다고 믿으니 다시 보낼 이유가 없었던 것이다. 판정과 실제 창 상태가 어긋난 채로 굳었다.
+    </p>
+<pre><code>// "원하는 상태"와 "Rust가 실제로 적용했다고 확인한 상태"를 따로 둔다
+if (OVERLAY.want !== OVERLAY.applied &amp;&amp; !OVERLAY.busy) {
+  core.invoke('set_click_through', { on: OVERLAY.want })
+      .then(() =&gt; { OVERLAY.applied = target; }, () =&gt; {});
+}
+// 어긋나 있으면 다음 프레임에 또 보낸다</code></pre>
+    <p>
+      둘이 다르면 매 프레임 다시 시도한다. 바꾼 뒤 10번 중 10번 성공했다.
+      그리고 상자나 쥐를 끄는 중이거나 메뉴가 열려 있을 때는 커서 위치와 상관없이 클릭을 계속 받게 고정했다. 끌다가 통과가 켜지면 잡고 있던 걸 놓친다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>성능 — 항상 켜 두는 앱의 기준</h3>
+
+    <p>
+      켜 두고 잊어버리는 앱이라, 아무것도 안 할 때의 비용이 곧 제품 품질이다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 214" role="img" aria-label="CPU 사용량. 처음 잰 0.2% 는 호스트만 잰 틀린 값. 집에 있을 때 2.91% 에서 0.81% 로, 기어다닐 때 4.44% 와 4.64%">
+          <text class="d-t" x="10" y="20">CPU 사용량 — 12코어 기준, WebView2 프로세스 포함</text>
+          <text class="d-t-s" x="160" y="54" text-anchor="end">처음 잰 값 (틀림)</text>
+          <rect class="d-dash" x="170" y="40" width="16" height="18"/>
+          <text class="d-t-m" x="194" y="53">0.2% — 앱 본체만 쟀다</text>
+
+          <text class="d-t-s" x="160" y="94" text-anchor="end">집에 있음 · 전</text>
+          <rect class="d-box" x="170" y="80" width="232.8" height="18"/>
+          <text class="d-t-m" x="410" y="93">2.91%</text>
+          <text class="d-t-s" x="160" y="122" text-anchor="end">집에 있음 · 후</text>
+          <rect class="d-box-m" x="170" y="108" width="64.8" height="18"/>
+          <text class="d-t-m" x="242" y="121">0.81% · 그린 횟수 0</text>
+
+          <text class="d-t-s" x="160" y="162" text-anchor="end">기어다님 · 전</text>
+          <rect class="d-box" x="170" y="148" width="355.2" height="18"/>
+          <text class="d-t-m" x="533" y="161">4.44%</text>
+          <text class="d-t-s" x="160" y="190" text-anchor="end">기어다님 · 후</text>
+          <rect class="d-box" x="170" y="176" width="371.2" height="18"/>
+          <text class="d-t-m" x="549" y="189">4.64%</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        기어다닐 때는 1초에 60번 그대로 그린다. 보이는 움직임은 건드리지 않고 쉬는 시간의 비용만 줄였다.
+      </figcaption>
+    </figure>
+
+    <p>
+      <strong>측정부터 틀렸다.</strong> 처음 잰 CPU는 0.2%였다. 그런데 WebView2는 화면 그리는 일을 별도 프로세스 여러 개로 띄운다.
+      앱 본체만 재면 실제의 10분의 1도 안 나온다. 본체 + WebView2 프로세스 6개를 합산하도록 고치자 숫자가 완전히 달라졌다.
+    </p>
+    <p>
+      <strong>쉬는 동안은 아예 안 그린다.</strong> 뱀이 상자에 들어가 있고 쥐도, 종 선택도, 끌기도 없으면 화면이 완전히 멈춰 있다.
+      이때는 물리 계산과 그리기를 통째로 건너뛴다. 멈춤에 들어간 첫 프레임만 그려서 마지막 모습을 남긴다.
+      커서도 화면도 그대로면 히트 판정까지 건너뛴다. <code>elementFromPoint</code>는 브라우저에게 레이아웃 계산을 시키는 비싼 호출이라서다.
+      켜 둔 시간의 대부분이 이 상태라 2.91%가 0.81%가 됐다.
+    </p>
+    <p>
+      <strong>바뀐 곳만 다시 그린다.</strong> 1920×1080 전체를 매 프레임 지우지 않고, 뱀·상자·쥐가 있는 사각형과 직전 프레임의 사각형을 합친 곳만 지우고 그린다.
+      900프레임을 돌린 뒤 그 영역 밖에 지워지지 않은 픽셀이 0개인 것까지 확인했다.
+    </p>
+
+    <p class="gloss">
+      <b>더티 사각형</b> — 화면에서 "이번 프레임에 바뀐 부분"만 표시해 두고 거기만 다시 그리는 방법. 화면이 크고 움직이는 물체가 작을수록 효과가 크다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>안 잠기게, 안 꺼지는 일 없게</h3>
+
+    <table>
+      <tr><th>걱정</th><th>대비</th></tr>
+      <tr><td>JS가 죽으면?</td><td>클릭 통과의 시작값이 <strong>켜짐</strong>이다. 앱이 망가져도 화면이 잠기지는 않는다. 실패해도 안전한 쪽으로만 열려 있다</td></tr>
+      <tr><td>끄는 법을 모르면?</td><td>통과 중에는 창에 포커스가 안 와서 웹뷰 단축키가 안 먹는다. 운영체제 전역 단축키 <code>Ctrl+Shift+Q</code>로 끈다. 단축키를 모르는 사람을 위해 트레이에 "종료"</td></tr>
+      <tr><td>해상도를 바꾸면?</td><td>Tauri는 "모니터가 바뀌었다"를 알려 주지 않는다. 1초마다 주 모니터를 확인해서 어긋나면 다시 맞춘다</td></tr>
+      <tr><td>배율 125%면?</td><td>창을 물리 픽셀로 잡는다. 논리 크기로 잡으면 창이 화면보다 작아져 오른쪽·아래에 띠가 남는다</td></tr>
+      <tr><td>처음 켰을 때</td><td>상자만 보인다. 몸은 그리기 전에 미리 "들어가기"를 돌려 상자 안에 감아 둔다. 상태만 바꾸면 일자 막대가 상자에서 튀어나온다</td></tr>
+    </table>
+
+    <p class="gloss">
+      <b>배율(DPI)</b> — 윈도우 디스플레이 설정의 125%·150%. 글씨를 크게 보이려고 "논리 1px"을 실제 점 여러 개로 그린다. 1920 물리 픽셀 = 1536 논리 픽셀 × 1.25.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>배포 — 서명 없이 내보내기</h3>
+    <p>
+      무료 배포라 유료 코드 서명을 하지 않았다. 대가로 설치할 때 SmartScreen 경고가 뜬다. 깃허브 릴리스와 안내문에 "[추가 정보] → [실행]"을 적어 뒀다.
+    </p>
+    <p>
+      <strong>압축 파일로 내면 경고를 피할 수 있나</strong>도 실측해 봤다. 인터넷에서 받은 zip에는 "인터넷에서 왔음" 표시가 붙는데,
+      압축을 풀 때 그 표시가 안의 파일로 옮겨 가는지는 도구마다 달랐다. 윈도우 탐색기로 풀면 옮겨 가서 경고가 뜨고, PowerShell로 풀면 안 옮겨 가서 안 뜬다.
+      사람마다 쓰는 도구가 다르니 믿을 수 없는 방법이라 쓰지 않았다.
+    </p>
+    <p>
+      <strong>조용히 틀리는 함정</strong>도 하나 있었다. 아이콘 파일만 바꾸고 빌드하면 윈도우 리소스를 심는 단계(<code>build.rs</code>)가 다시 돌지 않아,
+      <strong>옛 아이콘이 박힌 실행 파일</strong>이 나온다. 오류는 하나도 없다. 그래서 빌드된 exe에서 아이콘을 도로 뽑아 확인하는 절차를 아이콘 스크립트 맨 위에 적어 뒀다.
+    </p>
+
+    <p class="gloss">
+      <b>SmartScreen</b> — 윈도우가 처음 보는 프로그램을 실행하기 전에 띄우는 경고. 서명이 없고 내려받은 사람이 적으면 뜬다.<br>
+      <b>Mark-of-the-Web</b> — 인터넷에서 받은 파일에 윈도우가 몰래 붙이는 "출처: 인터넷" 표시. SmartScreen이 이걸 보고 경고를 띄운다.
+    </p>
+
+    <h4>확인은 눈이 아니라 운영체제로</h4>
+    <p>
+      "클릭이 통과되는 것 같다"로 넘기지 않으려고, 대부분을 운영체제에 직접 물어 확인했다.
+    </p>
+    <table>
+      <tr><th>무엇을</th><th>어떻게</th></tr>
+      <tr><td>클릭 통과</td><td>커서를 프로그램으로 옮긴 뒤, 창의 통과 비트와 "지금 이 좌표의 클릭을 받는 창이 누구인가"를 윈도우 API로 확인</td></tr>
+      <tr><td>디스플레이 감시</td><td>해상도는 안 건드리고 창만 강제로 줄인 뒤 1초 안에 돌아오는지</td></tr>
+      <tr><td>아이콘</td><td>빌드된 exe에서 아이콘을 도로 뽑아 보기</td></tr>
+      <tr><td>종료</td><td>다른 앱에 포커스를 준 상태에서 단축키 → 프로세스가 사라지는지</td></tr>
+    </table>
+
+    <!-- ============================================================ -->
+    <h3>안 한 것</h3>
+    <ul>
+      <li><strong>맥.</strong> 투명 창에 별도 설정이 둘 필요하고 창 층위(레벨)·Dock 숨김도 따로 다뤄야 하는데, 눌러 볼 맥이 없었다. "될 것 같다"로 넣지 않았다.</li>
+      <li><strong>보조 모니터.</strong> 모니터마다 배율이 다르면 좌표 계산이 깨지는데, 확인할 다중 모니터 환경이 없었다.</li>
+      <li><strong>코드 서명.</strong> 무료 배포라.</li>
+    </ul>
+    <p>
+      맥은 이후 <a href="/notes/bfree-desktop-pet/">학사모 비프리 데스크톱 펫</a>에서 풀었다. 깃허브의 맥 가상머신에서 빌드하고, 거기서 실제로 눌러 보는 것까지 자동으로 돌렸다.
+      투명 창, 클릭 통과, 트레이, 전역 단축키 — 비프리 펫의 뼈대 상당 부분이 이 뱀에서 먼저 부딪혀 본 것들이다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>정리</h3>
+
+    <table>
+      <tr><th>고른 것</th><th>한 줄 이유</th></tr>
+      <tr><td>브라우저 프로토타입 먼저</td><td>모양과 움직임이 전부인 앱. 앱 빌드 없이 숫자를 바로 만진다</td></tr>
+      <tr><td>Claude Design → Claude Code</td><td>보며 다듬는 일과 옮겨 짜는 일을 나눴다. 사이에 확정값과 설계 문서</td></tr>
+      <tr><td>사진 피부</td><td>"코드로 그린 티가 안 나는 뱀"이 기준이었다</td></tr>
+      <tr><td>궤적 추종</td><td>멈추면 몸도 멈춘다. 실제 뱀처럼</td></tr>
+      <tr><td>Tauri</td><td>윈도우에 이미 있는 웹뷰를 쓴다. 설치 파일 4.8MB</td></tr>
+      <tr><td>판정은 JS, 좌표는 Rust</td><td>메시지가 거의 없고, 버튼이 늘어도 코드가 안 는다</td></tr>
+      <tr><td>원하는 상태 ≠ 적용된 상태</td><td>한 번 유실돼도 스스로 복구된다</td></tr>
+      <tr><td>쉬는 동안 안 그리기</td><td>켜 둔 시간 대부분이 쉬는 시간이다</td></tr>
+    </table>
+
+    <p>
+      돌아보면 이 프로젝트의 절반은 "진짜 같게"였고, 나머지 절반은 "방해하지 않게"였다.
+      앞의 절반은 브라우저에서 눈으로 숫자를 만지며 끝냈고, 뒤의 절반은 숫자로 쟀다.
+      CPU를 잘못 재고 있었다는 것도, 메시지가 열 번에 한 번 사라진다는 것도 재 보기 전에는 몰랐다.
+    </p>
+
+    <p>
+      소스와 설치 파일은 <a href="https://github.com/gmk4513/snake-pet">github.com/gmk4513/snake-pet</a>에 있다.
+    </p>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 적을 것</p>
+      <ul>
+        <li>사진에서 뱀 피부 펴기 — 중심선 추적과 수직 샘플링</li>
+        <li>클릭 통과 창의 원리 — WS_EX_TRANSPARENT와 히트 테스트</li>
+        <li>WebView2는 프로세스를 몇 개 띄우나 — 데스크톱 앱 자원 측정법</li>
+        <li><a href="/notes/bfree-desktop-pet/">학사모 비프리 데스크톱 펫</a> — 이 구조를 맥까지 넓힌 다음 프로젝트</li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>
