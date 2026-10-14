@@ -1,0 +1,154 @@
+/* 범퍼카 2026
+   무대는 16:9 고정. 창이 어떤 비율이든 안에 맞춰 넣고 남는 곳은 검게 둔다.
+   글자 크기는 무대 폭 기준(cqw)이라 창 크기가 바뀌어도 화면 안 비율이 같다. */
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #07050a; overflow: hidden; }
+body {
+  font-family: "Noto Sans KR", system-ui, sans-serif;
+  color: #fff;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#wrap { position: fixed; inset: 0; display: grid; place-items: center; }
+#stage {
+  position: relative;
+  width: min(100vw, calc(100vh * 16 / 9));
+  aspect-ratio: 16 / 9;
+  container-type: inline-size;
+  background: #000;
+  overflow: hidden;
+}
+#cv, #cv3 { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+/* 3D 는 일부러 거칠게 그려 늘인다 — 도트 그림과 결을 맞춘다 */
+#cv3 { image-rendering: pixelated; }
+
+.screen {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.screen.hidden { display: none; }
+
+/* ---------- 선택 화면 ---------- */
+#scSelect {
+  background: radial-gradient(ellipse at 50% 120%, rgba(255, 90, 20, .55), transparent 60%),
+              linear-gradient(#120808, #050304);
+  justify-content: flex-start;
+  padding-top: 1.4cqw;
+}
+.title {
+  margin: 0;
+  font-family: "Black Han Sans", "Noto Sans KR", sans-serif;
+  font-weight: 400;
+  font-size: 5.6cqw;
+  letter-spacing: .02em;
+  color: #ffd23f;
+  text-shadow: 0 .3cqw 0 #b3260b, 0 0 2cqw rgba(255, 120, 30, .7);
+}
+.title span { color: #ff5a1f; }
+.sub { margin: .2cqw 0 1.1cqw; font-size: 1.35cqw; color: #f3c9a8; font-weight: 700; }
+
+.cards { display: flex; gap: 2cqw; }
+.card {
+  position: relative;
+  width: 27cqw; height: 39cqw;      /* 캐릭터가 최대한 크게 보이게 카드도 키웠다 */
+  padding: 0;
+  border: .25cqw solid rgba(255, 255, 255, .14);
+  border-radius: 1.2cqw;
+  background: #fff;                 /* 캐릭터만 깔끔하게 보이게 흰 바탕 */
+  color: #1a0d08; font: inherit;
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.card:hover, .card.on {
+  transform: translateY(-.6cqw);
+  border-color: #ffd23f;
+  box-shadow: 0 0 2.4cqw rgba(255, 150, 40, .55);
+}
+.card .body {
+  position: absolute; left: 50%; bottom: 4.2cqw;
+  height: 29.6cqw; transform: translateX(-50%);
+  image-rendering: pixelated;
+  filter: drop-shadow(0 .3cqw .4cqw rgba(0, 0, 0, .25));
+}
+.card .tag {
+  position: absolute; left: 1cqw; top: .8cqw;
+  font-family: "Black Han Sans", sans-serif;
+  font-size: 3.4cqw; color: #ff7a1a;
+  text-shadow: 0 .2cqw 0 #6b1606;
+}
+.card .name {
+  position: absolute; left: 0; right: 0; bottom: .9cqw;
+  font-weight: 900; font-size: 2.3cqw;
+}
+/* 캐릭터 머리 위 말풍선 */
+.card .say {
+  position: absolute; left: 4.6cqw; right: 1cqw; top: .9cqw;
+  padding: .45cqw .7cqw;
+  background: #fff; color: #1a0d08;
+  border: .12cqw solid #1a0d08;
+  border-radius: .9cqw;
+  font-size: 1.15cqw; font-weight: 700; line-height: 1.3;
+  box-shadow: 0 .2cqw .5cqw rgba(0, 0, 0, .45);
+}
+.card .say:empty { display: none; }
+.card .say::after {
+  content: ""; position: absolute; left: 42%; bottom: -.7cqw;
+  border: .45cqw solid transparent; border-top: .5cqw solid #1a0d08; border-bottom: 0;
+}
+.card .say.pop { animation: pop .18s ease-out; }
+@keyframes pop { from { transform: scale(.85); opacity: .4; } to { transform: scale(1); opacity: 1; } }
+.keys {
+  margin-top: 1.1cqw;
+  display: flex; flex-wrap: wrap; justify-content: center; gap: .6cqw 1.6cqw;
+  font-size: 1.15cqw; color: #d9c2b4;
+}
+.keys b {
+  display: inline-block; padding: .1cqw .5cqw; margin-right: .2cqw;
+  border: .1cqw solid rgba(255, 255, 255, .35); border-radius: .3cqw;
+  color: #fff; font-weight: 700;
+}
+.keys b.hot { border-color: #ff7a2f; color: #ffb36b; }
+
+/* ---------- 결과 화면 ---------- */
+#scResult {
+  justify-content: space-between; padding: 1.6cqw 0 2.4cqw;
+  background: linear-gradient(rgba(5, 2, 2, .7), rgba(5, 2, 2, 0) 32%, rgba(5, 2, 2, 0) 78%, rgba(5, 2, 2, .6));
+  pointer-events: none;
+}
+#scResult .rtop { display: flex; flex-direction: column; align-items: center; gap: .3cqw; }
+#scResult .rbtns { pointer-events: auto; margin-top: 0; }
+#scPause { gap: .4cqw; }
+.rtag {
+  margin: 0;
+  font-family: "Black Han Sans", sans-serif;
+  font-size: 5cqw; color: #ffd23f;
+  text-shadow: 0 .3cqw 0 #b3260b, 0 0 2cqw rgba(255, 140, 30, .8);
+}
+.rtag.lose { color: #ff5a4a; }
+.rname { margin: 0; font-size: 2.2cqw; font-weight: 900; }
+.rsub { margin: 0; font-size: 1.3cqw; color: #f3c9a8; }
+.rbtns { margin-top: 1.2cqw; display: flex; gap: 1cqw; }
+.rbtns button {
+  padding: .8cqw 2.2cqw;
+  border: 0; border-radius: .7cqw;
+  background: #ffd23f; color: #2a0d05;
+  font: 900 1.4cqw "Noto Sans KR", sans-serif;
+  cursor: pointer;
+}
+.rbtns button.ghost { background: transparent; color: #fff; border: .15cqw solid rgba(255, 255, 255, .5); }
+.rbtns button:hover { filter: brightness(1.1); }
+
+.sound {
+  position: absolute; right: 1cqw; top: 1cqw;
+  width: 3cqw; height: 3cqw;
+  border: .12cqw solid rgba(255, 255, 255, .35); border-radius: 50%;
+  background: rgba(0, 0, 0, .4); color: #fff;
+  font-size: 1.5cqw; cursor: pointer;
+}
+.sound.off { opacity: .45; text-decoration: line-through; }
+.sound.pause { right: 4.6cqw; font-size: 1.1cqw; letter-spacing: -.1em; }
+.sound.hidden { display: none; }
+#scPause { background: rgba(5, 2, 2, .62); gap: .8cqw; }

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>범퍼카 2026</title>
+<meta name="description" content="범퍼카를 타고 서로 박아서 불구덩이 무대 밖으로 밀어내는 게임">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@500;700;900&display=swap">
+<!-- ?v= 는 캐시 깨기용. js·css 를 고치면 함께 올린다 -->
+<link rel="stylesheet" href="css/style.css?v=9">
+</head>
+<body>
+
+<div id="wrap">
+  <div id="stage">
+    <canvas id="cv3"></canvas>   <!-- 3D 무대 -->
+    <canvas id="cv"></canvas>    <!-- 말풍선·점수판 -->
+
+    <!-- 캐릭터 선택 -->
+    <section class="screen" id="scSelect">
+      <h1 class="title">범퍼카 <span>2026</span></h1>
+      <p class="sub">서로 박아서 불구덩이 밖으로 밀어내라</p>
+      <div class="cards" id="cards"></div>
+      <div class="keys">
+        <span><b>Esc</b> 멈추기</span>
+        <span><b>↑</b> 가속</span>
+        <span><b>↓</b> 후진</span>
+        <span><b>← →</b> 방향</span>
+        <span><b>Shift</b> 드리프트</span>
+        <span>드리프트 끝날 때 <b>↑</b> 다시 누르기 = <b class="hot">부스터</b></span>
+      </div>
+    </section>
+
+    <!-- 결과 -->
+    <!-- 결과 — 뒤에서 우승자가 계속 달리도록 위아래에만 띄운다 -->
+    <section class="screen hidden" id="scResult">
+      <div class="rtop">
+        <p class="rtag" id="rTag">WINNER</p>
+        <p class="rname" id="rName"></p>
+        <p class="rsub" id="rSub"></p>
+      </div>
+      <div class="rbtns">
+        <button type="button" id="bAgain">다시 하기 (Enter)</button>
+        <button type="button" id="bPick" class="ghost">캐릭터 다시 고르기</button>
+      </div>
+    </section>
+
+    <!-- 일시정지 -->
+    <section class="screen hidden" id="scPause">
+      <p class="rtag">일시정지</p>
+      <div class="rbtns">
+        <button type="button" id="bResume">계속하기</button>
+        <button type="button" id="bRestart" class="ghost">다시 하기</button>
+        <button type="button" id="bQuit" class="ghost">캐릭터 다시 고르기</button>
+      </div>
+      <p class="rsub">Esc 나 P 를 눌러도 멈추고 이어 해요</p>
+    </section>
+
+    <button type="button" id="bPause" class="sound pause hidden" aria-label="멈추기">❚❚</button>
+    <button type="button" id="bSound" class="sound" aria-label="소리 끄기">♪</button>
+  </div>
+</div>
+
+<!-- 애드온(GLTFLoader 등)이 'three' 로 불러오는 것을 같은 파일로 잇는다 -->
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+<script type="module" src="js/main.js?v=8"></script>
+</body>
+</html>
