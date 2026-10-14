@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@500;700;900&display=swap">
 <!-- ?v= 는 캐시 깨기용. js·css 를 고치면 함께 올린다 -->
-<link rel="stylesheet" href="css/style.css?v=9">
+<link rel="stylesheet" href="css/style.css?v=10">
 </head>
 <body>
 
@@ -22,6 +22,8 @@
       <h1 class="title">범퍼카 <span>2026</span></h1>
       <p class="sub">서로 박아서 불구덩이 밖으로 밀어내라</p>
       <div class="cards" id="cards"></div>
+      <!-- 첫 접속엔 모델(약 20MB)을 다 받아야 카드가 뜬다 — 그동안 멈춘 것처럼 안 보이게 -->
+      <div class="loading" id="loading"><p>불러오는 중… <b id="loadPct">0%</b></p><i><u id="loadBar"></u></i></div>
       <div class="keys">
         <span><b>Esc</b> 멈추기</span>
         <span><b>↑</b> 가속</span>
@@ -64,6 +66,6 @@
 
 <!-- 애드온(GLTFLoader 등)이 'three' 로 불러오는 것을 같은 파일로 잇는다 -->
 <script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
-<script type="module" src="js/main.js?v=8"></script>
+<script type="module" src="js/main.js?v=9"></script>
 </body>
 </html>

@@ -156,11 +156,23 @@ function posed(gltfScene, pose) {
   if (bones.Head) { bones.Head.scale.setScalar(pose !== CAGE_POSE ? HEAD_SCALE.rider : HEAD_SCALE.D); bones.Head.updateWorldMatrix(false, true); }
   return bones;
 }
+// 첫 화면 진행 막대 — 받는 시간 거의 전부가 3D 모델 8개(약 19MB)라 그 받은 바이트로 채운다
+const LOAD = {};
+function loadProgress(key) {
+  return e => {
+    LOAD[key] = [e.loaded, e.total || 2.4e6];
+    let got = 0, all = 0;
+    for (const [a, b] of Object.values(LOAD)) { got += a; all += b; }
+    const p = Math.min(99, Math.round(got / Math.max(all, 19e6) * 100));
+    const pct = document.getElementById("loadPct"), bar = document.getElementById("loadBar");
+    if (pct) { pct.textContent = p + "%"; bar.style.width = p + "%"; }
+  };
+}
 async function loadRider(id) {
   const pose = id === "D" ? CAGE_POSE : id === "B" ? PASSENGER_POSE : SIT_POSE;
   const height = id === "D" ? D_H : STAND_H;
   try {
-    const g = await new GLTFLoader().loadAsync(`assets/models/${id}.glb`);
+    const g = await new GLTFLoader().loadAsync(`assets/models/${id}.glb`, loadProgress(id));
     const src = g.scene;
     src.traverse(o => {
       if (!o.isMesh) return;
@@ -204,7 +216,7 @@ const CAR_LEN = 125, CAR_Y = 0;             // 범퍼가 없어진 만큼 차를
 const CAR_WIDE = { A: 1, B: 1.5, C: 1 };
 const CAR_SIZE = { A: 1.2, B: 1, C: 1.2 };  // 택시 말고 두 대는 통째로 조금 키워 택시와 덩치를 맞춤   // 택시는 B·기사님 둘이 나란히 앉아 폭을 넓혔다
 async function loadStatic(file) {
-  const g = await new GLTFLoader().loadAsync(file);
+  const g = await new GLTFLoader().loadAsync(file, loadProgress(file));
   const src = g.scene;
   src.traverse(o => {
     if (!o.isMesh) return;
@@ -1435,6 +1447,7 @@ async function boot() {
   for (const id of IDS) jobs.push(loadCar(id));
   jobs.push(loadDriver());
   await Promise.all(jobs);
+  document.getElementById("loading").classList.add("hidden");
   await document.fonts.ready;                // 표지판·전광판 글씨가 기본 글꼴로 구워지지 않게
   resize();
   buildStage();
