@@ -3,6 +3,8 @@
 
   var cats  = (typeof CATS  !== "undefined" ? CATS  : []);
   var notes = (typeof NOTES !== "undefined" ? NOTES : []).slice();
+  // 글 주소 앞부분. 기록은 /notes/, 이론·용어는 /learn/ — 같은 렌더러를 두 목록이 같이 쓴다
+  var base  = (typeof NOTE_BASE !== "undefined" ? NOTE_BASE : "/notes/");
 
   // 최신이 위로.
   notes.sort(function (a, b) {
@@ -92,7 +94,7 @@
 
   function buildNote(n) {
     var a = el("a", "note");
-    a.href = "/notes/" + n.slug + "/";
+    a.href = base + n.slug + "/";
 
     var head = el("div", "note__head");
     head.appendChild(el("h4", "note__title", n.title || "제목 없음"));

@@ -20,11 +20,8 @@
 const CATS = [
   { id: "stack",   label: "스택",   note: "내가 쓴 프레임워크와 도구" },
   { id: "money",   label: "수익화", note: "결제·구독이 실제로 도는 구조" },
-  { id: "role",    label: "직무",   note: "회사에서 이 일을 뭐라고 부르나" },
-  { id: "theory",  label: "이론",   note: "원리. 외우는 게 아니라 이해하는 것" },
-  { id: "term",    label: "용어",   note: "면접과 문서에서 만나는 말" },
-  { id: "where",   label: "쓰임새", note: "이 기술은 어디에 쓰이나" },
 ];
+/* 이론·용어·직무·쓰임새는 /learn/learn.js 로 옮겼다. 만든 것과 엮인 글은 여기, 공부한 것은 거기. */
 
 const NOTES = [
 

@@ -100,6 +100,7 @@ gangmini.com/       → 허브
 gangmini.com/1/     → #1
 gangmini.com/7/     → #7
 gangmini.com/notes/ → 기록 목록
+gangmini.com/learn/ → 이론/용어 목록
 ```
 
 `notes`는 숫자가 아니므로 번호 규칙과 충돌하지 않는다. 앞으로 단어 경로를
@@ -193,6 +194,24 @@ gangmini.com/notes/ → 기록 목록
 - **선택의 기록으로 쓴다.** 기능 설명서가 아니라 "무엇을 왜 골랐고 무엇을
   포기했나"를 적는다. 그게 나중에 면접에서 꺼낼 수 있는 형태다.
 - 표지 이미지는 쓰지 않는다. 목록이 빈 상자 늘어선 꼴이 된다.
+
+---
+
+## 4-3. 이론/용어(/learn/)를 추가하는 절차
+
+`/notes/`는 **내가 만든 것과 엮인 기록**(스택·수익화), `/learn/`은 **일하기 전에
+알아두려는 것**(이론·용어·직무·쓰임새)이다. 2026-10-15 에 나눴다.
+
+- 목록 데이터: `learn/learn.js` (`NOTE_BASE = "/learn/"`, `CATS`, `NOTES`)
+- 렌더러는 기록과 같은 `notes/notes-app.js` 를 쓴다 (`NOTE_BASE` 로 글 주소 앞부분만 바뀜)
+- 스타일도 `notes/note.css` 를 같이 쓴다. 글 본문 규칙(그림+글, `.fig__scroll`, `.d-*`)은 4-2 와 같다
+- 글: `learn/<slug>/index.html`, 맨 위 되돌아가기는 `← 이론/용어` (`/learn/`)
+
+절차: 글 파일 생성 → `learn.js` 의 `NOTES` 맨 위에 추가 → `learn/index.html` 의
+`learn.js?v=` 숫자 올리기 → commit & push.
+
+상단 탭(만든 것 / 기록 / 이론/용어)은 `index.html`, `notes/index.html`,
+`learn/index.html` 세 군데에 똑같이 있다. 탭을 바꾸면 셋 다 고친다.
 
 ---
 
