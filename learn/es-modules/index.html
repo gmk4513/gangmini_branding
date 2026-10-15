@@ -52,6 +52,124 @@
     </p>
 
     <!-- ============================================================ -->
+    <h3>먼저, 자바스크립트</h3>
+
+    <p>
+      자바스크립트(JavaScript, JS)는 <strong>웹페이지를 움직이게 하는 프로그래밍 언어</strong>다.
+      웹페이지는 보통 세 가지로 만든다. HTML 이 뼈대, CSS 가 모양, 자바스크립트가 동작이다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 214" role="img" aria-label="웹페이지를 이루는 세 가지. HTML 은 뼈대, CSS 는 모양, 자바스크립트는 동작. 범퍼카에서는 각각 index.html, style.css, main.js 가 그 역할을 한다.">
+          <text class="d-t-s" x="16" y="18">역할</text>
+          <text class="d-t-s" x="250" y="18">범퍼카에서는</text>
+
+          <rect class="d-box" x="16" y="28" width="200" height="52" rx="4"/>
+          <text class="d-t" x="30" y="50">HTML — 뼈대</text>
+          <text class="d-t-s" x="30" y="68">무엇이 있나</text>
+          <rect class="d-box" x="250" y="28" width="374" height="52" rx="4"/>
+          <text class="d-t-m" x="264" y="50">index.html</text>
+          <text class="d-t-s" x="264" y="68">제목 · 캐릭터 카드 자리 · 버튼 · 캔버스 2장</text>
+
+          <rect class="d-box" x="16" y="92" width="200" height="52" rx="4"/>
+          <text class="d-t" x="30" y="114">CSS — 모양</text>
+          <text class="d-t-s" x="30" y="132">어떻게 보이나</text>
+          <rect class="d-box" x="250" y="92" width="374" height="52" rx="4"/>
+          <text class="d-t-m" x="264" y="114">css/style.css</text>
+          <text class="d-t-s" x="264" y="132">흰 카드 · 둥근 버튼 · 제목의 불빛 그림자</text>
+
+          <rect class="d-box-m" x="16" y="156" width="200" height="52" rx="4"/>
+          <text class="d-t" x="30" y="178">자바스크립트 — 동작</text>
+          <text class="d-t-s" x="30" y="196">무엇을 하나</text>
+          <rect class="d-box-m" x="250" y="156" width="374" height="52" rx="4"/>
+          <text class="d-t-m" x="264" y="178">js/main.js (1,470줄)</text>
+          <text class="d-t-s" x="264" y="196">키 입력 · 충돌 물리 · 봇 · 3D 그리기 · 말풍선</text>
+
+          <path class="d-line" d="M216,54 H241"/><polygon points="248,54 241,50 241,58" fill="#1A1D18"/>
+          <path class="d-line" d="M216,118 H241"/><polygon points="248,118 241,114 241,122" fill="#1A1D18"/>
+          <path class="d-line" d="M216,182 H241"/><polygon points="248,182 241,178 241,186" fill="#1A1D18"/>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        HTML 과 CSS 만 있으면 화면은 나오지만 아무것도 안 움직인다. 키를 눌렀을 때 차가 나가는 건 전부 자바스크립트가 한다.
+      </figcaption>
+    </figure>
+
+    <p>
+      가장 작은 예는 이렇다. 버튼을 누르면 글자가 바뀐다.
+    </p>
+
+<pre><code>&lt;button id="b"&gt;눌러 보기&lt;/button&gt;
+&lt;script&gt;
+  document.getElementById("b").addEventListener("click", () =&gt; {
+    document.getElementById("b").textContent = "눌렀다!";
+  });
+&lt;/script&gt;</code></pre>
+
+    <p>
+      HTML 이 만든 버튼을 자바스크립트가 찾아서(<code>getElementById</code>), "눌리면 이걸 해라"를 걸어 두고(<code>addEventListener</code>), 글자를 바꾼다.
+      범퍼카도 결국 이걸 아주 많이 한 것이다. 화면 대신 캔버스에 그리고, 클릭 대신 방향키를 받을 뿐이다.
+    </p>
+
+    <h4>어디서 돌아가나 — 엔진</h4>
+    <p>
+      자바스크립트는 미리 기계어로 바꿔 두지 않는다. 글자 그대로의 코드 파일을 보내면, 받는 쪽의 <strong>엔진</strong>이 읽으면서 실행한다.
+      그래서 빌드 없이 파일만 올려도 돌아간다. 처음엔 브라우저 안에서만 돌았지만, 지금은 엔진만 있으면 어디서든 돈다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 200" role="img" aria-label="같은 자바스크립트 코드가 브라우저(V8), Node.js(V8), React Native 앱(Hermes) 세 곳에서 돌아간다. 각각 범퍼카·비프리 게임, bamti-bomb 서버, 학창시절 다이어리가 그 예다.">
+          <rect class="d-box-m" x="16" y="74" width="150" height="56" rx="4"/>
+          <text class="d-t" x="91" y="98" text-anchor="middle">자바스크립트 코드</text>
+          <text class="d-t-m" x="91" y="116" text-anchor="middle">.js 파일 (글자 그대로)</text>
+
+          <rect class="d-box" x="236" y="16" width="190" height="52" rx="4"/>
+          <text class="d-t" x="250" y="38">브라우저</text>
+          <text class="d-t-s" x="250" y="56">크롬의 엔진 = V8</text>
+          <rect class="d-box" x="236" y="76" width="190" height="52" rx="4"/>
+          <text class="d-t" x="250" y="98">Node.js (서버)</text>
+          <text class="d-t-s" x="250" y="116">엔진 = V8, 브라우저 밖으로</text>
+          <rect class="d-box" x="236" y="136" width="190" height="52" rx="4"/>
+          <text class="d-t" x="250" y="158">React Native (앱)</text>
+          <text class="d-t-s" x="250" y="176">Expo 앱의 엔진 = Hermes</text>
+
+          <text class="d-t-s" x="446" y="47">범퍼카 · 비프리 게임</text>
+          <text class="d-t-s" x="446" y="107">bamti-bomb 서버</text>
+          <text class="d-t-s" x="446" y="167">학창시절 다이어리</text>
+
+          <path class="d-line" d="M166,102 H200 V42 H227"/><polygon points="234,42 227,38 227,46" fill="#1A1D18"/>
+          <path class="d-line" d="M200,102 H227"/><polygon points="234,102 227,98 227,106" fill="#1A1D18"/>
+          <path class="d-line" d="M200,102 V162 H227"/><polygon points="234,162 227,158 227,166" fill="#1A1D18"/>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        내가 만든 것들이 전부 자바스크립트다. 게임은 브라우저에서, 서버는 Node.js 에서, 앱은 휴대폰 안의 엔진에서 돈다.
+      </figcaption>
+    </figure>
+
+    <h4>알아 두면 덜 헷갈리는 것</h4>
+    <ul>
+      <li><strong>자바(Java)와는 관계없다.</strong> 1995년 넷스케이프 브라우저에 넣으려고 만들었고, 당시 인기 있던 자바의 이름을 빌렸을 뿐 전혀 다른 언어다.</li>
+      <li><strong>표준 이름은 ECMAScript 다.</strong> 언어 규칙은 ECMA 라는 표준 단체가 정하고, 해마다 새 판이 나온다. 그중 2015년 판(ES2015, ES6 라고도 부른다)이 가장 크게 바뀐 판이고, 이 글의 주제인 <code>import</code> / <code>export</code>도 그때 들어왔다.</li>
+      <li><strong>변수에 타입을 적지 않는다.</strong> 같은 변수에 숫자를 넣었다가 글자를 넣어도 된다. 편하지만 실수를 늦게 발견한다. 그래서 실무에서는 타입을 적는 <strong>TypeScript</strong>로 쓰고 자바스크립트로 바꿔서 내보내는 경우가 많다.</li>
+    </ul>
+
+    <p class="gloss">
+      <b>엔진</b> — 자바스크립트 코드를 읽고 실행하는 프로그램. 크롬·엣지·Node.js 는 V8, 사파리는 JavaScriptCore, 파이어폭스는 SpiderMonkey 를 쓴다.<br>
+      <b>DOM</b> — 브라우저가 HTML 을 읽어 만든 "화면 요소들의 나무". 자바스크립트는 이 나무를 통해 버튼을 찾고 글자를 바꾼다.<br>
+      <b>TypeScript</b> — 자바스크립트에 타입 표시를 더한 언어. 브라우저는 못 읽어서, 실행 전에 자바스크립트로 바꾼다.
+    </p>
+
+    <p>
+      자바스크립트 코드가 길어지면 파일을 여러 개로 나누게 된다. 나눈 파일들을 브라우저에 <strong>어떻게 불러오느냐</strong>가 이 글의 주제다.
+      방법이 두 가지 있고, 그 차이가 "더블클릭으로 열리느냐"까지 갈린다.
+    </p>
+
+    <!-- ============================================================ -->
     <h3>두 방식을 코드로</h3>
 
     <h4>클래식 스크립트 — <code>&lt;script src&gt;</code></h4>

@@ -30,10 +30,10 @@ const NOTES = [
   {
     slug: "es-modules",
     title: "ES 모듈과 클래식 스크립트 — type=\"module\" 한 줄의 차이",
-    desc: "자바스크립트 파일을 불러오는 두 방식. 왜 모듈은 더블클릭으로 안 열리고 서버가 있어야 하는지까지.",
+    desc: "자바스크립트가 무엇인지부터, 파일을 불러오는 두 방식까지. 왜 모듈은 더블클릭으로 안 열리고 서버가 있어야 하는지.",
     date: "2026-10-15",
     cat: "theory",
-    tags: ["JavaScript", "브라우저", "CORS", "import map"],
+    tags: ["JavaScript", "브라우저", "CORS", "import map", "Node.js"],
     mine: false,   // "내 프로젝트" 표시는 기록 쪽 글에만
   },
 
