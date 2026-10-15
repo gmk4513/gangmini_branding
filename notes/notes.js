@@ -29,6 +29,16 @@ const CATS = [
 const NOTES = [
 
   {
+    slug: "bumpercar-2026",
+    title: "범퍼카 2026 — 그림 세 장으로 3D 범퍼카 게임 만들기",
+    desc: "도트 캐릭터를 3D 로 태워 서로 들이받게. 그대로는 못 쓰는 AI 3D 모델 고치기, 판이 끝나게 하는 박기의 물리, 다섯 번 고친 철창 속 얼굴, 빈 화면처럼 보이던 첫 접속까지.",
+    date: "2026-10-14",
+    cat: "stack",
+    tags: ["Three.js", "WebGL", "Tripo", "glTF", "Python", "Cloudflare Pages", "Fly.io"],
+    mine: true,
+  },
+
+  {
     slug: "bfree-desktop-pet",
     title: "학사모 비프리 데스크톱 펫 — 바탕화면에 캐릭터를 살게 하기",
     desc: "모니터만 한 투명 창 하나로 바탕화면에 사는 캐릭터를. 클릭 통과, 키보드 소유권, 맥 없이 맥 검증하기까지.",

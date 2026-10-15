@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>범퍼카 2026 — 그림 세 장으로 3D 범퍼카 게임 만들기 · gangmin</title>
+<meta name="description" content="도트 그림 캐릭터를 3D 로 태워 서로 들이받게 했다. 그대로는 못 쓰는 3D 모델 고치기, 박기의 물리, 철창 속 얼굴, 빈 화면처럼 보이던 첫 접속까지.">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="범퍼카 2026 — 그림 세 장으로 3D 범퍼카 게임 만들기">
+<meta property="og:description" content="도트 그림 캐릭터를 3D 로 태워 서로 들이받게 했다.">
+<meta property="og:url" content="https://gangmini.com/notes/bumpercar-2026/">
+<meta property="og:image" content="https://gangmini.com/notes/bumpercar-2026/screens.jpg">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../note.css?v=20261009b">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/notes/">← 기록</a>
+    <p class="eyebrow">STACK</p>
+    <h2 class="masthead__title">범퍼카 2026<br>— 그림 세 장으로 3D 범퍼카 게임 만들기</h2>
+    <div class="doc__meta">
+      <span class="badge-mine">내 프로젝트</span>
+      <span class="tag">스택</span>
+      <span class="tag">Three.js</span>
+      <span class="tag">WebGL</span>
+      <span class="tag">Tripo</span>
+      <span class="tag">glTF</span>
+      <span class="tag">Python</span>
+      <span class="tag">Cloudflare Pages</span>
+      <span class="tag">Fly.io</span>
+      <time class="note__date">2026.10.14</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      불구덩이로 둘러싸인 둥근 무대 위에 범퍼카 세 대가 있다. 한 대는 내가, 두 대는 봇이 몬다.
+      서로 들이받아 무대 밖으로 밀어내고, 마지막까지 남으면 이긴다. 무대 뒤 철창 안에는 한 명이 무릎을 꿇고 있고, 경찰 둘이 지킨다.
+    </p>
+    <p>
+      캐릭터는 원래 도트 그림이었다. 그 그림을 3D 모델로 만들어 차에 앉히고, 차는 드리프트하다 부스터를 켜고 들이받는다.
+      PC 브라우저에서 키보드로 바로 하고, 설치는 없다. 주소는 <a href="https://gangmini.com/bumpercar/">gangmini.com/bumpercar</a>.
+      소개 릴스는 이 글을 쓰는 지금 7만 조회를 넘었다.
+      이 글은 무엇으로 어떻게 만들었는지, 그리고 걸린 것들을 어떻게 풀었는지 적는다.
+    </p>
+
+    <figure class="fig">
+      <img class="shot" src="screens.jpg" width="1788" height="520"
+           alt="왼쪽은 흰 카드 세 장에 양홍원·노엘·한요한이 서 있는 캐릭터 선택 화면, 오른쪽은 불길로 둘러싸인 무대에서 검은 차가 부스터 불꽃을 뿜으며 달리고 뒤 철창 앞에 경찰 두 명이 서 있는 게임 화면">
+      <figcaption>
+        캐릭터 선택 · 게임 중. 오른쪽 가운데 검은 차가 나다. 드리프트 끝에 ↑를 다시 눌러 부스터가 켜진 순간이다.
+      </figcaption>
+    </figure>
+
+    <!-- ============================================================ -->
+    <h3>한눈에 보는 구조</h3>
+
+    <p>
+      게임 자체는 서버가 없다. 차의 움직임, 충돌, 봇까지 전부 방문자의 브라우저 안에서 돈다.
+      서버가 하는 일은 파일 22MB를 한 번 건네주는 것뿐이고, 그건 이 사이트가 이미 하고 있었다.
+      방문자 수를 세는 것만 다른 게임의 서버에 맡겼다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 350" role="img" aria-label="PC 브라우저가 Cloudflare Pages 에서 게임 파일 22MB 를 받고, Fly.io 의 bamti-bomb 서버에 방문 신호를 한 번 보낸다. 서버는 볼륨에 방문 수를 저장하고, 관리자는 stats 페이지로 본다.">
+          <!-- 브라우저 -->
+          <rect class="d-box" x="16" y="112" width="140" height="112" rx="4"/>
+          <text class="d-t" x="86" y="140" text-anchor="middle">PC 브라우저</text>
+          <text class="d-t-s" x="86" y="162" text-anchor="middle">키보드로 조작</text>
+          <text class="d-t-m" x="86" y="184" text-anchor="middle">Three.js · WebGL</text>
+          <text class="d-t-s" x="86" y="206" text-anchor="middle">물리 · 봇 · 그리기 전부</text>
+
+          <!-- 관리 -->
+          <rect class="d-box" x="16" y="264" width="140" height="56" rx="4"/>
+          <text class="d-t" x="86" y="288" text-anchor="middle">나 (관리)</text>
+          <text class="d-t-s" x="86" y="306" text-anchor="middle">날짜별 방문자 보기</text>
+
+          <!-- Pages -->
+          <rect class="d-box" x="290" y="20" width="334" height="146" rx="4"/>
+          <text class="d-t" x="304" y="42">Cloudflare Pages · gangmini.com/bumpercar/</text>
+          <text class="d-t-m" x="304" y="66">index.html</text>
+          <text class="d-t-s" x="440" y="66">매번 새로 받는다</text>
+          <text class="d-t-m" x="304" y="84">js/main.js · css</text>
+          <text class="d-t-s" x="440" y="84">4시간 캐시 → 주소에 ?v=</text>
+          <text class="d-t-m" x="304" y="102">vendor/three</text>
+          <text class="d-t-s" x="440" y="102">Three.js r170 (받아 둔 사본)</text>
+          <text class="d-t-m" x="304" y="120">assets/models</text>
+          <text class="d-t-s" x="440" y="120">3D 모델 8개 · 18.6MB</text>
+          <text class="d-t-m" x="304" y="138">chars · riders · bgm</text>
+          <text class="d-t-s" x="440" y="138">그림 · 노래 ≈ 3MB</text>
+          <text class="d-t-s" x="304" y="157">빌드 없음 · 파일 31개 · 22MB</text>
+
+          <!-- Fly -->
+          <rect class="d-box-m" x="290" y="190" width="334" height="146" rx="4"/>
+          <text class="d-t" x="304" y="212">Fly.io · bamti-bomb 서버 (Node · 도쿄)</text>
+          <text class="d-t-m" x="304" y="236">/beacon.gif?s=bumpercar</text>
+          <text class="d-t-s" x="304" y="250">방문 신호 (1×1 그림)</text>
+          <text class="d-t-m" x="304" y="274">/stats?key=…</text>
+          <text class="d-t-s" x="304" y="288">날짜별 사람 수 표</text>
+          <text class="d-t-m" x="304" y="312">WebSocket</text>
+          <text class="d-t-s" x="304" y="326">원래 주인: Bamti Bomb 대전</text>
+
+          <rect class="d-box" x="500" y="222" width="112" height="98" rx="3"/>
+          <text class="d-t" x="556" y="244" text-anchor="middle">볼륨 /data</text>
+          <text class="d-t-m" x="556" y="266" text-anchor="middle">visits-</text>
+          <text class="d-t-m" x="556" y="280" text-anchor="middle">bumpercar.json</text>
+          <text class="d-t-s" x="556" y="304" text-anchor="middle">20초마다 저장</text>
+
+          <!-- 연결 -->
+          <path class="d-line" d="M156,140 H204 V92 H281"/>
+          <polygon points="288,92 281,88 281,96" fill="#1A1D18"/>
+          <text class="d-t-s" x="212" y="86">파일 22MB</text>
+
+          <path class="d-line" d="M156,200 H224 V242 H281"/>
+          <polygon points="288,242 281,238 281,246" fill="#1A1D18"/>
+          <text class="d-t-s" x="230" y="236">열릴 때 1번</text>
+
+          <path class="d-dash" d="M156,292 H281"/>
+          <polygon points="288,292 281,288 281,296" fill="#6E7469"/>
+          <text class="d-t-m" x="170" y="286">/stats?key=</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        게임은 위 상자 하나로 끝난다. 아래 상자는 "몇 명이 왔나"를 세는 일만 한다. 이 게임 때문에 새로 생긴 서버는 없다.
+      </figcaption>
+    </figure>
+
+    <h4>무엇을 왜 골랐나</h4>
+
+    <table>
+      <tr><th>자리</th><th>고른 것</th><th>이유</th></tr>
+      <tr><td>그리기</td><td>Three.js + 순수 JS</td><td>무대·차·사람을 어느 각도에서든 그려야 한다. 게임 엔진은 받는 크기도, 배울 것도 많다. 필요한 건 그리기 하나였다</td></tr>
+      <tr><td>빌드</td><td>없음</td><td>Three.js 파일을 받아 폴더에 넣고 브라우저의 import map 으로 부른다. 고치고 새로고침하면 끝</td></tr>
+      <tr><td>캐릭터 3D</td><td>Tripo (AI 3D 생성)</td><td>그림 세 장(정면·옆·뒤)을 넣으면 모델이 나온다. 직접 모델링할 시간이 없다</td></tr>
+      <tr><td>모델 손질</td><td>Python 스크립트</td><td>받은 모델을 그대로 못 쓴다(아래). 같은 손질을 8번 해야 해서 손이 아니라 코드로</td></tr>
+      <tr><td>배포</td><td>Cloudflare Pages</td><td>이 사이트가 이미 거기 있다. 폴더 하나 넣고 push. 받아 가는 양에 요금이 없다</td></tr>
+      <tr><td>방문 집계</td><td>기존 Fly.io 서버</td><td>"오늘 몇 명"은 누군가 기억해야 한다. 이미 돌고 있는 서버에 이름 한 줄을 더했다</td></tr>
+    </table>
+
+    <p class="gloss">
+      <b>Three.js</b> — 브라우저의 3D 기능(WebGL)을 쓰기 쉽게 감싼 자바스크립트 라이브러리. 장면·카메라·조명·모델을 객체로 다룬다.<br>
+      <b>import map</b> — <code>import "three"</code> 같은 이름을 실제 파일 주소로 이어 주는 브라우저 기능. 번들러 없이도 라이브러리를 모듈로 부를 수 있다.<br>
+      <b>정적 / 동적</b> — 서버가 파일만 건네주면 정적, 서버가 계속 켜져서 계산하거나 기억하면 동적. 화면이 움직이는지와는 상관없다. 이 게임은 화면은 바쁘지만 서버 입장에선 정적이다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>2D 에서 3D 로, 세 번 갈아탔다</h3>
+
+    <p>
+      처음엔 2D 였다. 차 그림이 방향별로 그려진 한 장짜리 시트를 잘라서, 차가 도는 각도에 가장 가까운 그림을 보여 줬다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 170" role="img" aria-label="1단계 2D 스프라이트, 2단계 코드로 만든 3D 차와 그림 판 사람, 3단계 전부 3D 모델로 넘어간 과정">
+          <rect class="d-box" x="16" y="24" width="176" height="104" rx="4"/>
+          <text class="d-t" x="104" y="48" text-anchor="middle">① 2D 스프라이트</text>
+          <text class="d-t-s" x="104" y="72" text-anchor="middle">시트에서 방향별 그림을 잘라 씀</text>
+          <text class="d-t-s" x="104" y="90" text-anchor="middle">8방향 사이는 그림이 없어</text>
+          <text class="d-t-s" x="104" y="106" text-anchor="middle">드리프트할 때 툭툭 끊김</text>
+
+          <rect class="d-box" x="232" y="24" width="176" height="104" rx="4"/>
+          <text class="d-t" x="320" y="48" text-anchor="middle">② 3D 차 + 그림 판</text>
+          <text class="d-t-s" x="320" y="72" text-anchor="middle">차는 코드로 만든 3D 도형</text>
+          <text class="d-t-s" x="320" y="90" text-anchor="middle">사람은 원본 그림을 판에 붙여</text>
+          <text class="d-t-s" x="320" y="106" text-anchor="middle">늘 카메라를 보게</text>
+
+          <rect class="d-box-m" x="448" y="24" width="176" height="104" rx="4"/>
+          <text class="d-t" x="536" y="48" text-anchor="middle">③ 전부 3D 모델</text>
+          <text class="d-t-s" x="536" y="72" text-anchor="middle">사람 4 · 기사님 · 차 3 = Tripo</text>
+          <text class="d-t-s" x="536" y="90" text-anchor="middle">뼈대로 앉혀 운전시킴</text>
+          <text class="d-t-s" x="536" y="106" text-anchor="middle">철창 속 얼굴·경찰만 그림</text>
+
+          <path class="d-line" d="M192,76 H223"/><polygon points="230,76 223,72 223,80" fill="#1A1D18"/>
+          <path class="d-line" d="M408,76 H439"/><polygon points="446,76 439,72 439,80" fill="#1A1D18"/>
+
+          <text class="d-t-s" x="104" y="152" text-anchor="middle">몇 방향은 그림이 아예 없었다</text>
+          <text class="d-t-s" x="320" y="152" text-anchor="middle">차는 매끄럽게, 사람은 납작하게</text>
+          <text class="d-t-s" x="536" y="152" text-anchor="middle">어느 각도에서도 같은 사람</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        범퍼카는 계속 돈다. 그림을 미리 그려 두는 방식은 각도마다 그림이 있어야 하고, 3D 는 각도가 공짜다.
+      </figcaption>
+    </figure>
+
+    <p>
+      ② 단계에서 차는 매끄럽게 돌았지만 사람은 판이라 늘 카메라를 본다. 차가 옆으로 꺾어도 사람은 정면이고, 멀어질 때만 뒤통수 그림으로 바뀐다.
+      차와 함께 도는 사람을 만들려면 사람도 3D 여야 했다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>그림 세 장으로 3D 사람 만들기</h3>
+
+    <p>
+      도트 원본을 바탕으로, 캐릭터마다 팔을 살짝 벌린 A 자 자세의 정면·옆·뒤 그림(턴어라운드)을 한 장에 뽑았다.
+      이걸 세 장으로 나눠 Tripo 에 넣으면 3D 모델이 나온다.
+    </p>
+
+    <figure class="fig">
+      <img class="shot" src="tripo.jpg" width="1104" height="732"
+           alt="위 줄은 검은 퀼팅 재킷과 모자를 쓴 캐릭터의 정면·옆·뒤 그림, 아래 줄은 같은 캐릭터가 3D 모델이 되어 검은 차에 앉아 핸들을 잡은 모습을 앞·옆·뒤에서 본 것">
+      <figcaption>
+        위가 넣은 그림 세 장, 아래가 나온 모델을 게임처럼 차에 앉힌 모습. 그림에 없던 각도(뒤에서 본 차 안)도 모델이 채운다.
+      </figcaption>
+    </figure>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 196" role="img" aria-label="턴어라운드 시트를 split_turnaround.py 로 세 장으로 나누고, Tripo Studio 에서 생성·리토폴로지·리깅을 거쳐 GLB 로 받은 뒤 slim_glb.py 로 손질해 게임 폴더에 넣는 과정">
+          <rect class="d-box" x="16" y="30" width="108" height="76" rx="4"/>
+          <text class="d-t" x="70" y="54" text-anchor="middle">턴어라운드</text>
+          <text class="d-t-s" x="70" y="74" text-anchor="middle">정면·옆·뒤가</text>
+          <text class="d-t-s" x="70" y="90" text-anchor="middle">한 장에</text>
+
+          <rect class="d-box" x="140" y="30" width="108" height="76" rx="4"/>
+          <text class="d-t-m" x="194" y="54" text-anchor="middle">split_turnaround</text>
+          <text class="d-t-s" x="194" y="74" text-anchor="middle">세 장으로 나눔</text>
+          <text class="d-t-s" x="194" y="90" text-anchor="middle">크기·발 높이 맞춤</text>
+
+          <rect class="d-box" x="264" y="30" width="108" height="76" rx="4"/>
+          <text class="d-t" x="318" y="54" text-anchor="middle">Tripo 생성</text>
+          <text class="d-t-s" x="318" y="74" text-anchor="middle">H3.1 · 멀티뷰</text>
+          <text class="d-t-s" x="318" y="90" text-anchor="middle">텍스처 4K</text>
+
+          <rect class="d-box" x="388" y="30" width="108" height="76" rx="4"/>
+          <text class="d-t" x="442" y="54" text-anchor="middle">다듬기 · 뼈대</text>
+          <text class="d-t-s" x="442" y="74" text-anchor="middle">삼각형 2만 개로</text>
+          <text class="d-t-s" x="442" y="90" text-anchor="middle">사람 모양 뼈 넣기</text>
+
+          <rect class="d-box-m" x="512" y="30" width="112" height="76" rx="4"/>
+          <text class="d-t-m" x="568" y="54" text-anchor="middle">slim_glb.py</text>
+          <text class="d-t-s" x="568" y="74" text-anchor="middle">뼈·살·텍스처</text>
+          <text class="d-t-s" x="568" y="90" text-anchor="middle">고쳐서 게임으로</text>
+
+          <path class="d-line" d="M124,68 H133"/><polygon points="140,68 133,64 133,72" fill="#1A1D18"/>
+          <path class="d-line" d="M248,68 H257"/><polygon points="264,68 257,64 257,72" fill="#1A1D18"/>
+          <path class="d-line" d="M372,68 H381"/><polygon points="388,68 381,64 381,72" fill="#1A1D18"/>
+          <path class="d-line" d="M496,68 H505"/><polygon points="512,68 505,64 505,72" fill="#1A1D18"/>
+
+          <path class="d-dash" d="M264,124 H496"/>
+          <text class="d-t-m" x="380" y="142" text-anchor="middle">55 + 35 + 20 = 110 크레딧 / 한 명</text>
+          <text class="d-t-s" x="380" y="160" text-anchor="middle">차·기사님은 뼈가 필요 없어 90</text>
+
+          <text class="d-t-m" x="568" y="142" text-anchor="middle">9.4MB → 2.5MB</text>
+          <text class="d-t-s" x="568" y="160" text-anchor="middle">8개 합 76 → 19MB</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        Tripo 단계는 브라우저에서 사람이 누르는 작업이다. 앞뒤로 붙은 두 단계만 코드로 돌린다.
+      </figcaption>
+    </figure>
+
+    <p>
+      처음엔 무료 플랜으로 한 명을 시험해 봤다. 무료로 내보낼 수 있는 모델(H2.5)은 얼굴이 뭉개져서 누군지 알아볼 수 없었고,
+      유료 모델(H3.1)에서야 얼굴이 나왔다. 이 게임은 얼굴이 전부라 거기서 결제를 정했다.
+    </p>
+    <p>
+      넣는 방법도 중요했다. 정면 한 장만 넣으면 옆과 뒤는 Tripo 가 상상해서 채운다. 정면을 넣고 "멀티 뷰 생성"을 누른 뒤,
+      옆과 뒤 칸을 <strong>내가 가진 그림으로 갈아 끼웠다</strong>. 뒷머리와 재킷 등판이 원본과 같아진다.
+      세 장의 키와 발 높이가 다르면 Tripo 가 헷갈려서, 나누는 스크립트가 셋을 같은 크기의 흰 정사각형 가운데에 놓는다.
+    </p>
+
+    <p class="gloss">
+      <b>리토폴로지</b> — 생성된 모델의 삼각형을 다시 짜서 개수를 줄이는 것. 갓 나온 모델은 삼각형이 수십만 개라 브라우저에서 여러 개를 띄우기 무겁다.<br>
+      <b>리깅</b> — 모델 안에 뼈대를 넣는 것. 뼈를 돌리면 살이 따라 움직여서, 서 있는 모델을 앉히고 팔을 핸들로 뻗게 할 수 있다.<br>
+      <b>glTF / GLB</b> — 3D 모델의 웹 표준 형식. GLB 는 모양·텍스처·뼈대를 파일 하나에 묶은 것이다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>받은 모델을 그대로 못 썼다</h3>
+
+    <p>
+      Tripo 에서 받은 GLB 를 게임에 넣고 팔을 핸들 쪽으로 돌려 봤다. 팔이 안 굽고 몸통째 돌았다. 열어 보니 세 군데가 어긋나 있었다.
+    </p>
+
+    <table>
+      <tr><th>증상</th><th>원인과 고친 것</th></tr>
+      <tr><td>뼈가 발밑을 축으로 돎</td><td>뼈마다 있어야 할 위치·회전 값이 전부 비어 있었다. 관절 자리는 다른 칸(inverse bind matrix)에만 들어 있었다.<br>→ 그 행렬을 거꾸로 풀어 뼈마다 자리를 다시 적었다</td></tr>
+      <tr><td>뼈대가 몸과 따로 놂</td><td>뼈대 전체가 몸과 90° 돌아가 있었다. 팔뼈가 앞을 향하는 식이다.<br>→ 0·90·180·270° 를 다 돌려 보고 손뼈가 손 위치에 가장 가까운 각도를 고른다</td></tr>
+      <tr><td>팔다리가 안 굽음</td><td>모든 살이 엉덩이·가슴 뼈 두 개에만 붙어 있었다.<br>→ 살을 다 떼고 처음부터 다시 붙였다 (아래 그림)</td></tr>
+      <tr><td>파일이 무거움</td><td>모델 하나가 9MB 남짓. 대부분이 화면에선 티도 안 나는 금속·거칠기 텍스처였다.<br>→ 바탕색 텍스처만 2048 JPEG 로 남겼다. 8개 합 76MB → 19MB</td></tr>
+    </table>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 226" role="img" aria-label="왼쪽은 팔의 살 점들이 모두 가슴 뼈 하나에 연결된 모습, 오른쪽은 살 점마다 가장 가까운 팔뼈 선분에 연결되고 팔꿈치 근처는 두 뼈에 반씩 붙은 모습">
+          <!-- 왼쪽: Tripo 가 준 것 -->
+          <text class="d-t" x="20" y="26">Tripo 가 준 것</text>
+          <circle cx="50" cy="110" r="6" fill="#1A1D18"/>
+          <text class="d-t-s" x="50" y="160" text-anchor="middle">가슴</text>
+          <path class="d-line" d="M50,110 H100 H190 H280"/>
+          <circle cx="100" cy="110" r="3.5" fill="#1A1D18"/>
+          <circle cx="190" cy="110" r="3.5" fill="#1A1D18"/>
+          <circle cx="280" cy="110" r="3.5" fill="#1A1D18"/>
+          <text class="d-t-s" x="100" y="160" text-anchor="middle">어깨</text>
+          <text class="d-t-s" x="190" y="160" text-anchor="middle">팔꿈치</text>
+          <text class="d-t-s" x="280" y="160" text-anchor="middle">손목</text>
+          <path class="d-dash" d="M130,80 L50,110 M160,80 L50,110 M220,80 L50,110 M255,80 L50,110 M130,140 L50,110 M160,140 L50,110 M220,140 L50,110 M255,140 L50,110"/>
+          <g fill="#DC4327">
+            <circle cx="130" cy="80" r="3"/><circle cx="160" cy="80" r="3"/><circle cx="220" cy="80" r="3"/><circle cx="255" cy="80" r="3"/>
+            <circle cx="130" cy="140" r="3"/><circle cx="160" cy="140" r="3"/><circle cx="220" cy="140" r="3"/><circle cx="255" cy="140" r="3"/>
+          </g>
+          <text class="d-t-s" x="20" y="182">팔의 살이 전부 가슴 뼈에 붙어 있다</text>
+          <text class="d-t-s" x="20" y="200">→ 팔꿈치를 굽혀도 살은 제자리</text>
+
+          <!-- 오른쪽: 다시 붙인 것 -->
+          <text class="d-t" x="340" y="26">다시 붙인 것</text>
+          <rect class="d-box-m" x="472" y="62" width="46" height="96" rx="3"/>
+          <circle cx="370" cy="110" r="6" fill="#1A1D18"/>
+          <path class="d-line" d="M370,110 H420 H495 H600"/>
+          <circle cx="420" cy="110" r="3.5" fill="#1A1D18"/>
+          <circle cx="495" cy="110" r="3.5" fill="#1A1D18"/>
+          <circle cx="600" cy="110" r="3.5" fill="#1A1D18"/>
+          <path class="d-dash" d="M445,80 V108 M445,140 V112 M480,80 V108 M510,80 V108 M480,140 V112 M510,140 V112 M560,80 V108 M560,140 V112"/>
+          <g fill="#DC4327">
+            <circle cx="445" cy="80" r="3"/><circle cx="480" cy="80" r="3"/><circle cx="510" cy="80" r="3"/><circle cx="560" cy="80" r="3"/>
+            <circle cx="445" cy="140" r="3"/><circle cx="480" cy="140" r="3"/><circle cx="510" cy="140" r="3"/><circle cx="560" cy="140" r="3"/>
+          </g>
+          <text class="d-t-m" x="495" y="56" text-anchor="middle">두 뼈 반씩</text>
+          <text class="d-t-s" x="340" y="182">살 점마다 가장 가까운 뼈 선분에 붙인다</text>
+          <text class="d-t-s" x="340" y="200">관절 양쪽 20% 는 두 뼈에 섞어 부드럽게 접히게</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        빨간 점이 살(꼭짓점), 선이 뼈. 머리는 목뼈 위를 정수리까지 이어 따로 칸을 줬다. 안 그러면 머리 살이 목에 붙어서 머리만 키울 수가 없다.
+      </figcaption>
+    </figure>
+
+    <p>
+      이 손질은 모델 8개에 똑같이 해야 했다. 그래서 GLB 파일을 직접 열어 바이트를 고쳐 쓰는 파이썬 스크립트(<code>slim_glb.py</code>, 270줄)로 만들었다.
+      원본은 따로 보관하고, 스크립트를 다시 돌리면 언제든 같은 결과가 나온다. 뼈가 없는 차와 기사님은 텍스처만 줄인다.
+    </p>
+
+    <p class="gloss">
+      <b>스키닝</b> — 살(꼭짓점)마다 "어느 뼈를 얼마만큼 따라갈지"를 적어 두는 것. 이게 잘못되면 뼈를 돌려도 살이 안 따라오거나 엉뚱하게 늘어난다.<br>
+      <b>inverse bind matrix</b> — 뼈가 쉬는 자세일 때의 위치를 거꾸로 적은 행렬. 원래는 계산을 돕는 보조 값인데, Tripo 파일에선 관절 위치가 여기에만 남아 있었다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>차에 앉히기</h3>
+
+    <p>
+      서 있는 모델을 앉히는 건 뼈마다 "이쪽을 가리켜라"를 적은 표로 했다. 각도를 숫자로 맞추는 대신 방향을 주면, 모델마다 팔 길이가 달라도 손이 핸들 쪽으로 간다.
+      표는 세 개다. 운전석(양홍원·한요한), 조수석(노엘 — 팔을 내리고 앉는다), 철창 속 무릎 꿇기.
+    </p>
+
+    <figure class="fig">
+      <img class="shot" src="riders.jpg" width="1080" height="900"
+           alt="세 줄 세 칸 그림. 위는 검은 포르쉐 컨버터블에 탄 양홍원, 가운데는 흰 택시에 기사님과 나란히 앉은 노엘, 아래는 노란 람보르기니에 탄 한요한을 앞·옆·비스듬히에서 본 모습">
+      <figcaption>
+        차 세 대와 탄 사람. 가운데 택시는 기사님이 운전하고 노엘은 조수석이다. 둘이 나란히 들어가게 택시만 옆으로 1.5배 넓혔다.
+      </figcaption>
+    </figure>
+
+    <ul>
+      <li><strong>다리를 접었다.</strong> 장난감 차라 보닛이 낮아서 앉힌 무릎이 차를 뚫고 나왔다. 허벅지 뼈를 0.08배로 줄여 다리를 차 안에 숨겼다. 위에서 내려다보는 카메라라 다리는 원래 안 보인다.</li>
+      <li><strong>핸들은 손을 따라간다.</strong> 핸들을 정해진 자리에 두지 않고, 앉힌 뒤 두 손의 가운데로 옮긴다. 모델마다 팔 길이가 달라도 손이 허공을 잡지 않는다.</li>
+      <li><strong>기사님 키는 노엘에 맞췄다.</strong> 모델마다 원래 크기가 제각각이라, 모자 꼭대기가 노엘 정수리와 같은 높이가 되게 줄였다.</li>
+    </ul>
+
+    <!-- ============================================================ -->
+    <h3>게임은 어떻게 도나</h3>
+
+    <p>
+      물리는 위에서 내려다본 평면에서 계산하고, 그릴 때만 3D 로 옮긴다. 범퍼카는 뛰지 않으니 높이가 필요 없고, 평면 계산이 훨씬 단순하다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 214" role="img" aria-label="차마다 입력이 하나씩 들어가 update 가 1/120초씩 물리를 진행하고, 결과를 3D 캔버스와 2D 덧그림 캔버스에 그린다">
+          <rect class="d-box" x="16" y="24" width="156" height="124" rx="4"/>
+          <text class="d-t" x="94" y="48" text-anchor="middle">입력 — 차마다 하나</text>
+          <text class="d-t-s" x="28" y="74">나: 방향키 · Shift</text>
+          <text class="d-t-s" x="28" y="94">봇: aiInput</text>
+          <text class="d-t-s" x="28" y="114">우승 후: victoryInput</text>
+          <text class="d-t-s" x="28" y="134">(셋 다 같은 모양)</text>
+
+          <rect class="d-box-m" x="204" y="24" width="176" height="124" rx="4"/>
+          <text class="d-t" x="292" y="48" text-anchor="middle">update — 1/120초씩</text>
+          <text class="d-t-m" x="216" y="74">stepCar</text>
+          <text class="d-t-s" x="270" y="74">가속·드리프트·부스터</text>
+          <text class="d-t-m" x="216" y="94">collide</text>
+          <text class="d-t-s" x="270" y="94">박기·밀려나기</text>
+          <text class="d-t-s" x="216" y="114">중심에서 620 넘으면 탈락</text>
+          <text class="d-t-s" x="216" y="134">2초마다 말풍선</text>
+
+          <rect class="d-box" x="412" y="24" width="212" height="56" rx="4"/>
+          <text class="d-t" x="518" y="46" text-anchor="middle">Three.js → 무대 캔버스</text>
+          <text class="d-t-s" x="518" y="66" text-anchor="middle">(x, y) → (x, 높이, y) · 해상도 75%</text>
+
+          <rect class="d-box" x="412" y="92" width="212" height="56" rx="4"/>
+          <text class="d-t" x="518" y="114" text-anchor="middle">2D → 덧그림 캔버스</text>
+          <text class="d-t-s" x="518" y="134" text-anchor="middle">말풍선 · 순위 · 쾅!</text>
+
+          <path class="d-line" d="M172,86 H195"/><polygon points="202,86 195,82 195,90" fill="#1A1D18"/>
+          <path class="d-line" d="M380,52 H403"/><polygon points="410,52 403,48 403,56" fill="#1A1D18"/>
+          <path class="d-line" d="M380,120 H403"/><polygon points="410,120 403,116 403,124" fill="#1A1D18"/>
+
+          <text class="d-t-s" x="16" y="182">화면 갱신마다: 흐른 시간만큼 update 를 여러 번 돌리고 → 그리기는 한 번</text>
+          <text class="d-t-s" x="16" y="200">결과 화면이 떠도 멈추지 않는다 — 우승한 차가 뒤에서 계속 돈다</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        봇과 나는 입력만 다르다. 같은 <code>stepCar</code>를 거치니 봇이 반칙할 수 없고, 봇이 내 차를 대신 몰게 하는 것도 한 줄이다.
+      </figcaption>
+    </figure>
+
+    <ul>
+      <li><strong>시간을 1/120초씩 끊는다.</strong> 화면이 60Hz 든 144Hz 든 물리는 같은 간격으로 진행된다. 화면이 잠깐 멈췄다 돌아와도 차가 벽을 뚫고 순간이동하지 않는다.</li>
+      <li><strong>3D 를 일부러 거칠게 그린다.</strong> 화면 해상도의 75% 로 그려서 늘린다. 매끈한 3D 가 도트 그림 말풍선·얼굴 옆에서 혼자 튀지 않게, 결을 맞추려는 것이다.</li>
+      <li><strong>말풍선은 3D 가 아니다.</strong> 3D 위에 투명한 2D 캔버스를 한 장 더 깔고, 차의 3D 위치를 화면 좌표로 바꿔 그 자리에 그린다. 글자는 2D 가 선명하다.</li>
+    </ul>
+
+    <p class="gloss">
+      <b>고정 시간 간격(fixed timestep)</b> — 물리를 "지난 프레임에서 흐른 시간"이 아니라 늘 같은 간격으로 진행하는 것. 간격이 들쭉날쭉하면 같은 충돌도 기기마다 결과가 달라진다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>박기의 물리 — 한 판이 끝나게</h3>
+
+    <p>
+      두 차가 부딪치면 먼저 서로의 빠르기를 나눠 갖고(반발 0.75), 거기에 <strong>맞은 쪽이 무조건 밀려나는 몫</strong>을 더 얹는다.
+      실제 물리만 따르면 비슷한 속도로 박았을 때 둘 다 제자리에 서 버려서 아무도 안 떨어진다.
+    </p>
+
+<pre><code>밀려나는 힘 = (기본 80 + 들이받은 빠르기 × 0.35)
+            × 부스터 중이면 2.0
+            × 열기 (40초부터 1.0 → 1.8)
+맞은 뒤엔 0.3~0.55초 동안 미끄러지다 선다</code></pre>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 230" role="img" aria-label="경기 시간에 따른 박는 힘 배율 그래프. 40초까지 1.0, 80초에 1.8 까지 오른 뒤 유지된다. 봇끼리 30판 평균 경기 시간은 41초.">
+          <path class="d-line" d="M60,24 V184 H600"/>
+          <text class="d-t-m" x="52" y="159" text-anchor="end">1.0</text>
+          <text class="d-t-m" x="52" y="109" text-anchor="end">1.4</text>
+          <text class="d-t-m" x="52" y="59" text-anchor="end">1.8</text>
+          <text class="d-t-m" x="60"  y="200" text-anchor="middle">0</text>
+          <text class="d-t-m" x="240" y="200" text-anchor="middle">40초</text>
+          <text class="d-t-m" x="420" y="200" text-anchor="middle">80초</text>
+          <text class="d-t-m" x="600" y="200" text-anchor="middle">120초</text>
+          <text class="d-t-s" x="66" y="20">박는 힘 배율</text>
+          <text class="d-t-s" x="600" y="220" text-anchor="end">경기 시간</text>
+
+          <polyline class="d-line" style="stroke:var(--mark); stroke-width:2" points="60,156 240,156 420,56 600,56"/>
+          <text class="d-t" style="fill:var(--mark)" x="430" y="46">80초부터 1.8배 유지</text>
+
+          <path class="d-dash" d="M245,184 V96"/>
+          <text class="d-t-s" x="252" y="92">봇끼리 30판 평균 41초</text>
+          <text class="d-t-s" x="90" y="146">처음 40초는 그대로</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        판이 길어질수록 밀어내기 쉬워진다. 무대를 줄이는 방법도 있지만, 무대가 줄면 꺾을 자리가 없어져 드리프트가 죽는다.
+      </figcaption>
+    </figure>
+
+    <p>
+      무대는 원래 반지름 440 이었다. 차가 방향을 틀 공간이 좁다는 말에 620 으로 넓혔더니, 이번엔 판이 안 끝났다.
+      서로 밀어도 넓은 무대 안에서 멈춰 버린다. 밀려나는 몫을 55 에서 80 으로 올리고, "열기"를 넣어 오래 버틸수록 세게 튕기게 했다.
+    </p>
+
+    <h4>드리프트 끝에 ↑ = 부스터</h4>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 150" role="img" aria-label="Shift 로 드리프트를 0.08초 이상 하면 부스터 자격이 생기고, 드리프트가 끝난 뒤 0.45초 안에 위 방향키를 다시 누르면 1초 동안 부스터가 켜진다">
+          <path class="d-line" d="M30,76 H60 M600,76 H610"/>
+          <rect class="d-box" x="60" y="60" width="240" height="32" rx="3"/>
+          <text class="d-t" x="180" y="81" text-anchor="middle">Shift + 방향 = 드리프트</text>
+          <path class="d-dash" d="M84,52 V100"/>
+          <text class="d-t-m" x="84" y="44" text-anchor="middle">0.08초</text>
+          <text class="d-t-s" x="84" y="118" text-anchor="middle">여기부터 자격</text>
+
+          <rect class="d-box-m" x="300" y="60" width="110" height="32" rx="3"/>
+          <text class="d-t" x="355" y="81" text-anchor="middle">↑ 다시 누르기</text>
+          <text class="d-t-m" x="355" y="44" text-anchor="middle">0.45초 안에</text>
+
+          <rect class="d-box" x="410" y="60" width="190" height="32" rx="3" style="fill:#FFD23F"/>
+          <text class="d-t" x="505" y="81" text-anchor="middle">부스터 1초</text>
+          <text class="d-t-s" x="505" y="118" text-anchor="middle">최고 속도 300 → 540 · 박으면 2배</text>
+          <text class="d-t-s" x="30" y="142">처음엔 0.35초를 미끄러져야 했다. "살짝만 해도 되게"로 0.08초까지 내렸다</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        드리프트로 돌아서 상대를 정면에 두고 → ↑ 로 부스터 → 들이받기. 이 한 동작이 게임의 손맛이다.
+      </figcaption>
+    </figure>
+
+    <p>
+      봇도 같은 규칙으로 부스터를 쓴다. 처음엔 봇이 부스터를 거의 안 써서(1분에 한 대당 0.1번) 맞아도 시원하지 않았다.
+      상대를 향해 꺾어야 할 때 드리프트를 더 자주 걸고, 들이받기 직전에 짧게 드리프트했다가 부스터를 켜게 바꿨다. 1분에 7번 남짓이 됐다.
+    </p>
+
+    <h4>숫자는 화면 없이 30판 돌려서 정했다</h4>
+    <p>
+      "판이 너무 길다", "봇이 부스터를 안 쓴다" 같은 말은 손으로 몇 판 해 봐서는 고쳤는지 알 수 없다. 게임에 시험용 손잡이를 남겨 뒀다.
+      <code>window.__game.sim(초)</code>는 화면을 안 그리고 물리만 빠르게 돌린다. 주소에 <code>?auto=1</code>을 붙이면 내 차도 봇이 몬다.
+      이걸 화면 없는 크롬(헤드리스)에서 30판씩 돌려 평균 경기 시간, 첫 탈락 시각, 부스터 횟수를 쟀다. 숫자를 바꿀 때마다 다시 쟀다.
+    </p>
+
+    <p class="gloss">
+      <b>헤드리스 브라우저</b> — 창 없이 도는 브라우저. 코드로 페이지를 열고, 키를 누르고, 화면을 찍는다. 이 프로젝트는 그래픽 카드 없이 3D 를 그리는 모드(SwiftShader)로 띄웠다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>철창 속 D — 다섯 번 고쳤다</h3>
+
+    <figure class="fig">
+      <img class="shot" src="arena.jpg" width="1200" height="675"
+           alt="멀리서 본 무대 전체. 둥근 불구덩이 무대 위에 차 세 대가 있고, 양옆에는 관중석, 뒤에는 '범퍼카 2026' 전광판과 철창이 있다. 철창 앞에 경찰 두 명이, 철창 안에 한 명이 무릎을 꿇고 있다.">
+      <figcaption>
+        무대 전체. 게임 중에는 카메라가 내 차를 60% 따라가서 이것보다 가깝다.
+      </figcaption>
+    </figure>
+
+    <p>
+      무대 뒤 철창 안의 D 는 움직이지 않는 캐릭터인데, 시간은 가장 많이 먹었다. 카메라가 위에서 비스듬히 내려다보니, 철창 뒤 얼굴이 잘 안 보였다.
+    </p>
+
+    <table>
+      <tr><th>시도</th><th>문제</th></tr>
+      <tr><td>서 있기</td><td>얼굴이 화면 위로 잘려 나갔다</td></tr>
+      <tr><td>앉아서 창살 잡기</td><td>바닥이 아니라 의자에 앉은 것처럼 보였다</td></tr>
+      <tr><td>무릎 꿇기</td><td>자세는 됐는데 가로 창살이 얼굴을 가렸다</td></tr>
+      <tr><td>가로 창살 빼고, 가운데만 비우기</td><td>가운데만 뻥 뚫려서 감옥 같지 않았다. 3D 얼굴은 멀리서 뭉개졌다</td></tr>
+      <tr><td>고른 간격 + 도트 얼굴</td><td>통과</td></tr>
+    </table>
+
+    <figure class="fig">
+      <img class="shot" src="cage.jpg" width="960" height="432"
+           alt="철창을 가까이 본 모습. 가운데 D 가 무릎을 꿇고 두 손으로 창살을 잡은 채 창살 사이로 도트 그림 얼굴을 내밀고 있고, 양옆에 팔짱 낀 경찰과 주먹 쥔 경찰이 서 있다">
+      <figcaption>
+        창살 간격 84 는 얼굴 폭에 맞춘 값이다. 얼굴이 딱 창살 두 개 사이로 보이고, 두 손은 그 두 창살을 잡는다.
+      </figcaption>
+    </figure>
+
+    <ul>
+      <li><strong>얼굴만 원래 그림으로 바꿨다.</strong> D 는 움직이지 않으니 3D 얼굴일 이유가 없다. 원본 도트 그림에서 머리만 오려(분홍 배경 지우고, 옆에 붙은 주먹 떼어 내고) 3D 머리 자리에 붙였다. 3D 머리를 아주 작게 접어 숨기려 했더니 검은 덩어리가 생겨서, 머리는 그대로 두고 얼굴 그림이 늘 맨 위에 그려지게 했다.</li>
+      <li><strong>철창 안에 조명을 따로 달았다.</strong> 무대 조명만으로는 검은 정장이 배경에 묻혔다. 철창 안 벽을 밝은 색으로 바꾸고, 앞과 위에서 비추는 빛을 하나씩 더했다.</li>
+    </ul>
+
+    <h4>경찰은 3D 가 아니다 — 그런데 판의 종류가 문제였다</h4>
+    <p>
+      경찰 둘은 가만히 서 있기만 하니 그림 판으로 충분했다. 처음엔 늘 카메라를 보는 판(스프라이트)을 썼는데, 경찰이 뒤로 누워 철창 뒤로 넘어가 보였다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 196" role="img" aria-label="왼쪽: 위에서 내려다보는 카메라를 향해 판이 기울어져 윗부분이 철창 뒤로 넘어간다. 오른쪽: 판을 바닥에 수직으로 세우면 철창 앞에 선다">
+          <!-- 왼쪽 -->
+          <circle cx="40" cy="40" r="10" class="d-box"/>
+          <text class="d-t-s" x="40" y="22" text-anchor="middle">카메라</text>
+          <path class="d-dash" d="M48,46 L200,120"/>
+          <path class="d-line" d="M20,170 H300"/>
+          <path class="d-line" d="M240,60 V170" style="stroke-width:3"/>
+          <text class="d-t-s" x="248" y="58">철창</text>
+          <path class="d-line" d="M200,170 L262,78" style="stroke:var(--mark); stroke-width:4"/>
+          <text class="d-t" x="20" y="190">스프라이트: 카메라 쪽으로 눕는다</text>
+          <text class="d-t-s" x="270" y="98">머리가 철창 뒤</text>
+
+          <!-- 오른쪽 -->
+          <circle cx="360" cy="40" r="10" class="d-box"/>
+          <text class="d-t-s" x="360" y="22" text-anchor="middle">카메라</text>
+          <path class="d-dash" d="M368,46 L520,120"/>
+          <path class="d-line" d="M340,170 H620"/>
+          <path class="d-line" d="M560,60 V170" style="stroke-width:3"/>
+          <text class="d-t-s" x="568" y="58">철창</text>
+          <path class="d-line" d="M520,170 V78" style="stroke:var(--mark); stroke-width:4"/>
+          <text class="d-t" x="340" y="190">세운 판: 바닥에 수직, 철창 앞</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        옆에서 본 그림. 스프라이트는 화면과 평행하게 서는데, 카메라가 아래를 내려다보니 화면과 평행한 판은 뒤로 눕는다. 키 큰 그림일수록 많이 넘어간다.
+      </figcaption>
+    </figure>
+
+    <p>
+      바닥에 수직으로 세운 판으로 바꾸니 바로 섰다. 카메라가 거의 정면에서 보니 납작한 판이라는 게 티가 나지 않는다.
+      경찰 그림은 분홍 배경의 한 장에서 오렸고, 테두리에 번진 분홍기를 빼고, 무대의 붉은 조명에 맞게 색을 살짝 눌렀다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>"이상하면 되돌릴게" — 태그 18개</h3>
+
+    <p>
+      이 게임은 내가 보고 말로 고치는 식으로 만들었다. "카메라를 멀리", "머리를 크게" 같은 건 해 보기 전엔 좋을지 모른다.
+      그래서 큰 변경마다 git 태그를 남겼다. 마음에 안 들면 그 이름으로 바로 돌아간다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 150" role="img" aria-label="v1 부터 v18 까지 주요 태그를 시간 순으로 늘어놓은 타임라인. v3 의 먼 카메라와 큰 머리는 v4 에서 되돌렸다.">
+          <path class="d-line" d="M30,76 H610"/>
+          <g fill="#1A1D18">
+            <circle cx="40" cy="76" r="4"/><circle cx="120" cy="76" r="4"/><circle cx="280" cy="76" r="4"/>
+            <circle cx="360" cy="76" r="4"/><circle cx="440" cy="76" r="4"/><circle cx="520" cy="76" r="4"/><circle cx="600" cy="76" r="4"/>
+          </g>
+          <circle cx="200" cy="76" r="5" fill="#DC4327"/>
+
+          <text class="d-t-m" x="40" y="98" text-anchor="middle">v1</text>
+          <text class="d-t-s" x="40" y="116" text-anchor="middle">한 명만 3D</text>
+          <text class="d-t-m" x="120" y="62" text-anchor="middle">v2</text>
+          <text class="d-t-s" x="120" y="44" text-anchor="middle">넷 다 · 아레나</text>
+          <text class="d-t-m" x="200" y="98" text-anchor="middle" style="fill:var(--mark)">v3</text>
+          <text class="d-t-s" x="200" y="116" text-anchor="middle">먼 카메라·큰 머리</text>
+          <text class="d-t-m" x="280" y="62" text-anchor="middle">v4</text>
+          <text class="d-t-s" x="280" y="44" text-anchor="middle">v3 되돌림</text>
+          <text class="d-t-m" x="360" y="98" text-anchor="middle">v6</text>
+          <text class="d-t-s" x="360" y="116" text-anchor="middle">부스터 · BGM</text>
+          <text class="d-t-m" x="440" y="62" text-anchor="middle">v11</text>
+          <text class="d-t-s" x="440" y="44" text-anchor="middle">도트 얼굴</text>
+          <text class="d-t-m" x="520" y="98" text-anchor="middle">v15</text>
+          <text class="d-t-s" x="520" y="116" text-anchor="middle">경찰</text>
+          <text class="d-t-m" x="600" y="62" text-anchor="middle">v18</text>
+          <text class="d-t-s" x="600" y="44" text-anchor="middle">로딩 막대</text>
+          <text class="d-t-s" x="30" y="142">나흘, 커밋 21개. v16·v17 은 릴스 촬영 때 결과 문구를 잠깐 오른쪽으로 치웠다가 되돌린 것</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        v3 의 "멀리서 보고 머리를 키우기"는 실제로 보니 가까이서 원래 크기로 보는 쪽이 나았다. 되돌리는 데 1분이 안 걸렸다.
+      </figcaption>
+    </figure>
+
+    <!-- ============================================================ -->
+    <h3>실행할 때마다 터미널 창이 쌓였다</h3>
+
+    <p>
+      이 게임은 JS 모듈이라 파일을 더블클릭해서는 안 열리고, 작은 로컬 서버가 있어야 한다. 그래서 서버를 띄우고 브라우저를 여는 실행 파일(<code>실행.bat</code>)을 만들어 뒀다.
+      그런데 실행할 때마다 검은 창이 하나씩 늘어났다. 확인해 보니 같은 포트(8020)에 서버가 <strong>6개</strong> 떠 있었다.
+    </p>
+    <ul>
+      <li><strong>창이 쌓인 이유.</strong> 서버를 창이 있는 파이썬으로 띄웠다. 서버는 안 끝나니 창도 안 닫힌다.</li>
+      <li><strong>서버가 쌓인 이유.</strong> 보통은 이미 쓰는 포트에 두 번째 서버가 못 붙는다. 그런데 파이썬 기본 웹 서버는 "주소 재사용" 옵션을 켜고, 윈도에서는 이 옵션이 켜져 있으면 같은 포트에 여러 개가 붙어 버린다.</li>
+    </ul>
+    <p>
+      창 없는 파이썬(<code>pythonw</code>)으로 띄우고, 주소 재사용을 끈 작은 서버 스크립트를 따로 만들었다. 이미 떠 있으면 포트를 못 잡고 조용히 끝나니, 몇 번을 눌러도 서버는 하나다.
+      덤으로 배운 것: bat 파일에 한글을 쓰면 cmd 가 다른 인코딩으로 읽어서 줄이 깨진다. 실행 파일은 영어로만 쓴다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>사이트에 올렸더니 빈 화면</h3>
+
+    <p>
+      게임 폴더에는 손질 전 원본 모델(76MB)과 2D 시절 그림도 있다. 게임이 실제로 부르는 파일만 골라 사이트 저장소로 복사하는 스크립트를 만들었다. 31개, 22MB.
+      올리고 나니 "이렇게 뜨는데?" 하는 캡처가 왔다. 제목과 조작법만 있고 캐릭터 카드가 없었다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 112" role="img" aria-label="첫 접속에 받는 22.3MB 중 3D 모델 18.6MB, 그림 2.3MB, Three.js 와 코드 0.8MB, 노래 0.6MB">
+          <text class="d-t" x="20" y="24">첫 접속에 받는 것 — 22.3MB</text>
+          <rect class="d-box-m" x="20" y="36" width="500" height="30"/>
+          <rect class="d-box" x="520" y="36" width="61" height="30"/>
+          <rect class="d-box" x="581" y="36" width="22" height="30"/>
+          <rect x="603" y="36" width="17" height="30" fill="#1A1D18"/>
+          <text class="d-t-s" x="270" y="56" text-anchor="middle">3D 모델 8개 18.6MB</text>
+          <text class="d-t-s" x="550" y="56" text-anchor="middle">그림</text>
+          <text class="d-t-s" x="520" y="88" text-anchor="middle">그림 2.3MB · Three.js·코드 0.8MB · 노래 0.6MB</text>
+          <text class="d-t-s" x="20" y="88">이게 다 와야 카드가 뜬다</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        고장이 아니라 받는 중이었다. 다만 그동안 아무 표시가 없어서, 보는 사람에겐 고장과 구별이 안 됐다.
+      </figcaption>
+    </figure>
+
+    <p>
+      내 컴퓨터에서는 파일이 바로 옆에 있어서 한 번도 못 본 화면이다. 카드 자리에 "불러오는 중… n%" 막대를 넣었다.
+      처음엔 받은 <strong>파일 개수</strong>로 퍼센트를 셌는데, 인터넷을 느리게 흉내 내서 돌려 보니 이랬다.
+    </p>
+
+<pre><code>개수로 세기   0% 0% 0% 0% 0% 0% 0% 0% 0% 0% 0% 11% 33% 58% 60% 78% 78% → 완료
+바이트로 세기 0% 0% 6% 13% 19% 26% 32% 42% 48% 55% 61% 68% 75% 79% 83% 87% 94% → 완료
+              (0.5초 간격)</code></pre>
+
+    <p>
+      19개 파일을 한꺼번에 요청하니 다 같이 받다가 거의 같이 끝난다. 개수로 세면 5초 동안 0% 에 멈춰 있다가 끝에서야 올라간다. 고장처럼 보이는 건 똑같다.
+      3D 모델을 받는 동안 오는 "지금 몇 바이트 받았다" 신호를 모아 퍼센트를 내게 바꿨다. 이제 막대가 고르게 찬다.
+    </p>
+    <p>
+      예전 비프리 게임 기록에 "그림 받는 동안 진행 표시"를 남은 일로 적어 뒀었다. 같은 구멍에 한 번 더 빠졌다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>몇 명이 왔나 — 정적 사이트에서 세기</h3>
+
+    <p>
+      릴스가 돌기 시작하자 접속자 수가 궁금해졌다. 그런데 이 게임은 Cloudflare 가 파일만 건네주는 정적 사이트라, 방문을 세고 기억할 내 서버가 없다.
+    </p>
+    <p>
+      비프리 게임 때 이미 만들어 둔 길이 있었다. 페이지가 열릴 때 bamti-bomb 서버의 1×1 투명 그림을 한 번 부르고, 서버가 그 요청을 센다.
+      서버 쪽은 받는 사이트 목록에 <code>bumpercar</code> 한 줄을 더하고 관리 페이지에 표 하나를 더한 게 전부다.
+    </p>
+
+<pre><code>// 게임 index.html — gangmini.com 에서 열렸을 때만 (내 컴퓨터 테스트는 안 셈)
+if (/(^|\.)gangmini\.com$/.test(location.hostname))
+  new Image().src = "https://bamti-bomb.fly.dev/beacon.gif?s=bumpercar&amp;r=" + Date.now();
+
+// 서버 — 아무 이름이나 받으면 남이 내 볼륨을 파일로 채울 수 있어서 미리 적어 둔다
+const BEACON_SITES = {
+  bfree:     { file: "visits-bfree.json",     title: "학사모 비프리의 아파트 건설현장" },
+  bumpercar: { file: "visits-bumpercar.json", title: "범퍼카 2026" },
+};</code></pre>
+
+    <ul>
+      <li><strong>그림으로 부르는 이유.</strong> <code>&lt;img&gt;</code> 요청은 다른 주소로 가도 CORS 허락이 필요 없다. 실패해도 게임엔 아무 영향이 없다.</li>
+      <li><strong>개인정보.</strong> IP 를 그대로 저장하지 않는다. 그날만 쓰는 소금과 섞어 해시로 만든 뒤 "그날 몇 명"이라는 숫자만 남는다. 쿠키도 없다.</li>
+      <li><strong>배포 순서.</strong> 서버를 먼저 올려야 신호가 버려지지 않는다. 그런데 서버 배포 도구의 로그인이 끊겨 있었고, 로그인은 직접 키보드를 받는 터미널에서만 돼서 그 한 단계만 사람이 했다.</li>
+    </ul>
+
+    <p class="gloss">
+      <b>CORS</b> — 브라우저가 "다른 주소의 서버에 요청해도 되나"를 서버에게 묻는 규칙. 다만 그림·스크립트를 불러오는 태그는 예전부터 예외라, 응답을 읽지 않는 신호용으로는 그림 요청이 가장 간단하다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>만드는 컴퓨터가 먼저 지쳤다</h3>
+
+    <p>
+      마무리하던 날, 릴스를 저장할 공간이 없다는 말이 나왔다. C 드라이브가 1GB 남아 있었다. 프로젝트 파일은 다 합쳐 1GB 정도라 범인이 아니었다.
+    </p>
+    <p>
+      가장 큰 건 윈도의 가상 메모리 파일(<code>pagefile.sys</code>)이었다. 28GB 까지 불어나 있었다.
+      메모리 16GB 중 크롬이 12GB 넘게 쓰고 있었는데, Tripo 처럼 무거운 3D 탭이 여러 개 열려 있었고, 확인용 헤드리스 크롬도 그래픽 카드 없이 3D 를 그리느라 메모리를 먹었다.
+      윈도는 모자란 메모리를 디스크로 메꾸고, 한 달째 재부팅을 안 해서 그 파일이 줄어들 기회가 없었다.
+      잠시 뒤 다시 재 보니 18.9GB 로 저절로 줄어 있었다. 남아 있던 설치 임시 파일 3.4GB 를 지운 것과 합쳐 빈 공간이 1GB 에서 13.7GB 가 됐다. 3D 를 만드는 일은 결과물보다 만드는 과정이 컴퓨터를 더 먹는다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>남은 일</h3>
+    <ul>
+      <li><strong>폰에서는 못 한다.</strong> 조작이 키보드뿐이다. 릴스에 "PC 전용"이라고 적어 뒀지만, 이 사이트에 오는 사람 대부분은 폰이다. 화면 버튼(핸들·가속·드리프트)이 첫 번째다</li>
+      <li>모델 압축(Draco · meshopt) — 18.6MB 를 절반 아래로</li>
+      <li>모델을 다 받기 전에 카드부터 띄우기 — 고르는 동안 나머지를 받는다</li>
+      <li>링크를 공유했을 때 뜨는 미리보기 이미지</li>
+    </ul>
+
+    <!-- ============================================================ -->
+    <h3>정리</h3>
+
+    <table>
+      <tr><th>고른 것</th><th>한 줄 이유</th></tr>
+      <tr><td>Three.js, 빌드 없음</td><td>필요한 건 그리기 하나. 고치고 새로고침이면 끝</td></tr>
+      <tr><td>Tripo + 내 그림으로 옆·뒤 고정</td><td>상상으로 채운 뒷모습보다 내 그림이 정확하다</td></tr>
+      <tr><td>모델 손질을 스크립트로</td><td>같은 수술을 8번. 원본을 두고 언제든 다시 돌린다</td></tr>
+      <tr><td>방향으로 앉히기</td><td>모델마다 팔 길이가 달라도 손이 핸들로 간다</td></tr>
+      <tr><td>평면 물리 + 1/120초</td><td>뛰지 않는 차에 높이는 필요 없다. 기기가 달라도 같은 충돌</td></tr>
+      <tr><td>밀려나는 몫 + 열기</td><td>실제 물리대로면 판이 안 끝난다</td></tr>
+      <tr><td>화면 없이 30판</td><td>"고쳤다"를 느낌이 아니라 숫자로</td></tr>
+      <tr><td>움직이지 않는 건 그림</td><td>D 의 얼굴과 경찰. 3D 보다 원본이 낫다</td></tr>
+      <tr><td>태그마다 되돌릴 자리</td><td>해 보기 전엔 모르는 것들을 겁 없이 해 본다</td></tr>
+      <tr><td>바이트로 세는 막대</td><td>개수로 세면 막대도 멈춰 보인다</td></tr>
+    </table>
+
+    <p>
+      비프리 게임에서 오래 걸린 건 폰이었고, 이번에 오래 걸린 건 <strong>AI 가 만든 것과 내가 원하는 것 사이의 틈</strong>이었다.
+      Tripo 는 그림 세 장으로 몇 분 만에 사람을 만들어 주지만, 뼈는 비어 있고 살은 두 군데에만 붙어 있었다.
+      철창 속 얼굴은 다섯 번 만에 자리를 잡았다. 생성은 빨라졌고, 그걸 게임 안에서 "그럴듯하게" 만드는 일은 여전히 손이 간다.
+      그 손을 덜 가게 해 준 건 되돌릴 수 있다는 안심과, 숫자로 확인하는 습관이었다.
+    </p>
+
+    <p>
+      게임은 <a href="https://gangmini.com/bumpercar/">gangmini.com/bumpercar</a>, 게임 파일은 <a href="https://github.com/gmk4513/gangmini_branding/tree/main/bumpercar">gangmini_branding/bumpercar</a>, 방문 집계 서버는 <a href="https://github.com/gmk4513/bamti-bomb">bamti-bomb</a>에 있다.
+    </p>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 적을 것</p>
+      <ul>
+        <li><a href="/notes/bfree-construction/">학사모 비프리의 아파트 건설현장</a> — 같은 서버에 순위표와 방문 집계를 처음 얹은 게임</li>
+        <li><a href="/notes/bamti-bomb/">Bamti Bomb</a> — 그 서버의 원래 주인, 실시간 대전 중계</li>
+        <li>glTF 안을 들여다보기 — 뼈대, 스키닝, 텍스처가 파일 안에 어떻게 들어 있나</li>
+        <li>웹 3D 를 가볍게 — Draco · meshopt · KTX2 압축</li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>
