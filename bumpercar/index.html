@@ -65,6 +65,18 @@
 </div>
 
 <!-- 애드온(GLTFLoader 등)이 'three' 로 불러오는 것을 같은 파일로 잇는다 -->
+<script>
+/* 방문 신호 — 이 페이지는 Cloudflare 가 내보내서 방문을 셀 서버가 없다. 열릴 때
+   bamti-bomb 서버의 1x1 그림을 한 번 불러 거기서 센다 (비프리 게임과 같은 방식).
+   <img> 라 CORS 가 필요 없고, 실패해도 게임엔 영향이 없다. 쿠키·추적 없음.
+   조회: bamti-bomb.fly.dev/stats?key=…  — 로컬에서 돌릴 땐 세지 않는다 */
+(function () {
+  try {
+    if (/(^|\.)gangmini\.com$/.test(location.hostname))
+      new Image().src = "https://bamti-bomb.fly.dev/beacon.gif?s=bumpercar&r=" + Date.now();
+  } catch (e) { }
+})();
+</script>
 <script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
 <script type="module" src="js/main.js?v=9"></script>
 </body>
