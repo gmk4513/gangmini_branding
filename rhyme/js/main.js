@@ -208,7 +208,17 @@ $("#beatSheetClose").addEventListener("click", closeBeats);
 $("#beatSheet").addEventListener("click", e => { if (e.target.id === "beatSheet") closeBeats(); });
 addEventListener("keydown", e => { if (e.key === "Escape" && !$("#beatSheet").hidden) closeBeats(); });
 
-let spinVoice = null;      // beats/spin.mp3 가 있으면 그 목소리를 쓴다
+// 아이폰은 손을 '뗄 때'(touchend·click)만 소리를 켜 준다 — 판을 잡는 pointerdown·떼는 pointerup 으론 안 켜져서
+// 첫 화면에서 판부터 긁으면 비트가 안 나왔다. 어디든 손을 떼는 순간 소리를 켜 둔다(켜질 때까지 매번)
+const unlockAudio = () => {
+  if (engine.ctx && engine.ctx.state === "running") return;
+  if (state.running && document.querySelector("#pause:not([hidden])")) return;   // 멈춤 안내는 그 버튼이 켠다
+  engine.init().then(warmBeats).catch(() => {});
+};
+["touchend", "click", "keydown"].forEach(t => addEventListener(t, unlockAudio, true));
+
+let spinVoice = null;      // 녹음해 둔 "DJ, spin that shit!" — 웹 오디오로 틀어야 아이폰에서도 난다(브라우저 음성은 막힌다)
+let spinVoiceLoad = null;
 
 async function spin({ scratched = false, to = null, quiet = false } = {}) {
   if (state.resumeAt && engine.now() < state.resumeAt) { engine.duck(false); return; }    // 이미 바꾸는 중
@@ -235,13 +245,19 @@ async function spin({ scratched = false, to = null, quiet = false } = {}) {
 }
 
 function say() {
-  if (spinVoice) {
+  const play = () => {
     const s = engine.ctx.createBufferSource();
     s.buffer = spinVoice;
     s.connect(engine.master);
     s.start(engine.ctx.currentTime + 0.25);
-    return;
-  }
+  };
+  if (spinVoice) return play();
+  if (!spinVoiceLoad) spinVoiceLoad = loadSpinVoice();
+  // 아직 받는 중이면 받는 대로 (처음 판을 긁었을 때) — 못 받았을 때만 브라우저 음성
+  spinVoiceLoad.then(() => spinVoice ? play() : speak());
+}
+
+function speak() {
   if (!("speechSynthesis" in window)) return;
   const u = new SpeechSynthesisUtterance("DJ, spin that shit!");
   u.lang = "en-US"; u.rate = 1.1; u.pitch = 0.7;
@@ -255,13 +271,11 @@ function warmBeats() {
   if (warmed) return;
   warmed = true;
   BEATS.filter(b => b.file).forEach(b => engine.load(b).catch(() => {}));
+  if (!spinVoiceLoad) spinVoiceLoad = loadSpinVoice();
 }
 
 async function loadSpinVoice() {
-  try {
-    const r = await fetch("beats/spin.mp3");
-    if (r.ok) spinVoice = await engine.ctx.decodeAudioData(await r.arrayBuffer());
-  } catch {}
+  try { spinVoice = await engine.decode("beats/dj-spin.mp3"); } catch {}
 }
 
 let shoutTimer = 0;
@@ -287,7 +301,6 @@ async function start() {
   engine.ctx.onstatechange = () => {       // 전화·알림 등으로 소리가 끊기면 멈춤 안내
     if (state.running && !document.hidden && engine.ctx.state !== "running") showPaused("away");
   };
-  if (!spinVoice) loadSpinVoice();
   warmBeats();
   seq = createSequencer(state.mode, state.players, { len: state.len, every: state.every, turn: state.turn }, custom[state.mode]);
   $("#home").hidden = true;
