@@ -220,6 +220,7 @@ button, select { font: inherit; color: inherit; cursor: pointer; }
   width: calc(var(--s) * .14); height: calc(var(--s) * .14); border-radius: 50%;
   background: radial-gradient(circle, #c9c5bc 0 38%, #8f8b83 40% 100%);
   box-shadow: 0 2px 3px rgba(0, 0, 0, .4);
+  pointer-events: none;          /* 그림만 — 톤암 위를 눌러도 아래 판이 잡히게 */
 }
 .deck__arm i {
   position: absolute; left: 50%; top: 50%; width: calc(var(--s) * .04); height: calc(var(--s) * .52);
