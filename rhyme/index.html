@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2a2d2b">
+<title>라임놀이 — 우리말 프리스타일 클럽</title>
+<meta name="description" content="말맛을 살려, 나만의 판을 벌려. 비트 위에 단어·모음·제시어·초성이 떨어지는 한글 프리스타일 라임 놀이.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@500;700;900&display=swap">
+<link rel="stylesheet" href="css/style.css?v=12">
+</head>
+<body>
+<div class="app">
+
+  <!-- 첫 화면 — 한 화면에 다 보이게: 제목 · 인원 · 놀이 · 옵션 · 턴테이블 + 시작 -->
+  <section class="screen home" id="home">
+    <div class="tiles" aria-hidden="true"></div>
+    <div class="dancheong" aria-hidden="true"></div>
+
+    <div class="hero">
+      <p class="kicker">HANGEUL FREESTYLE CLUB · VOL. 01</p>
+      <h1><b class="logo__seal" aria-hidden="true">ㄹ</b>라임놀이<span class="hero__stamp" aria-hidden="true">한글<br>사랑</span></h1>
+      <p class="hero__sub">비트는 <em>자진모리</em> 그 위에서 수영 마치 <em>마린보이</em><br>준비됐음 뱉어 너의 <em>마음의소리</em></p>
+    </div>
+
+    <div class="seg" id="players" role="group" aria-label="인원">
+      <button data-p="1"><b>혼자 갈고닦기</b> / 1인</button>
+      <button data-p="2"><b>둘이 주고받기</b> / 2인</button>
+    </div>
+
+    <div class="modes" id="modes" role="radiogroup" aria-label="놀이"></div>
+    <div class="opts" id="opts"></div>
+
+    <div id="deckHome"></div>
+
+    <button class="go" id="start">스핀 댓 싯!</button>
+    <p class="home__foot">우리말을 가지고 노는 시간 · 소리를 켜고 즐겨주세요</p>
+  </section>
+
+  <!-- 플레이 -->
+  <section class="screen play" id="play" hidden>
+    <div class="tiles" aria-hidden="true"></div>
+    <header class="topbar">
+      <button class="topbar__quit" id="quit" aria-label="그만하기">✕</button>
+      <div class="topbar__mode" id="modeName"></div>
+      <div class="topbar__turn" id="turn"></div>
+    </header>
+    <div class="stage" id="stage">
+      <div class="ball" id="ball" aria-hidden="true"></div>
+      <div class="board" id="board"></div>
+    </div>
+    <div class="playdeck" id="deckPlay"></div>
+  </section>
+
+  <!-- 비트 목록 — 턴테이블 비트 이름을 누르면 -->
+  <div class="sheet" id="beatSheet" hidden>
+    <div class="sheet__panel" role="dialog" aria-modal="true" aria-labelledby="beatSheetTitle">
+      <header class="sheet__head">
+        <b id="beatSheetTitle">비트 고르기</b>
+        <span class="sheet__sub" id="beatSheetSub"></span>
+        <button class="sheet__close" id="beatSheetClose" aria-label="닫기">✕</button>
+      </header>
+      <ul class="sheet__list" id="beatList"></ul>
+    </div>
+  </div>
+
+  <div class="shout" id="shout" aria-live="polite"></div>
+
+  <!-- 다른 앱에 갔다 오거나 소리 장치가 멈췄을 때 -->
+  <button class="pause" id="pause" hidden><b></b><span></span></button>
+</div>
+
+<script>
+/* 방문 신호 — 이 페이지는 Cloudflare 가 내보내서 방문을 셀 서버가 없다. 열릴 때
+   bamti-bomb 서버의 1x1 그림을 한 번 불러 거기서 센다 (범퍼카와 같은 방식).
+   조회: bamti-bomb.fly.dev/stats?key=…  — 로컬에서 돌릴 땐 세지 않는다 */
+(function () {
+  try {
+    if (/(^|\.)gangmini\.com$/.test(location.hostname))
+      new Image().src = "https://bamti-bomb.fly.dev/beacon.gif?s=rhyme&r=" + Date.now();
+  } catch (e) { }
+})();
+</script>
+<script type="module" src="js/main.js?v=17"></script>
+</body>
+</html>
