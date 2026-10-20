@@ -26,6 +26,16 @@ const CATS = [
 const NOTES = [
 
   {
+    slug: "rhyme-play",
+    title: "라임놀이 — 박자에 맞춰 한글을 던져 주는 프리스타일 랩 게임",
+    desc: "비트 위로 단어·모음·제시어·초성이 떨어진다. 소리 시계 하나로 맞춘 박자, 한글을 쪼개 만든 라임 문제, 코드로 만든 찐 힙합 비트, 아이폰에서만 나던 문제들까지.",
+    date: "2026-10-20",
+    cat: "stack",
+    tags: ["Web Audio API", "JavaScript", "한글 자모 분해", "헤드리스 Chrome", "ffmpeg", "Cloudflare Pages", "Fly.io"],
+    mine: true,
+  },
+
+  {
     slug: "bumpercar-2026",
     title: "범퍼카 2026 — 그림 세 장으로 3D 범퍼카 게임 만들기",
     desc: "도트 캐릭터를 3D 로 태워 서로 들이받게. 그대로는 못 쓰는 AI 3D 모델 고치기, 판이 끝나게 하는 박기의 물리, 다섯 번 고친 철창 속 얼굴, 빈 화면처럼 보이던 첫 접속까지.",
