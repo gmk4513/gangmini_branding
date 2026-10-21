@@ -215,6 +215,23 @@ gangmini.com/learn/ → 이론/용어 목록
 
 ---
 
+## 4-4. 숨은 도구: `/card/` (카드뉴스 만들기)
+
+인스타 `@to_twenties`(21세기 괴테, 내 마인드셋 계정)에 매일 올릴 카드뉴스를 폰에서
+만드는 내 전용 도구. **허브·data.js 에 올리지 않는다** (noindex, 번호 없음).
+
+- 메모 붙여넣기 → `bamti-bomb.fly.dev/api/card/polish` (Claude API, 서버 `server/card.js`)
+  가 다듬고 1~2문장씩 나눔 → 캔버스로 1080×1440(3:4) JPG → 공유 창으로 사진 앱에 저장
+- 열쇠(`CARD_KEY`)는 Fly 비밀값. 폰에선 `#k=열쇠` 로 한 번 열면 localStorage 에 남는다.
+  열쇠 원문은 `사업IDEA/마인드셋_to_twenties/카드_열쇠.txt` 에만 있다. 저장소에 넣지 않는다
+- 카드 디자인(미색 종이·먹색·주홍 형광펜·왼쪽 아래 괴테)은 전부 `card/card.js` 의 draw* 함수
+- 예외: 이 페이지는 **Noto Serif KR·Pretendard 를 CDN 으로 받는다.** 캔버스에 찍히는
+  글꼴이 기기마다 달라지면 안 되기 때문이다. 방문자용 페이지가 아니라 6장의 규칙과 충돌하지 않는다
+- 괴테 그림 가공: `사업IDEA/마인드셋_to_twenties/make_assets.py` (원본 → `goethe-bust.png`, 프로필 사진)
+- `card.js`·`card.css` 를 고치면 `card/index.html` 의 `?v=` 를 올린다
+
+---
+
 ## 5. 기술 원칙 (어기면 안 되는 것)
 
 ### 5-1. 정적 우선
