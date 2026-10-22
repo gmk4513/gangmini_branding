@@ -426,6 +426,7 @@
     ctx.fillText(HANDLE, 96, y + 64);
     // 제목이 길어지면 괴테를 줄여서라도 겹치지 않게 한다
     goethe(Math.max(400, Math.min(640, H - (y + 110))), 40);
+    if (info.reel) return;               // 릴스에선 "넘겨 보기"가 옆으로 밀라는 말이 된다
     ctx.fillStyle = C.accent;
     ctx.font = "700 30px " + SANS;
     ctx.textAlign = "right";
@@ -484,7 +485,7 @@
   };
 
   /* ---------------- 릴스 영상 ----------------
-     카드를 캐러셀 넘기듯 한 장씩 밀어 넘기는 1080×1920 MP4. 소리는 넣지 않는다 —
+     카드를 제자리에서 한 장씩 바꿔 보여 주는 1080×1920 MP4. 소리는 넣지 않는다 —
      음악은 인스타 앱에서 고르는 게 저작권 걱정이 없다.
 
      실시간 녹화(MediaRecorder)는 영상 길이만큼 기다려야 하고 프레임이 튄다.
@@ -494,7 +495,7 @@
   const CS = 0.86;                       // 영상 속 카드 크기
   const CW = Math.round(W * CS), CH = Math.round(H * CS);
   const CX = Math.round((RW - CW) / 2), CY = 250;  // 위아래는 릴스 화면 글씨·버튼이 덮는 자리라 비운다
-  const SLIDE = 0.5;                     // 넘기는 데 걸리는 초
+  const SLIDE = 0.6;                     // 바뀌는 데 걸리는 초 (사라짐 반, 나타남 반)
   let reelFile = null;
 
   // 한 장에 머무는 초. 글이 길수록 오래. 한국어는 화면에서 초당 열몇 자쯤 읽힌다
@@ -506,20 +507,27 @@
     return s * speed;
   }
 
-  // 카드마다 따로 떠 둔다. 영상에서는 이 그림을 밀기만 한다
+  // 카드마다 따로 떠 둔다. 영상에서는 이 그림을 바꿔 끼우기만 한다
   async function snapshots(ps) {
     await fontsFor(ps); await bustReady;
-    const info0 = { date: $("date").value, total: ps.length };
-    return ps.map((p, i) => {
-      const info = Object.assign({ page: i + 1 }, info0);
-      if (p.kind === "cover") drawCover(p.text, info);
-      else if (p.kind === "outro") drawOutro(p.text, info);
-      else drawBody(p.text, info);
+    const info0 = { date: $("date").value, total: ps.length, reel: true };
+    const snap = () => {
       const c = document.createElement("canvas");
       c.width = CW; c.height = CH;
       c.getContext("2d").drawImage(canvas, 0, 0, CW, CH);
       return c;
+    };
+    paper();
+    const blank = snap();                // 바뀌는 동안 밑에 깔리는 빈 종이
+    const shots = ps.map((p, i) => {
+      const info = Object.assign({ page: i + 1 }, info0);
+      if (p.kind === "cover") drawCover(p.text, info);
+      else if (p.kind === "outro") drawOutro(p.text, info);
+      else drawBody(p.text, info);
+      return snap();
     });
+    shots.blank = blank;
+    return shots;
   }
 
   function timeline(ps, speed) {
@@ -548,25 +556,33 @@
         prog = into > 0 && s.i < shots.length - 1 ? ease(Math.min(1, into / SLIDE)) : 0;
       }
     }
-    const step = CW + 56;
-    const card = (img, x) => {
+    // 옆으로 밀면 손으로 넘기는 캐러셀처럼 보여서, 사람들이 옆으로 밀다가 릴스를 나가 버린다.
+    // 그래서 종이는 제자리에 두고 글만 바꾼다: 앞 장 글이 먼저 사라지고, 다음 장 글이 살짝 올라오며 나타난다.
+    // 두 장을 겹쳐 흐리면 글자 두 벌이 겹쳐 보여서 차례로 한다
+    rctx.save();
+    rctx.shadowColor = "rgba(38, 34, 30, 0.16)";
+    rctx.shadowBlur = 44; rctx.shadowOffsetY = 14;
+    rctx.drawImage(prog > 0 ? shots.blank : shots[cur], CX, CY);
+    rctx.restore();
+    if (prog > 0) {
+      const out = prog < 0.5, a = out ? 1 - prog * 2 : prog * 2 - 1;
+      const img = out ? shots[cur] : shots[cur + 1];
       rctx.save();
-      rctx.shadowColor = "rgba(38, 34, 30, 0.16)";
-      rctx.shadowBlur = 44; rctx.shadowOffsetY = 14;
-      rctx.drawImage(img, x, CY);
+      rctx.beginPath(); rctx.rect(CX, CY, CW, CH); rctx.clip();   // 올라오는 동안 종이 밖으로 삐져나오지 않게
+      rctx.globalAlpha = a;
+      rctx.drawImage(img, CX, CY + (out ? 0 : (1 - a) * 28));
       rctx.restore();
-    };
-    card(shots[cur], CX - prog * step);
-    if (prog > 0) card(shots[cur + 1], CX - prog * step + step);
-    // 캐러셀 점
-    const n = shots.length, gap = 26, y = CY + CH + 64;
-    const active = prog > 0.5 ? cur + 1 : cur;
-    for (let k = 0; k < n; k++) {
-      rctx.beginPath();
-      rctx.arc(RW / 2 + (k - (n - 1) / 2) * gap, y, k === active ? 7 : 5, 0, Math.PI * 2);
-      rctx.fillStyle = k === active ? C.accent : "rgba(38, 34, 30, 0.22)";
-      rctx.fill();
     }
+    // 점 대신 혼자 차오르는 막대. "알아서 넘어가는 영상"으로 읽힌다
+    const y = CY + CH + 60, r = 3;
+    const bar = (w, color) => {
+      rctx.beginPath();
+      if (rctx.roundRect) rctx.roundRect(CX, y, w, r * 2, r); else rctx.rect(CX, y, w, r * 2);
+      rctx.fillStyle = color;
+      rctx.fill();
+    };
+    bar(CW, "rgba(38, 34, 30, 0.12)");
+    bar(Math.max(r * 2, CW * Math.min(1, sec / tl.total)), C.accent);
   }
 
   function loadMuxer() {
