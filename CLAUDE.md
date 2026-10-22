@@ -229,6 +229,9 @@ gangmini.com/learn/ → 이론/용어 목록
 - 릴스 영상: 같은 카드를 제자리에서 한 장씩 바꾸는 1080×1920 MP4 (옆으로 밀거나 캐러셀 점을 넣으면 손으로 넘기는 줄 알고 밀다가 릴스를 나가 버려서, 흐려지며 바뀌고 아래 막대가 저절로 차오른다), 소리 없음(음악은 인스타에서).
   WebCodecs H.264 + `card/vendor/mp4-muxer-5.2.2.js`(MIT) 로 브라우저에서 바로 인코딩,
   안 되면 MediaRecorder 실시간 녹화로 내려간다
+- 지난 기록: 만든 카드(제목·카드·원문 메모·날짜·마지막 장 문구)는 bamti-bomb 볼륨의
+  `card-log.json` 에 남는다 (`POST /api/card/log`, 같은 열쇠). 고치면 1.2초 뒤 그 기록에 덮어쓴다.
+  넣고 꺼내기만 해서 Claude API 요금은 안 나간다
 - 예외: 이 페이지는 **Noto Serif KR·Pretendard 를 CDN 으로 받는다.** 캔버스에 찍히는
   글꼴이 기기마다 달라지면 안 되기 때문이다. 방문자용 페이지가 아니라 6장의 규칙과 충돌하지 않는다
 - 괴테 그림 가공: `사업IDEA/마인드셋_to_twenties/make_assets.py` (원본 → `goethe-bust.png`, 프로필 사진)

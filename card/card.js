@@ -10,6 +10,7 @@
   "use strict";
 
   const API = "https://bamti-bomb.fly.dev/api/card/polish";
+  const LOG = "https://bamti-bomb.fly.dev/api/card/log";   // 만든 기록 (Claude API 안 부름)
   const W = 1080, H = 1440;
   const C = {
     paper: "#F3EEE4", ink: "#26221E", sub: "#8C8478", faint: "#B8AE9F",
@@ -27,7 +28,8 @@
   };
 
   /* ---------------- 상태 ---------------- */
-  let deck = null;            // { title, cards: [...] }
+  let deck = null;            // { title, cards: [...], memo }  memo 는 만들 때 붙여 넣은 원문
+  let curId = null;           // 지금 보고 있는 기록의 id. 고치면 이 기록에 덮어쓴다
   let files = [];             // 저장할 File[] (표지 + 본문 + 마지막)
   const bust = new Image();
   bust.src = "goethe-bust.png";
@@ -47,6 +49,7 @@
     if (!v) return;
     store.set("key", v); $("key").value = ""; showKey();
     say("열쇠를 저장했어요.");
+    loadList();
   };
 
   // DAY 번호는 뺐다 (2026-10-22). 매일 올릴지 정해지지 않아서, 빠진 날이 숫자로 드러나지 않게
@@ -86,7 +89,8 @@
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(errText(r.status, j.error));
-      deck = { title: j.title, cards: j.cards };
+      deck = { title: j.title, cards: j.cards, memo: memo };
+      curId = newId();
       say("다 됐어요. 이상한 문장은 카드 아래에서 바로 고치면 돼요.");
       await renderAll(true);
       $("result").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -125,10 +129,103 @@
     });
     if (cur.length) cards.push(cur.join(" "));
     if (!title) title = cards.length ? cards[0].slice(0, 30) : "";
-    deck = { title: title, cards: cards.slice(0, 18) };
+    deck = { title: title, cards: cards.slice(0, 18), memo: memo };
+    curId = newId();
     say("문장만 나눴어요. 맞춤법은 그대로예요.");
     renderAll(true);
   };
+
+  /* ---------------- 지난 기록 ----------------
+     만든 카드는 서버(bamti-bomb 볼륨)에 남긴다. 폰·컴퓨터 어디서 열어도 같은 목록이 보인다.
+     넣고 꺼내기만 하므로 Claude API 요금은 안 나간다. 다듬기 버튼을 누를 때만 나간다 */
+  function newId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  async function logCall(body) {
+    const key = store.get("key");
+    if (!key) throw new Error("no_key");
+    const r = await fetch(LOG, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(Object.assign({ key: key }, body))
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || String(r.status));
+    return j;
+  }
+
+  let known = new Set();     // 목록에 이미 있는 id. 새 기록이 저장되면 목록을 다시 받는다
+  async function saveNow() {
+    if (!deck || !curId) return;
+    const id = curId;
+    try {
+      await logCall({ op: "put", item: {
+        id: id, date: $("date").value, title: deck.title, cards: deck.cards,
+        memo: deck.memo || "", outro: $("outro").value
+      } });
+      $("logStatus").textContent = "";
+      if (!known.has(id)) loadList();
+    } catch (e) {
+      $("logStatus").textContent = "기록을 저장하지 못했어요. 인터넷이 되면 글을 조금 고쳐 다시 저장해 주세요.";
+    }
+  }
+  const saveSoon = debounce(saveNow, 1200);
+
+  async function loadList() {
+    if (!store.get("key")) return;
+    let items;
+    try { items = (await logCall({ op: "list" })).items || []; }
+    catch (e) { $("logStatus").textContent = "기록을 불러오지 못했어요."; return; }
+    known = new Set(items.map(x => x.id));
+    $("logBox").hidden = false;
+    $("logStatus").textContent = items.length ? "" : "아직 기록이 없어요. 카드를 만들면 여기 남아요.";
+    const ul = $("logList");
+    ul.innerHTML = "";
+    items.forEach(x => {
+      const li = document.createElement("li");
+      if (x.id === curId) li.className = "on";
+      const open = document.createElement("button");
+      open.type = "button"; open.className = "log__open";
+      const t = document.createElement("b");
+      t.textContent = (x.title || "(제목 없음)").replace(/\*\*/g, "");
+      const m = document.createElement("span");
+      m.textContent = (x.date ? x.date.replace(/-/g, ".") : "") + " · 카드 " + (x.n + 2) + "장" + (x.head ? " · " + x.head : "");
+      open.appendChild(t); open.appendChild(m);
+      open.onclick = () => openLog(x.id);
+      const del = btn("지우기", async () => {
+        if (!confirm("“" + t.textContent + "” 기록을 지울까요? 되돌릴 수 없어요.")) return;
+        try {
+          await logCall({ op: "del", id: x.id });
+          if (curId === x.id) curId = null;
+          loadList();
+        } catch (e) { $("logStatus").textContent = "지우지 못했어요."; }
+      });
+      del.className = "log__del";
+      li.appendChild(open); li.appendChild(del);
+      ul.appendChild(li);
+    });
+  }
+
+  async function openLog(id) {
+    $("logStatus").textContent = "불러오는 중…";
+    let it;
+    try { it = (await logCall({ op: "get", id: id })).item; }
+    catch (e) { $("logStatus").textContent = "불러오지 못했어요."; return; }
+    $("logStatus").textContent = "";
+    curId = it.id;
+    deck = { title: it.title, cards: it.cards.length ? it.cards : [""], memo: it.memo };
+    if (it.date) $("date").value = it.date;
+    $("outro").value = it.outro || OUTRO_DEFAULT;
+    $("memo").value = it.memo || "";
+    say("지난 기록을 불러왔어요. 고치면 이 기록에 그대로 저장돼요.");
+    [...$("logList").children].forEach(li => li.classList.remove("on"));
+    await renderAll(true, true);
+    loadList();
+    $("result").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  loadList();
 
   /* ---------------- 목록 ---------------- */
   const listEl = $("cards");
@@ -143,9 +240,10 @@
   /* 글 상자를 다시 만들지 않고 그림만 바꿔야 고치는 중에 커서가 안 튄다.
      카드 개수가 바뀔 때(rebuild)만 목록을 새로 만든다 */
   let gen = 0;               // 그리는 도중에 또 고치면 앞의 그리기는 버린다
-  async function renderAll(rebuild) {
+  async function renderAll(rebuild, noSave) {
     if (!deck) return;
     const my = ++gen;
+    if (!noSave) saveSoon();   // 지난 기록을 열기만 한 건 저장할 게 없다
     $("result").hidden = false;
     $("reel").hidden = false;
     // 글이 바뀌면 만들어 둔 영상은 옛 글이다. 다시 만들게 한다
