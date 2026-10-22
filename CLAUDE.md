@@ -224,7 +224,11 @@ gangmini.com/learn/ → 이론/용어 목록
   가 다듬고 1~2문장씩 나눔 → 캔버스로 1080×1440(3:4) JPG → 공유 창으로 사진 앱에 저장
 - 열쇠(`CARD_KEY`)는 Fly 비밀값. 폰에선 `#k=열쇠` 로 한 번 열면 localStorage 에 남는다.
   열쇠 원문은 `사업IDEA/마인드셋_to_twenties/카드_열쇠.txt` 에만 있다. 저장소에 넣지 않는다
-- 카드 디자인(미색 종이·먹색·주홍 형광펜·왼쪽 아래 괴테)은 전부 `card/card.js` 의 draw* 함수
+- 카드 디자인(미색 종이·먹색·주홍 형광펜·왼쪽 아래 괴테)은 전부 `card/card.js` 의 draw* 함수.
+  DAY 번호는 2026-10-22 에 뺐다 (매일 올릴지 미정)
+- 릴스 영상: 같은 카드를 한 장씩 밀어 넘기는 1080×1920 MP4, 소리 없음(음악은 인스타에서).
+  WebCodecs H.264 + `card/vendor/mp4-muxer-5.2.2.js`(MIT) 로 브라우저에서 바로 인코딩,
+  안 되면 MediaRecorder 실시간 녹화로 내려간다
 - 예외: 이 페이지는 **Noto Serif KR·Pretendard 를 CDN 으로 받는다.** 캔버스에 찍히는
   글꼴이 기기마다 달라지면 안 되기 때문이다. 방문자용 페이지가 아니라 6장의 규칙과 충돌하지 않는다
 - 괴테 그림 가공: `사업IDEA/마인드셋_to_twenties/make_assets.py` (원본 → `goethe-bust.png`, 프로필 사진)

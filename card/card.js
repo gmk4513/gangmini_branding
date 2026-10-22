@@ -49,13 +49,12 @@
     say("열쇠를 저장했어요.");
   };
 
-  const last = +store.get("lastDay") || 0;
-  $("day").value = last + 1;
+  // DAY 번호는 뺐다 (2026-10-22). 매일 올릴지 정해지지 않아서, 빠진 날이 숫자로 드러나지 않게
   $("date").value = today();
   $("memo").value = store.get("memo") || "";
   $("outro").value = store.get("outro") || OUTRO_DEFAULT;
   $("memo").addEventListener("input", () => store.set("memo", $("memo").value));
-  ["day", "date"].forEach(id => $(id).addEventListener("change", renderAll));
+  $("date").addEventListener("change", () => renderAll());
   $("outro").addEventListener("input", debounce(() => {
     store.set("outro", $("outro").value); renderAll();
   }, 400));
@@ -64,6 +63,8 @@
     const d = new Date(), p = n => String(n).padStart(2, "0");
     return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
   }
+  // 저장 파일 이름용 20261022
+  function stamp() { return ($("date").value || today()).replace(/-/g, ""); }
 
   function say(msg, err) {
     $("status").textContent = msg || "";
@@ -146,6 +147,13 @@
     if (!deck) return;
     const my = ++gen;
     $("result").hidden = false;
+    $("reel").hidden = false;
+    // 글이 바뀌면 만들어 둔 영상은 옛 글이다. 다시 만들게 한다
+    if (reelFile) {
+      reelFile = null;
+      $("reelSave").hidden = true; $("reelVideo").hidden = true;
+      $("reelStatus").textContent = "글이 바뀌었어요. 영상을 다시 만들어 주세요.";
+    }
     const ps = pages();
     if (rebuild || listEl.children.length !== ps.length) buildList(ps);
     files = new Array(ps.length);
@@ -208,14 +216,14 @@
   async function renderOne(i, ps, my) {
     await bustReady;
     if (my !== gen) return;
-    const info = { day: +$("day").value || 1, date: $("date").value, page: i + 1, total: ps.length };
+    const info = { date: $("date").value, page: i + 1, total: ps.length };
     const p = ps[i];
     if (p.kind === "cover") drawCover(p.text, info);
     else if (p.kind === "outro") drawOutro(p.text, info);
     else drawBody(p.text, info);
     const blob = await new Promise(r => canvas.toBlob(r, "image/jpeg", 0.92));
     if (my !== gen) return;
-    const name = "to_twenties_day" + String(info.day).padStart(3, "0") + "_" + String(i + 1).padStart(2, "0") + ".jpg";
+    const name = "to_twenties_" + stamp() + "_" + String(i + 1).padStart(2, "0") + ".jpg";
     files[i] = new File([blob], name, { type: "image/jpeg" });
     const img = listEl.children[i].querySelector("img");
     const old = img.src;
@@ -226,7 +234,7 @@
   /* 구글 폰트는 글자 범위별로 쪼개져 있어서, 그릴 글자가 든 조각을 미리 받아야
      캔버스에 기본 글꼴로 찍히지 않는다 */
   async function fontsFor(ps) {
-    const text = ps.map(p => p.text).join("") + "DAY0123456789./@_to_twenties21세기괴테넘겨보기→";
+    const text = ps.map(p => p.text).join("") + "0123456789./@_to_twenties21세기괴테넘겨보기→팔로우하고다음글도같이";
     const plain = text.replace(/\*\*/g, "");
     try {
       await Promise.all([
@@ -281,7 +289,7 @@
     ctx.textBaseline = "alphabetic";
     ctx.fillStyle = C.accent;
     ctx.font = "700 30px " + SANS;
-    spaced("DAY " + String(info.day).padStart(3, "0"), 96, 132, 3);
+    spaced("21세기 괴테", 96, 132, 2);
     ctx.fillStyle = C.sub;
     ctx.font = "600 28px " + SANS;
     spaced(right, W - 96, 132, 2, "right");
@@ -415,7 +423,7 @@
     ctx.fillStyle = C.sub;
     ctx.font = "600 32px " + SANS;
     ctx.textAlign = "left";
-    ctx.fillText("21세기 괴테", 96, y + 64);
+    ctx.fillText(HANDLE, 96, y + 64);
     // 제목이 길어지면 괴테를 줄여서라도 겹치지 않게 한다
     goethe(Math.max(400, Math.min(640, H - (y + 110))), 40);
     ctx.fillStyle = C.accent;
@@ -450,7 +458,7 @@
     ctx.fillStyle = C.sub;
     ctx.font = "600 32px " + SANS;
     ctx.textAlign = "left";
-    ctx.fillText("21세기 괴테 · 매일 한 편", 96, y + 64);
+    ctx.fillText("팔로우하고 다음 글도 같이 보기", 96, y + 64);
     goethe(400, 52);
     footer();
   }
@@ -461,7 +469,6 @@
      미리 만들어 둔 것을 쓴다 — 여기서 그리기 시작하면 허락이 풀린다 */
   $("saveAll").onclick = async () => {
     if (!files.length || files.some(f => !f)) { say("아직 그리는 중이에요. 잠깐만요.", true); return; }
-    store.set("lastDay", String(+$("day").value || 1));
     if (navigator.canShare && navigator.canShare({ files: files })) {
       try { await navigator.share({ files: files }); }
       catch (e) { if (e && e.name !== "AbortError") say("공유 창을 못 열었어요: " + e.message, true); }
@@ -474,6 +481,214 @@
       document.body.appendChild(a); a.click(); a.remove();
       await new Promise(r => setTimeout(r, 250));
     }
+  };
+
+  /* ---------------- 릴스 영상 ----------------
+     카드를 캐러셀 넘기듯 한 장씩 밀어 넘기는 1080×1920 MP4. 소리는 넣지 않는다 —
+     음악은 인스타 앱에서 고르는 게 저작권 걱정이 없다.
+
+     실시간 녹화(MediaRecorder)는 영상 길이만큼 기다려야 하고 프레임이 튄다.
+     그래서 프레임을 하나씩 그려 WebCodecs 로 H.264 인코딩하고 mp4-muxer 로 MP4 에 담는다.
+     (아이폰 사파리 16.4+ 지원.) 안 되는 브라우저만 실시간 녹화로 내려간다 */
+  const RW = 1080, RH = 1920, FPS = 30;
+  const CS = 0.86;                       // 영상 속 카드 크기
+  const CW = Math.round(W * CS), CH = Math.round(H * CS);
+  const CX = Math.round((RW - CW) / 2), CY = 250;  // 위아래는 릴스 화면 글씨·버튼이 덮는 자리라 비운다
+  const SLIDE = 0.5;                     // 넘기는 데 걸리는 초
+  let reelFile = null;
+
+  // 한 장에 머무는 초. 글이 길수록 오래. 한국어는 화면에서 초당 열몇 자쯤 읽힌다
+  function holdFor(p, speed) {
+    let s;
+    if (p.kind === "cover") s = 2.6;
+    else if (p.kind === "outro") s = 2.4;
+    else s = Math.min(6.5, Math.max(2.8, 1.6 + p.text.replace(/\*\*/g, "").length * 0.06));
+    return s * speed;
+  }
+
+  // 카드마다 따로 떠 둔다. 영상에서는 이 그림을 밀기만 한다
+  async function snapshots(ps) {
+    await fontsFor(ps); await bustReady;
+    const info0 = { date: $("date").value, total: ps.length };
+    return ps.map((p, i) => {
+      const info = Object.assign({ page: i + 1 }, info0);
+      if (p.kind === "cover") drawCover(p.text, info);
+      else if (p.kind === "outro") drawOutro(p.text, info);
+      else drawBody(p.text, info);
+      const c = document.createElement("canvas");
+      c.width = CW; c.height = CH;
+      c.getContext("2d").drawImage(canvas, 0, 0, CW, CH);
+      return c;
+    });
+  }
+
+  function timeline(ps, speed) {
+    const t = [];
+    let at = 0;
+    ps.forEach((p, i) => {
+      const hold = holdFor(p, speed);
+      t.push({ i: i, from: at, hold: hold });
+      at += hold + (i < ps.length - 1 ? SLIDE : 0);
+    });
+    return { segs: t, total: at };
+  }
+
+  const ease = x => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+
+  function drawFrame(rctx, shots, tl, sec) {
+    rctx.fillStyle = "#E8E1D4";
+    rctx.fillRect(0, 0, RW, RH);
+    rctx.drawImage(grain, 0, 0, RW, RH);
+    // 지금 몇 번째 장이고, 넘어가는 중이면 얼마나 넘어갔나
+    let cur = 0, prog = 0;
+    for (const s of tl.segs) {
+      if (sec >= s.from) {
+        cur = s.i;
+        const into = sec - s.from - s.hold;
+        prog = into > 0 && s.i < shots.length - 1 ? ease(Math.min(1, into / SLIDE)) : 0;
+      }
+    }
+    const step = CW + 56;
+    const card = (img, x) => {
+      rctx.save();
+      rctx.shadowColor = "rgba(38, 34, 30, 0.16)";
+      rctx.shadowBlur = 44; rctx.shadowOffsetY = 14;
+      rctx.drawImage(img, x, CY);
+      rctx.restore();
+    };
+    card(shots[cur], CX - prog * step);
+    if (prog > 0) card(shots[cur + 1], CX - prog * step + step);
+    // 캐러셀 점
+    const n = shots.length, gap = 26, y = CY + CH + 64;
+    const active = prog > 0.5 ? cur + 1 : cur;
+    for (let k = 0; k < n; k++) {
+      rctx.beginPath();
+      rctx.arc(RW / 2 + (k - (n - 1) / 2) * gap, y, k === active ? 7 : 5, 0, Math.PI * 2);
+      rctx.fillStyle = k === active ? C.accent : "rgba(38, 34, 30, 0.22)";
+      rctx.fill();
+    }
+  }
+
+  function loadMuxer() {
+    if (window.Mp4Muxer) return Promise.resolve();
+    return new Promise((ok, bad) => {
+      const s = document.createElement("script");
+      s.src = "vendor/mp4-muxer-5.2.2.js";
+      s.onload = ok; s.onerror = () => bad(new Error("muxer"));
+      document.head.appendChild(s);
+    });
+  }
+
+  async function pickCodec() {
+    if (!window.VideoEncoder) return null;
+    // High → Main → Baseline. 1080×1920 은 레벨 4.0 이 필요하다
+    for (const codec of ["avc1.640028", "avc1.4d0028", "avc1.42e028"]) {
+      const cfg = { codec: codec, width: RW, height: RH, bitrate: 8e6, framerate: FPS, avc: { format: "avc" } };
+      try { if ((await VideoEncoder.isConfigSupported(cfg)).supported) return cfg; } catch (e) { }
+    }
+    return null;
+  }
+
+  async function encodeMp4(shots, tl, cfg, onProg) {
+    await loadMuxer();
+    const muxer = new Mp4Muxer.Muxer({
+      target: new Mp4Muxer.ArrayBufferTarget(),
+      video: { codec: "avc", width: RW, height: RH, frameRate: FPS },
+      fastStart: "in-memory"
+    });
+    let fail = null;
+    const enc = new VideoEncoder({
+      output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+      error: e => { fail = e; }
+    });
+    enc.configure(cfg);
+    const rc = document.createElement("canvas");
+    rc.width = RW; rc.height = RH;
+    const rctx = rc.getContext("2d");
+    const frames = Math.ceil(tl.total * FPS);
+    for (let f = 0; f < frames; f++) {
+      if (fail) throw fail;
+      drawFrame(rctx, shots, tl, f / FPS);
+      const vf = new VideoFrame(rc, { timestamp: Math.round(f * 1e6 / FPS), duration: Math.round(1e6 / FPS) });
+      enc.encode(vf, { keyFrame: f % (FPS * 2) === 0 });
+      vf.close();
+      // 인코더가 밀리면 잠깐 기다린다. 안 그러면 프레임이 메모리에 쌓여 폰이 버벅인다
+      while (enc.encodeQueueSize > 6) await new Promise(r => setTimeout(r, 4));
+      if (f % 15 === 0) { onProg(f / frames); await new Promise(r => setTimeout(r, 0)); }
+    }
+    await enc.flush();
+    if (fail) throw fail;
+    enc.close();
+    muxer.finalize();
+    return new Blob([muxer.target.buffer], { type: "video/mp4" });
+  }
+
+  // 대비책: 실시간 녹화. 영상 길이만큼 걸린다
+  async function recordRealtime(shots, tl, onProg) {
+    const rc = document.createElement("canvas");
+    rc.width = RW; rc.height = RH;
+    const rctx = rc.getContext("2d");
+    const type = ["video/mp4", "video/webm;codecs=vp9", "video/webm"].find(t => MediaRecorder.isTypeSupported(t));
+    const rec = new MediaRecorder(rc.captureStream(FPS), { mimeType: type, videoBitsPerSecond: 8e6 });
+    const parts = [];
+    rec.ondataavailable = e => { if (e.data.size) parts.push(e.data); };
+    drawFrame(rctx, shots, tl, 0);
+    rec.start(500);
+    const t0 = performance.now();
+    await new Promise(done => {
+      const tick = () => {
+        const sec = (performance.now() - t0) / 1000;
+        drawFrame(rctx, shots, tl, Math.min(sec, tl.total));
+        onProg(sec / tl.total);
+        if (sec < tl.total) requestAnimationFrame(tick); else done();
+      };
+      requestAnimationFrame(tick);
+    });
+    await new Promise(r => { rec.onstop = r; rec.stop(); });
+    return new Blob(parts, { type: type.split(";")[0] });
+  }
+
+  $("reelMake").onclick = async () => {
+    if (!deck) return;
+    const speed = +$("reelSpeed").value || 1;
+    $("reelMake").disabled = true; $("reelSave").hidden = true;
+    const msg = t => { $("reelStatus").textContent = t; };
+    try {
+      const ps = pages();
+      const shots = await snapshots(ps);
+      const tl = timeline(ps, speed);
+      const cfg = await pickCodec();
+      let blob;
+      if (cfg) {
+        blob = await encodeMp4(shots, tl, cfg, p => msg("영상 만드는 중… " + Math.round(p * 100) + "%"));
+      } else {
+        msg("이 브라우저는 빠른 인코딩이 안 돼서 실시간으로 녹화해요 (" + Math.round(tl.total) + "초)");
+        blob = await recordRealtime(shots, tl, p => msg("녹화 중… " + Math.min(100, Math.round(p * 100)) + "%"));
+      }
+      const ext = blob.type === "video/mp4" ? "mp4" : "webm";
+      reelFile = new File([blob], "to_twenties_" + stamp() + "_reel." + ext, { type: blob.type });
+      const v = $("reelVideo");
+      if (v.src.startsWith("blob:")) URL.revokeObjectURL(v.src);
+      v.src = URL.createObjectURL(blob);
+      v.hidden = false;
+      $("reelSave").hidden = false;
+      msg(Math.round(tl.total) + "초 · " + (blob.size / 1048576).toFixed(1) + "MB" + (ext === "mp4" ? "" : " · webm 이라 인스타에 바로 안 올라갈 수 있어요"));
+    } catch (e) {
+      msg("영상을 못 만들었어요: " + (e && e.message || e));
+    } finally { $("reelMake").disabled = false; }
+  };
+
+  // 만들어 둔 파일을 누른 즉시 넘긴다 (사파리는 터치 직후에만 공유 창을 허락)
+  $("reelSave").onclick = async () => {
+    if (!reelFile) return;
+    if (navigator.canShare && navigator.canShare({ files: [reelFile] })) {
+      try { await navigator.share({ files: [reelFile] }); }
+      catch (e) { if (e && e.name !== "AbortError") $("reelStatus").textContent = "공유 창을 못 열었어요: " + e.message; }
+      return;
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(reelFile); a.download = reelFile.name;
+    document.body.appendChild(a); a.click(); a.remove();
   };
 
   function debounce(fn, ms) {

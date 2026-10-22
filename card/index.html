@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;700;900&display=swap">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
-<link rel="stylesheet" href="card.css?v=1">
+<link rel="stylesheet" href="card.css?v=2">
 </head>
 <body>
 <main class="wrap">
@@ -34,8 +34,7 @@
 
   <section class="write">
     <div class="row meta">
-      <label>DAY <input id="day" type="number" min="1" inputmode="numeric"></label>
-      <label>날짜 <input id="date" type="date"></label>
+      <label>표지 날짜 <input id="date" type="date"></label>
     </div>
     <textarea id="memo" rows="9" placeholder="메모장 글을 그대로 붙여 넣으세요"></textarea>
     <div class="row">
@@ -57,11 +56,28 @@
     </div>
   </section>
 
+  <!-- 같은 카드를 한 장씩 넘기는 릴스 영상 (1080×1920, 소리 없음) -->
+  <section class="reel" id="reel" hidden>
+    <h2>릴스 영상</h2>
+    <p class="hint left">카드를 한 장씩 넘기는 세로 영상이에요. 음악은 인스타에서 붙여 주세요.</p>
+    <div class="row">
+      <select id="reelSpeed" aria-label="넘기는 속도">
+        <option value="1.3">천천히</option>
+        <option value="1" selected>보통</option>
+        <option value="0.75">빠르게</option>
+      </select>
+      <button id="reelMake" class="main">릴스 영상 만들기</button>
+    </div>
+    <p class="status" id="reelStatus" role="status"></p>
+    <video id="reelVideo" controls playsinline muted hidden></video>
+    <button id="reelSave" class="main wide" hidden>영상 저장</button>
+  </section>
+
   <details class="outro">
     <summary>마지막 장 문구</summary>
     <textarea id="outro" rows="3"></textarea>
   </details>
 </main>
-<script src="card.js?v=1"></script>
+<script src="card.js?v=2"></script>
 </body>
 </html>

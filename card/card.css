@@ -82,3 +82,15 @@ button:disabled { opacity: .45; cursor: default; }
 
 .outro { margin-top: 26px; font-size: 14px; color: var(--sub); }
 .outro summary { cursor: pointer; margin-bottom: 8px; }
+
+.meta label:first-child { flex: 1; }
+
+.reel { margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--line); }
+.reel h2 { font: 900 18px/1.3 "Noto Serif KR", serif; margin: 0 0 4px; }
+.hint.left { text-align: left; margin: 0 0 12px; }
+.reel select {
+  font: 600 15px/1 "Pretendard", system-ui, sans-serif; color: var(--ink);
+  background: #FBF8F2; border: 1px solid var(--line); border-radius: 12px; padding: 0 12px; flex: 0 0 96px;
+}
+.reel video { display: block; width: 100%; max-width: 320px; margin: 4px auto 12px; border-radius: 10px; background: #000; aspect-ratio: 9 / 16; }
+.wide { width: 100%; }
