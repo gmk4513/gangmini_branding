@@ -217,7 +217,7 @@ gangmini.com/learn/ → 이론/용어 목록
 
 ## 4-4. 숨은 도구: `/card/` (카드뉴스 만들기)
 
-인스타 `@to_twenties`(21세기 괴테, 내 마인드셋 계정)에 매일 올릴 카드뉴스를 폰에서
+인스타 `@to__twenties`(21세기 괴테, 내 마인드셋 계정)에 매일 올릴 카드뉴스를 폰에서
 만드는 내 전용 도구. **허브·data.js 에 올리지 않는다** (noindex, 번호 없음).
 
 - 메모 붙여넣기 → `bamti-bomb.fly.dev/api/card/polish` (Claude API, 서버 `server/card.js`)

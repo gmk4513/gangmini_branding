@@ -1,4 +1,4 @@
-/* 카드 만들기 — @to_twenties (21세기 괴테) 카드뉴스
+/* 카드 만들기 — @to__twenties (21세기 괴테) 카드뉴스
 
    메모 붙여넣기 → 서버(bamti-bomb)가 Claude 로 다듬고 나눔 → 여기서 1080×1440 으로 그림
    → 공유 창으로 사진 앱에 한꺼번에 저장 → 인스타에서 여러 장 골라 게시.
@@ -17,7 +17,7 @@
   };
   const SERIF = '"Noto Serif KR", serif';
   const SANS = '"Pretendard", system-ui, sans-serif';
-  const HANDLE = "@to_twenties";
+  const HANDLE = "@to__twenties";
   const OUTRO_DEFAULT = "저장해 두고\n흔들릴 때 다시 보기";
 
   const $ = id => document.getElementById(id);
