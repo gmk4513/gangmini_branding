@@ -2,12 +2,15 @@
   "use strict";
 
   var projects = (typeof PROJECTS !== "undefined" ? PROJECTS : []).slice();
+  var apps = (typeof APPS !== "undefined" ? APPS : []).slice();
 
   // 최신이 위로. 번호(no)가 있으면 번호 기준, 같거나 없으면 날짜 기준.
-  projects.sort(function (a, b) {
+  function newestFirst(a, b) {
     var d = (b.no || 0) - (a.no || 0);
     return d !== 0 ? d : String(b.date).localeCompare(String(a.date));
-  });
+  }
+  projects.sort(newestFirst);
+  apps.sort(newestFirst);
 
   function fmtDate(s) {
     if (!s) return "";
@@ -67,7 +70,7 @@
 
     var foot = el("div", "card__foot");
     if (item.input) foot.appendChild(el("span", "tag", item.input));
-    foot.appendChild(el("span", "card__cta", isExternal(item.href) ? "열기 ↗" : "열기 →"));
+    foot.appendChild(el("span", "card__cta", item.cta || (isExternal(item.href) ? "열기 ↗" : "열기 →")));
     body.appendChild(foot);
 
     a.appendChild(body);
@@ -88,6 +91,13 @@
   }
 
   render("projects", projects, "아직 첫 번째를 안 만들었습니다. 곧 #1이 올라옵니다.");
+
+  // 출시 앱은 없으면 칸째로 숨긴다 (빈 칸에 "없음"을 띄울 이유가 없다)
+  if (apps.length) {
+    render("apps", apps, "");
+    var sec = document.getElementById("apps-section");
+    if (sec) sec.hidden = false;
+  }
 
   var y = document.getElementById("year");
   if (y) y.textContent = new Date().getFullYear();

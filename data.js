@@ -66,3 +66,21 @@ const PROJECTS = [
   },
 
 ];
+
+
+/* 출시 앱 — 스토어에 올라간 앱. 프로젝트 아래 칸에 따로 나옵니다.
+   번호(no)는 붙이지 않습니다. 릴스 번호와 상관없는 칸입니다.
+   cta   카드 오른쪽 아래 글자. 생략하면 "열기 ↗"  */
+const APPS = [
+
+  {
+    title: "학창시절 다이어리",
+    desc: "그림일기·독후감·방학숙제·급식표·가정통신문. 그 시절 감성 그대로 쓰는 다이어리 앱입니다.",
+    date: "2026-09-28",
+    href: "https://apps.apple.com/kr/app/id6814397558",
+    cover: "/covers/school-diary.jpg",
+    input: "iPhone",
+    cta: "App Store ↗",
+  },
+
+];
