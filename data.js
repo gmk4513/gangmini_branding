@@ -83,4 +83,13 @@ const APPS = [
     cta: "App Store ↗",
   },
 
+  {
+    title: "속마음 번역기",
+    desc: "짧아진 답장, 애매한 한마디. 상황과 MBTI만 적으면 상대와 나의 속마음을 번역해 줍니다. 친구와 함께 만들었어요.",
+    date: "2026-07-17",
+    href: "https://sokmaeum.loothapp.com",
+    cover: "/covers/sokmaeum.jpg",
+    input: "iPhone / Android",
+  },
+
 ];
