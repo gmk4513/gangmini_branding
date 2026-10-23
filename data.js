@@ -70,7 +70,9 @@ const PROJECTS = [
 
 /* 출시 앱 — 스토어에 올라간 앱. 프로젝트 아래 칸에 따로 나옵니다.
    번호(no)는 붙이지 않습니다. 릴스 번호와 상관없는 칸입니다.
-   cta   카드 오른쪽 아래 글자. 생략하면 "열기 ↗"  */
+   cta   카드 오른쪽 아래 글자. 생략하면 "열기 ↗"
+   links 스토어가 여럿이면 [{ label, href, os }] 로 버튼을 여러 개 단다 (href·cta 대신).
+         카드 아무 데나 누르면 첫 번째로 가고, 안드로이드 폰이면 os: "android" 인 것으로 간다  */
 const APPS = [
 
   {
@@ -87,7 +89,10 @@ const APPS = [
     title: "속마음 번역기",
     desc: "짧아진 답장, 애매한 한마디. 상황과 MBTI만 적으면 상대와 나의 속마음을 번역해 줍니다. 친구와 함께 만들었어요.",
     date: "2026-07-17",
-    href: "https://sokmaeum.loothapp.com",
+    links: [
+      { label: "App Store", href: "https://apps.apple.com/kr/app/id6787679328", os: "ios" },
+      { label: "Google Play", href: "https://play.google.com/store/apps/details?id=app.sokmaeum.mobile", os: "android" },
+    ],
     cover: "/covers/sokmaeum.jpg",
     input: "iPhone / Android",
   },

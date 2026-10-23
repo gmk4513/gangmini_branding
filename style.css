@@ -214,6 +214,22 @@ body {
   outline-offset: 3px;
 }
 
+/* 스토어 버튼이 여럿인 카드. 제목 링크를 카드 전체로 늘리고, 버튼만 그 위로 올린다 */
+.card--multi { position: relative; }
+.card--multi:hover,
+.card--multi:focus-within {
+  transform: translateY(-2px);
+  border-color: var(--ink);
+  box-shadow: 0 6px 18px rgba(26, 29, 24, 0.11);
+}
+.card__hit { color: inherit; text-decoration: none; }
+.card__hit::after { content: ""; position: absolute; inset: 0; }
+.card__hit:focus-visible { outline: none; }
+.card--multi:has(.card__hit:focus-visible) { outline: 2px solid var(--mark); outline-offset: 3px; }
+.card__ctas { display: flex; gap: 14px; }
+.card__ctas .card__cta { position: relative; z-index: 1; text-decoration: none; }
+.card__ctas .card__cta:hover { text-decoration: underline; }
+
 .card__cover {
   position: relative;
   aspect-ratio: 4 / 3;

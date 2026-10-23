@@ -29,12 +29,27 @@
     return /^https?:\/\//i.test(href || "");
   }
 
+  function newTab(a) {
+    a.target = "_blank";
+    a.rel = "noopener";
+  }
+
+  // 스토어가 여럿인 카드: 링크 안에 링크를 넣을 수 없으므로 카드는 <div> 로 두고,
+  // 제목 링크를 카드 전체로 늘린다(.card__hit). 스토어 버튼은 그 위에 따로 얹는다
+  var isAndroid = /android/i.test(navigator.userAgent || "");
+  function primaryLink(links) {
+    if (isAndroid) {
+      for (var i = 0; i < links.length; i++) if (links[i].os === "android") return links[i];
+    }
+    return links[0];
+  }
+
   function buildCard(item) {
-    var a = el("a", "card");
-    a.href = item.href || "#";
-    if (isExternal(item.href)) {
-      a.target = "_blank";
-      a.rel = "noopener";
+    var multi = item.links && item.links.length;
+    var a = el(multi ? "div" : "a", multi ? "card card--multi" : "card");
+    if (!multi) {
+      a.href = item.href || "#";
+      if (isExternal(item.href)) newTab(a);
     }
 
     // 표지
@@ -62,7 +77,14 @@
     // 본문
     var body = el("div", "card__body");
     var head = el("div", "card__head");
-    head.appendChild(el("h4", "card__title", item.title || "제목 없음"));
+    var title = el("h4", "card__title", multi ? null : (item.title || "제목 없음"));
+    if (multi) {
+      var hit = el("a", "card__hit", item.title || "제목 없음");
+      hit.href = primaryLink(item.links).href;
+      newTab(hit);
+      title.appendChild(hit);
+    }
+    head.appendChild(title);
     head.appendChild(el("time", "card__date", fmtDate(item.date)));
     body.appendChild(head);
 
@@ -70,7 +92,18 @@
 
     var foot = el("div", "card__foot");
     if (item.input) foot.appendChild(el("span", "tag", item.input));
-    foot.appendChild(el("span", "card__cta", item.cta || (isExternal(item.href) ? "열기 ↗" : "열기 →")));
+    if (multi) {
+      var ctas = el("span", "card__ctas");
+      item.links.forEach(function (l) {
+        var b = el("a", "card__cta", l.label + " ↗");
+        b.href = l.href;
+        newTab(b);
+        ctas.appendChild(b);
+      });
+      foot.appendChild(ctas);
+    } else {
+      foot.appendChild(el("span", "card__cta", item.cta || (isExternal(item.href) ? "열기 ↗" : "열기 →")));
+    }
     body.appendChild(foot);
 
     a.appendChild(body);
