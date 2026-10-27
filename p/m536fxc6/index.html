@@ -17,7 +17,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@500;700;900&display=swap">
-<link rel="stylesheet" href="css/style.css?v=15">
+<link rel="stylesheet" href="css/style.css?v=16">
 </head>
 <body>
 <div id="wrap">
@@ -56,7 +56,10 @@
   <!-- 폰 조작 버튼 -->
   <div id="pad">
     <div class="padL"><button data-pad="left" aria-label="왼쪽">◀</button><button data-pad="right" aria-label="오른쪽">▶</button></div>
-    <div class="padR"><button data-pad="drift" aria-label="드리프트" class="drift">D</button><button data-pad="down" aria-label="브레이크">■</button><button data-pad="up" aria-label="가속" class="gas">▲</button></div>
+    <div class="padR">
+      <button data-pad="down" aria-label="브레이크" class="brake"><i></i></button>
+      <div class="padCol"><button data-pad="drift" aria-label="드리프트" class="drift">D</button><button data-pad="up" aria-label="가속" class="gas">▲</button></div>
+    </div>
   </div>
 
   <!-- 시작 화면 -->

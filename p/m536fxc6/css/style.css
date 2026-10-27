@@ -169,3 +169,12 @@ body { font-family: "Noto Sans KR", system-ui, sans-serif; color: var(--ink); -w
 .big.ghost { background: var(--paper); color: var(--ink); }
 .pauseBtn i { display: block; width: 5px; height: 15px; border-radius: 2px; background: var(--ink); }
 .big:disabled { opacity: .55; cursor: wait; font-size: 18px; }
+
+/* 폰 버튼: 드리프트는 가속 바로 위, 브레이크 네모는 글자 대신 그려서 정가운데 */
+@media (pointer: coarse) {
+  #pad .padR { align-items: flex-end; }
+  #pad .padCol { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  #pad button { display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1; }
+  #pad button.brake i { display: block; width: 20px; height: 20px; border-radius: 3px; background: var(--ink); }
+  #pad button.drift { width: 60px; height: 60px; font-size: 20px; }
+}
