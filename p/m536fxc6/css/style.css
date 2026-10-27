@@ -168,3 +168,4 @@ body { font-family: "Noto Sans KR", system-ui, sans-serif; color: var(--ink); -w
 .pauseBtns { display: grid; gap: 10px; }
 .big.ghost { background: var(--paper); color: var(--ink); }
 .pauseBtn i { display: block; width: 5px; height: 15px; border-radius: 2px; background: var(--ink); }
+.big:disabled { opacity: .55; cursor: wait; font-size: 18px; }

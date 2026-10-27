@@ -3,7 +3,7 @@
    사람·스쿠터 3D 모델(Tripo)은 assets/models/ 에 들어오면 임시 모형과 갈아 끼운다. */
 import * as THREE from "../vendor/three.module.min.js";
 import { buildWorld, collide, inWater, sx, sz, L, R, GOAL } from "./world.js";
-import { createGame, unlockAudio, engineUpdate, skidUpdate, NPCS, boostSfx, driftSfx } from "./game.js";
+import { createGame, unlockAudio, engineUpdate, skidUpdate, NPCS, boostSfx, driftSfx, voicesReady } from "./game.js";
 import { loadRiderRig } from "./rider.js";
 import * as T from "./textures.js";
 
@@ -73,12 +73,16 @@ scene.add(player);
 const BIG = 1.8;
 body.scale.setScalar(BIG);
 let rig = null, headH = 2.35 * BIG;
-loadRiderRig().then(r => {
+// 처음부터 감스트로 보이게: 모델이 다 들어오기 전엔 임시 모형을 숨겨 두고, 출발 버튼도 잠가 둔다
+body.visible = false;
+let modelDone = false;
+const riderLoad = loadRiderRig().then(r => {
   rig = r;
   body.clear();
   body.add(r.holder);
   headH = r.headTop * BIG + 0.35;
-}).catch(e => console.warn("3D 모델 없음 — 임시 모형으로", e.message));
+}).catch(e => console.warn("3D 모델 없음 — 임시 모형으로", e.message))
+  .finally(() => { modelDone = true; body.visible = true; });
 
 /* ---------- 주행 ---------- */
 const S = { x: sx(1), z: sz(6) + 1, heading: 0, speed: 0, steer: 0,   // heading 0 = 북쪽(-z)
@@ -446,8 +450,20 @@ function begin() {
   game.start();
 }
 $("btnStart").onclick = begin;
+// 받는 중 표시 — 모델(약 5MB)과 목소리를 다 받으면 출발 버튼이 켜진다
+{
+  const btn = $("btnStart"), label = btn.textContent;
+  btn.disabled = true;
+  const tick = () => {
+    const v = voicesReady(), all = (modelDone ? 0.7 : 0) + 0.3 * v;
+    if (modelDone && v >= 1) { btn.disabled = false; btn.textContent = label; return; }
+    btn.textContent = `불러오는 중… ${Math.round(all * 100)}%`;
+    setTimeout(tick, 150);
+  };
+  tick();
+}
 $("btnAgain").onclick = () => location.reload();
-if (Q.has("play")) begin();
+if (Q.has("play")) riderLoad.then(begin);
 
 function resize() {
   const w = cv.clientWidth, h = cv.clientHeight;

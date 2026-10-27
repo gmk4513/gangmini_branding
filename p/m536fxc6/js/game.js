@@ -56,21 +56,44 @@ export const NPCS = [
 ];
 
 /* ---------------- 소리 ---------------- */
-const audioCache = {};
+/* 목소리 — <audio> 대신 WebAudio 로 튼다.
+   아이폰 사파리는 <audio>.play() 를 사람이 누른 순간에만 허락해서, 게임 중에 저절로 나오는 대사가
+   전부 막혔다(엔진 소리는 WebAudio 라 나왔다). WebAudio 는 출발 버튼에서 한 번 깨우면 그 뒤로 계속 된다.
+   파일은 미리 받아 풀어 둔다(decodeAudioData) */
+const audioCache = {};   // id → { buf: AudioBuffer|null, ok: true|false|null }
 let actx = null;
 function ctx() { if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); return actx; }
-export function unlockAudio() { try { ctx().resume(); } catch (e) { } }
+export function unlockAudio() {
+  try {
+    const c = ctx();
+    c.resume();
+    // 아이폰: 누른 순간에 무음을 한 번 틀어야 확실히 깨어난다
+    const b = c.createBuffer(1, 1, 22050), src = c.createBufferSource();
+    src.buffer = b; src.connect(c.destination); src.start(0);
+  } catch (e) { }
+}
+export function pauseAudio(on) { try { const c = ctx(); if (on) c.suspend(); else c.resume(); } catch (e) { } }
 function voice(id) {
-  // 파일이 있으면 그 길이만큼, 없으면 null
   if (!(id in audioCache)) {
-    const a = new Audio(`assets/audio/${id}.mp3`);
-    a.preload = "auto";
-    audioCache[id] = { a, ok: null };
-    a.addEventListener("canplaythrough", () => { audioCache[id].ok = true; }, { once: true });
-    a.addEventListener("error", () => { audioCache[id].ok = false; }, { once: true });
+    const v = audioCache[id] = { buf: null, ok: null, src: null };
+    fetch(`assets/audio/${id}.mp3`).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+      .then(ab => new Promise((res, rej) => ctx().decodeAudioData(ab, res, rej)))
+      .then(buf => { v.buf = buf; v.ok = true; })
+      .catch(() => { v.ok = false; });
   }
   return audioCache[id];
 }
+export function voicesReady() {
+  const all = Object.values(audioCache);
+  return all.length ? all.filter(v => v.ok !== null).length / all.length : 1;
+}
+function playVoice(v) {
+  stopVoice(v);
+  const c = ctx(), src = c.createBufferSource();
+  src.buffer = v.buf; src.connect(c.destination); src.start();
+  v.src = src;
+}
+function stopVoice(v) { if (v && v.src) { try { v.src.stop(); } catch (e) { } v.src = null; } }
 /* 스쿠터 엔진 소리 — 파일 없이 만든다. 부드럽게 (2026-10-26: 디스토션·잡음·각진 떨림은 귀가 아파서 뺐다).
    둥근 삼각파·사인파만 쓰고, 작은 스피커에서도 들리게 기본음 위에 2·3배음을 사인파로 얹는다.
    소리 크기는 사인파로 살살 흔들어 "웅웅웅", 빠를수록 음이 올라가 "부우웅" */
@@ -397,9 +420,9 @@ export function createGame({ scene, camera, S, player, ui }) {
     const [id, text] = line;
     const v = voice(id);
     let dur = 0.9 + text.length * 0.085;
-    if (v.ok) {
-      try { v.a.currentTime = 0; v.a.play(); } catch (e) { }
-      if (isFinite(v.a.duration)) dur = v.a.duration + 0.2;
+    if (v.ok && v.buf) {
+      try { playVoice(v); } catch (e) { }
+      dur = v.buf.duration + 0.2;
     }
     ui.bubble(text);
     bubbleT = 0; bubbleDur = dur; speaking = line;
@@ -407,8 +430,7 @@ export function createGame({ scene, camera, S, player, ui }) {
   // 지금 하던 말을 끊고 바로 말한다 (뽀또). 길 안내 대화 중이었다면 그 말은 뒤에 다시 한다
   function sayNow(line) {
     if (speaking && speaking[0]) {
-      const c = audioCache[speaking[0]];
-      if (c && c.ok) { try { c.a.pause(); } catch (e) { } }
+      stopVoice(audioCache[speaking[0]]);
       if (!/^(ppotto|fun)/.test(speaking[0])) queue.unshift(speaking);
     }
     showLine(line);
@@ -599,12 +621,8 @@ export function createGame({ scene, camera, S, player, ui }) {
     say([V.dal]);
   }
 
-  function setPaused(on) {
-    if (!speaking || !speaking[0]) return;
-    const c = audioCache[speaking[0]];
-    if (!c || !c.ok) return;
-    try { if (on) c.a.pause(); else c.a.play(); } catch (e) { }
-  }
+  // 멈추면 소리 전체(WebAudio)를 얼린다 — 대사·엔진이 그 자리에서 멈췄다가 이어진다
+  function setPaused(on) { pauseAudio(on); }
   return { state, update, interact, clickAt, start, setPaused, isSpeaking: () => !!(speaking && speaking[0]) };
 }
 
