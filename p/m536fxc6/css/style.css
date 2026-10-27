@@ -178,3 +178,10 @@ body { font-family: "Noto Sans KR", system-ui, sans-serif; color: var(--ink); -w
   #pad button.brake i { display: block; width: 20px; height: 20px; border-radius: 3px; background: var(--ink); }
   #pad button.drift { width: 60px; height: 60px; font-size: 20px; }
 }
+
+/* 폰 조작 안내 (터치 기기에서만) */
+.keysTouch { display: none; list-style: none; margin: 0 0 14px; padding: 8px 10px; border: 1px dashed var(--line); border-radius: 12px; font-size: 12px; line-height: 1.55; text-align: center; }
+.keysTouch b { font-weight: 900; }
+@media (pointer: coarse) { .keysTouch { display: block; } }
+/* 폰(좁은 화면)에선 결과 카드를 가운데로 */
+@media (max-width: 600px) { #scResult { justify-items: center; padding-left: 12px; padding-right: 12px; } #scResult .card { width: min(94vw, 360px); } }
