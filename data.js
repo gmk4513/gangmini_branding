@@ -15,19 +15,9 @@
 
 const PROJECTS = [
 
-  {
-    // 릴스에 #번호를 붙이지 않고 올렸던 것이라 번호 없이 (번호는 릴스와 일대일)
-    title: "학사모 비프리 데스크톱 펫",
-    desc: "바탕화면 아래를 걸어 다니는 학사모 비프리. 운동·공연·노가다·근육 자랑을 하고, 직접 조작해 할배들과 싸울 수도 있어요.",
-    date: "2026-10-07",
-    href: "https://github.com/gmk4513/bfree-pet/releases/latest",
-    cover: "/covers/bfree-pet.jpg",
-    input: "윈도우 / 맥",
-    cta: "다운로드 ↗",
-  },
 
   {
-    no: 5,
+    no: 6,
     title: "라임놀이",
     desc: "비트 위로 단어·모음·제시어·초성이 떨어지는 한글 프리스타일 랩 놀이. 혼자도, 둘이 주고받기도 됩니다.",
     date: "2026-10-19",
@@ -37,13 +27,24 @@ const PROJECTS = [
   },
 
   {
-    no: 4,
+    no: 5,
     title: "범퍼카 2026",
     desc: "불구덩이 무대 위 범퍼카 싸움. 드리프트 끝에 부스터로 들이받아 상대를 무대 밖으로 밀어내세요.",
     date: "2026-10-14",
     href: "/bumpercar/",
     cover: "/covers/bumpercar.png",
     input: "키보드",
+  },
+
+  {
+    no: 4,
+    title: "학사모 비프리 데스크톱 펫",
+    desc: "바탕화면 아래를 걸어 다니는 학사모 비프리. 운동·공연·노가다·근육 자랑을 하고, 직접 조작해 할배들과 싸울 수도 있어요.",
+    date: "2026-10-07",
+    href: "https://github.com/gmk4513/bfree-pet/releases/latest",
+    cover: "/covers/bfree-pet.jpg",
+    input: "윈도우 / 맥",
+    cta: "다운로드 ↗",
   },
 
   {
