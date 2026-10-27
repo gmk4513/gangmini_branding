@@ -4,10 +4,11 @@
   var projects = (typeof PROJECTS !== "undefined" ? PROJECTS : []).slice();
   var apps = (typeof APPS !== "undefined" ? APPS : []).slice();
 
-  // 최신이 위로. 번호(no)가 있으면 번호 기준, 같거나 없으면 날짜 기준.
+  // 최신이 위로. 둘 다 번호(no)가 있으면 번호 기준, 하나라도 없으면 날짜 기준
+  // (번호 없는 항목도 만든 날짜 자리에 끼어 들어가게)
   function newestFirst(a, b) {
-    var d = (b.no || 0) - (a.no || 0);
-    return d !== 0 ? d : String(b.date).localeCompare(String(a.date));
+    if (a.no != null && b.no != null && a.no !== b.no) return b.no - a.no;
+    return String(b.date).localeCompare(String(a.date));
   }
   projects.sort(newestFirst);
   apps.sort(newestFirst);

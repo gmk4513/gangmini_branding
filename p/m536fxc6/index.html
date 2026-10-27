@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>감스트의 전동 스쿠터 라이딩</title>
+<meta name="description" content="전동 스쿠터를 타고 동네 사람들에게 길을 물어 상동호수공원을 찾아가는 비공식 팬 게임">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@500;700;900&display=swap">
+<link rel="stylesheet" href="css/style.css?v=14">
+</head>
+<body>
+<div id="wrap">
+  <canvas id="cv3"></canvas>
+
+  <!-- 주인공 말풍선 (머리 위를 따라다닌다) -->
+  <div id="bubble"></div>
+  <!-- NPC 가까이 가면 뜨는 안내 -->
+  <div id="prompt"></div>
+
+  <!-- 화면 위 정보 -->
+  <div id="hud" class="hidden">
+    <div class="hudL">
+      <span class="pill"><b class="coin"></b><b id="coinN">0</b><small>/<span id="coinT">0</span></small></span>
+      <span class="pill" id="ppPill"><img src="assets/ui/ppotto.png" alt="뽀또"><b id="ppN">0</b><small>/<span id="ppT">0</span></small></span>
+      <span class="pill" id="time">0:00</span>
+    </div>
+    <div id="goal"></div>
+    <button id="btnPause" class="pauseBtn" aria-label="멈추기"><i></i><i></i></button>
+    <p class="fan">비공식 팬 게임</p>
+  </div>
+
+  <!-- NPC 대화창: 아래쪽. 떠 있어도 움직일 수 있다 -->
+  <div id="dlg">
+    <img id="dlgFace" alt="">
+    <div class="dlgBody">
+      <p id="dlgName"></p>
+      <p id="dlgText"></p>
+    </div>
+    <span class="dlgNext">▼</span>
+  </div>
+
+  <div id="toast"></div>
+  <div id="flash"></div>
+
+  <!-- 폰 조작 버튼 -->
+  <div id="pad">
+    <div class="padL"><button data-pad="left" aria-label="왼쪽">◀</button><button data-pad="right" aria-label="오른쪽">▶</button></div>
+    <div class="padR"><button data-pad="drift" aria-label="드리프트" class="drift">D</button><button data-pad="down" aria-label="브레이크">■</button><button data-pad="up" aria-label="가속" class="gas">▲</button></div>
+  </div>
+
+  <!-- 시작 화면 -->
+  <section class="screen" id="scStart">
+    <div class="card">
+      <p class="eyebrow">비공식 팬 게임</p>
+      <h1>감스트의<br><span>전동 스쿠터</span> 라이딩</h1>
+      <img class="startFace" src="assets/ui/start_face.jpg" alt="헬멧 쓴 감스트" width="440" height="376">
+      <p class="sub">동네 사람들에게 길을 물어<br><b>상동호수공원</b>을 찾아가세요</p>
+      <ul class="keys">
+        <li><b>↑ ↓</b> 가속 · 브레이크</li>
+        <li><b>← →</b> 방향</li>
+        <li><b>Shift</b> 드리프트 → 끝날 때 <b>↑</b> 다시 = 부스터</li>
+        <li><b>Space</b> 말 걸기 · 대화 닫기</li>
+        <li><b>끌기 · 휠</b> 카메라 돌리기 · 확대</li>
+        <li><b>Esc</b> 멈추기</li>
+      </ul>
+      <p class="tipTouch">화면을 끌면 카메라를 돌려 얼굴도 볼 수 있어요 · 두 손가락으로 확대</p>
+      <button id="btnStart" class="big">출발!</button>
+      <p class="tiny">소리를 켜고 해 주세요 · 길에 떨어진 코인과 뽀또도 모아 보세요</p>
+    </div>
+  </section>
+
+  <!-- 멈춤 -->
+  <section class="screen hidden" id="scPause">
+    <div class="card pauseCard">
+      <h1>잠깐 <span>멈춤</span></h1>
+      <div class="pauseBtns">
+        <button id="btnResume" class="big">계속하기</button>
+        <button id="btnRestart" class="big ghost">처음부터 다시</button>
+      </div>
+      <p class="tiny">Esc / P 로도 멈추고 풀 수 있어요</p>
+    </div>
+  </section>
+
+  <!-- 결과 화면 -->
+  <section class="screen hidden" id="scResult">
+    <div class="card">
+      <p class="eyebrow">도착</p>
+      <h1>상동호수공원<br><span>도착!</span></h1>
+      <div class="stats">
+        <p><small>걸린 시간</small><b id="rTime">0:00</b></p>
+        <p><small>모은 코인</small><b id="rCoin">0</b></p>
+        <p class="wide"><small>모은 뽀또</small><b id="rPp">0</b></p>
+      </div>
+      <button id="btnAgain" class="big">한 번 더</button>
+      <p class="tipRoam">계속 달리며 남은 코인·뽀또를 모을 수 있어요</p>
+    </div>
+  </section>
+</div>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+<script type="module" src="js/main.js?v=31"></script>
+</body>
+</html>
