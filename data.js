@@ -91,10 +91,12 @@ const APPS = [
     title: "학창시절 다이어리",
     desc: "그림일기·독후감·방학숙제·급식표·가정통신문. 그 시절 감성 그대로 쓰는 다이어리 앱입니다.",
     date: "2026-09-28",
-    href: "https://apps.apple.com/kr/app/id6814397558",
+    links: [
+      { label: "App Store", href: "https://apps.apple.com/kr/app/id6814397558", os: "ios" },
+      { label: "Google Play", href: "https://play.google.com/store/apps/details?id=com.looth.schooldiary", os: "android" },
+    ],
     cover: "/covers/school-diary.jpg",
-    input: "iPhone",
-    cta: "App Store ↗",
+    input: "iPhone / Android",
   },
 
   {
