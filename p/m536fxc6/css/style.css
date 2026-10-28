@@ -185,3 +185,14 @@ body { font-family: "Noto Sans KR", system-ui, sans-serif; color: var(--ink); -w
 @media (pointer: coarse) { .keysTouch { display: block; } }
 /* 폰(좁은 화면)에선 결과 카드를 가운데로 */
 @media (max-width: 600px) { #scResult { justify-items: center; padding-left: 12px; padding-right: 12px; } #scResult .card { width: min(94vw, 360px); } }
+/* 폰: 결과 카드를 세로로 납작하게 — 도착 뒤 계속 달릴 때 위쪽 맵이 덜 가리게 (가로 폭은 그대로) */
+@media (max-width: 600px) {
+  #scResult .card { padding: 8px 12px 9px; border-radius: 14px; }
+  #scResult h1 { font-size: 17px; margin-bottom: 0; }
+  #scResult .stats { margin: 6px 0; gap: 6px; }
+  #scResult .stats p { padding: 4px 2px; border-radius: 9px; }
+  #scResult .stats small { font-size: 10px; margin-bottom: 0; }
+  #scResult .stats b { font-size: 15px; }
+  #scResult .big { font-size: 14px; padding: 5px 16px; border-radius: 10px; box-shadow: 0 2px 0 var(--ink); }
+  #scResult .tipRoam { margin: 4px 0 0; font-size: 10.5px; }   /* 위쪽 안내 띠가 카드에 가려지므로 카드 안에 작게 남긴다 */
+}
