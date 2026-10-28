@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>RAG 와 벡터 검색 기초 — 임베딩, 코사인 거리, pgvector · gangmin</title>
+<meta name="description" content="LLM 이 모르는 내 문서로 답하게 하는 법. 찾아서 붙여 주고 답하게 하는 RAG, 의미를 좌표로 바꾸는 임베딩, 코사인 거리, top-k 검색, pgvector, 자르기(chunking)와 잘 안 되는 경우까지.">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="RAG 와 벡터 검색 기초 — 임베딩, 코사인 거리, pgvector">
+<meta property="og:description" content="찾아서 붙여 주고 답하게 하는 RAG 의 원리를 처음부터.">
+<meta property="og:url" content="https://gangmini.com/learn/rag-vector-search/">
+<meta property="og:image" content="https://gangmini.com/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../../notes/note.css?v=20261028">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/learn/">← 이론/용어</a>
+    <p class="eyebrow">THEORY</p>
+    <h2 class="masthead__title">RAG 와 벡터 검색 기초<br>— 임베딩, 코사인 거리, pgvector</h2>
+    <div class="doc__meta">
+      <span class="tag">이론</span>
+      <span class="tag">RAG</span>
+      <span class="tag">임베딩</span>
+      <span class="tag">벡터 검색</span>
+      <span class="tag">pgvector</span>
+      <span class="tag">LLM</span>
+      <time class="note__date">2026.10.28</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      회사 백엔드에서 요즘 자주 붙는 기술이 <strong>RAG</strong> 다. "우리 회사 문서를 읽고 답하는 챗봇" 같은 걸 만들 때 쓴다.
+      이름은 어렵지만 생각은 단순하다. <strong>LLM 에게 묻기 전에, 관련 있는 문서를 먼저 찾아서 질문에 붙여 준다.</strong> 이 글은 그 "찾기"가 어떻게 도는지를 처음부터 본다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>왜 필요한가 — 오픈북 시험</h3>
+
+    <p>
+      LLM 은 학습할 때 본 글로만 답한다. 그래서 세 가지를 모른다. <strong>학습 이후의 일</strong>, <strong>공개되지 않은 문서</strong>(사내 규정, 내 메모), 그리고 <strong>그걸 모른다는 사실</strong>.
+      모르는 걸 물으면 그럴듯하게 지어낸다.
+    </p>
+    <p>
+      방법은 둘이다. 모델을 내 문서로 다시 학습시키거나(파인튜닝), 시험 볼 때 교과서를 펴 주거나. RAG 는 후자, <strong>오픈북 시험</strong>이다.
+      문서가 바뀌면 교과서만 바꾸면 되고, 답에 "이 문서를 보고 답했다"는 출처도 달 수 있다.
+    </p>
+
+    <p class="gloss">
+      <b>RAG (Retrieval-Augmented Generation)</b> — 검색(Retrieval)으로 찾은 자료를 덧붙여(Augmented) 답을 만든다(Generation).
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>전체 흐름 — 미리 한 번, 질문마다 한 번</h3>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 250" role="img" aria-label="위 줄 색인 단계: 문서를 조각으로 자르고 임베딩해 벡터 DB 에 넣는다. 아래 줄 질문 단계: 질문을 임베딩하고 벡터 DB 에서 가까운 조각 k 개를 찾아 프롬프트에 붙인 뒤 LLM 이 답한다.">
+          <text class="d-t" x="10" y="20">① 미리 한 번 — 색인</text>
+          <rect class="d-box" x="10" y="32" width="100" height="50" rx="4"/>
+          <text class="d-t" x="60" y="62" text-anchor="middle">문서</text>
+          <rect class="d-box" x="140" y="32" width="110" height="50" rx="4"/>
+          <text class="d-t" x="195" y="54" text-anchor="middle">조각으로 자르기</text>
+          <text class="d-t-s" x="195" y="72" text-anchor="middle">chunking</text>
+          <rect class="d-box" x="280" y="32" width="100" height="50" rx="4"/>
+          <text class="d-t" x="330" y="62" text-anchor="middle">임베딩</text>
+          <rect class="d-box-m" x="410" y="32" width="120" height="196" rx="4"/>
+          <text class="d-t" x="470" y="58" text-anchor="middle">벡터 DB</text>
+          <text class="d-t-s" x="470" y="76" text-anchor="middle">조각 + 좌표</text>
+          <text class="d-t-m" x="470" y="140" text-anchor="middle">pgvector 등</text>
+
+          <path class="d-line" d="M110,57 H133"/><polygon points="140,57 133,53 133,61" fill="#1A1D18"/>
+          <path class="d-line" d="M250,57 H273"/><polygon points="280,57 273,53 273,61" fill="#1A1D18"/>
+          <path class="d-line" d="M380,57 H403"/><polygon points="410,57 403,53 403,61" fill="#1A1D18"/>
+
+          <text class="d-t" x="10" y="122">② 질문마다 — 찾고, 붙이고, 답하기</text>
+          <rect class="d-box" x="10" y="134" width="100" height="50" rx="4"/>
+          <text class="d-t" x="60" y="164" text-anchor="middle">질문</text>
+          <rect class="d-box" x="280" y="134" width="100" height="50" rx="4"/>
+          <text class="d-t" x="330" y="164" text-anchor="middle">임베딩</text>
+          <path class="d-line" d="M110,159 H273"/><polygon points="280,159 273,155 273,163" fill="#1A1D18"/>
+          <path class="d-line" d="M380,159 H403"/><polygon points="410,159 403,155 403,163" fill="#1A1D18"/>
+          <text class="d-t-s" x="470" y="200" text-anchor="middle">가까운 조각 k 개</text>
+
+          <rect class="d-box" x="560" y="134" width="70" height="50" rx="4"/>
+          <text class="d-t" x="595" y="156" text-anchor="middle">프롬프트</text>
+          <text class="d-t-s" x="595" y="174" text-anchor="middle">질문+조각</text>
+          <path class="d-line" d="M530,159 H553"/><polygon points="560,159 553,155 553,163" fill="#1A1D18"/>
+
+          <rect class="d-box" x="560" y="200" width="70" height="40" rx="4"/>
+          <text class="d-t" x="595" y="225" text-anchor="middle">LLM → 답</text>
+          <path class="d-line" d="M595,184 V193"/><polygon points="595,200 591,193 599,193" fill="#1A1D18"/>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        문서와 질문을 <strong>같은 임베딩 모델</strong>로 좌표로 바꾼다는 게 핵심이다. 그래야 같은 지도 위에서 거리를 잴 수 있다.
+      </figcaption>
+    </figure>
+
+    <!-- ============================================================ -->
+    <h3>임베딩 — 뜻을 좌표로</h3>
+
+    <p>
+      컴퓨터는 "점심 메뉴"와 "저녁 회식 장소"가 비슷한 이야기라는 걸 글자만 보고는 모른다. 겹치는 글자가 하나도 없으니까.
+      <strong>임베딩</strong>은 문장을 숫자 목록(벡터)으로 바꾸는데, <strong>뜻이 비슷하면 숫자도 비슷하게</strong> 나오도록 학습된 모델이 해 준다.
+      문장마다 "의미 지도 위의 좌표"를 받는 셈이다.
+    </p>
+    <p>
+      실제 임베딩은 수백~수천 차원이다. 눈으로 보려고 3차원짜리 장난감을 만들었다. 각 칸은 [음식, 돈, 날씨] 쪽으로 얼마나 기울었나다.
+    </p>
+
+<pre><code>docs = {
+    "점심 메뉴 추천":   [0.9, 0.1, 0.0],
+    "이번 달 카드값":   [0.2, 0.9, 0.0],
+    "주말 비 소식":     [0.0, 0.1, 0.9],
+    "저녁 회식 장소":   [0.8, 0.3, 0.1],
+}
+question = [0.85, 0.2, 0.05]   # "오늘 뭐 먹지?"</code></pre>
+
+    <!-- ============================================================ -->
+    <h3>코사인 거리 — 방향이 얼마나 같은가</h3>
+
+    <p>
+      두 좌표가 얼마나 가까운지 재는 방법 중 가장 많이 쓰는 게 <strong>코사인 유사도</strong>다. 원점에서 두 점으로 화살표를 그었을 때 <strong>두 화살표가 이루는 각도</strong>를 본다.
+      같은 방향이면 1, 직각이면 0. 거리로 쓰고 싶으면 <code>1 − 유사도</code>, 즉 <strong>코사인 거리</strong>로 바꾼다(작을수록 가깝다).
+    </p>
+
+<pre><code>import math
+
+def cosine_similarity(a, b):
+    dot = sum(x * y for x, y in zip(a, b))          # 같은 칸끼리 곱해서 더하기
+    na = math.sqrt(sum(x * x for x in a))           # 화살표 길이
+    nb = math.sqrt(sum(y * y for y in b))
+    return dot / (na * nb)
+
+scores = sorted((1 - cosine_similarity(question, v), name) for name, v in docs.items())
+for dist, name in scores:
+    print(f"거리 {dist:.3f}  {name}")
+print("top-2:", [name for _, name in scores[:2]])</code></pre>
+
+<pre><code>거리 0.009  점심 메뉴 추천
+거리 0.010  저녁 회식 장소
+거리 0.566  이번 달 카드값
+거리 0.918  주말 비 소식
+top-2: ['점심 메뉴 추천', '저녁 회식 장소']</code></pre>
+
+    <p>
+      "오늘 뭐 먹지?"와 글자가 하나도 안 겹치는 "저녁 회식 장소"가 2등으로 뽑혔다. 키워드 검색으로는 못 찾는 걸 뜻으로 찾았다. 이게 벡터 검색의 힘이다.
+      이렇게 가장 가까운 k 개를 고르는 걸 <strong>k-최근접 이웃(k-NN) 검색</strong>, 줄여서 <strong>top-k</strong> 라고 한다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 220" role="img" aria-label="원점에서 뻗은 화살표들. 질문 화살표와 점심 메뉴, 회식 화살표는 거의 같은 방향이고, 카드값과 비 소식 화살표는 크게 벌어져 있다.">
+          <circle cx="60" cy="190" r="4" fill="#1A1D18"/>
+          <text class="d-t-s" x="50" y="210">원점</text>
+          <path class="d-line" d="M60,190 L330,52" style="stroke:var(--mark); stroke-width:2.2"/>
+          <text class="d-t" style="fill:var(--mark)" x="338" y="50">질문 "오늘 뭐 먹지?"</text>
+          <path class="d-line" d="M60,190 L320,74"/>
+          <text class="d-t-s" x="328" y="80">점심 메뉴 추천 (0.009)</text>
+          <path class="d-line" d="M60,190 L310,96"/>
+          <text class="d-t-s" x="318" y="104">저녁 회식 장소 (0.010)</text>
+          <path class="d-dash" d="M60,190 L250,150"/>
+          <text class="d-t-s" x="258" y="154">이번 달 카드값 (0.566)</text>
+          <path class="d-dash" d="M60,190 L180,184"/>
+          <text class="d-t-s" x="188" y="190">주말 비 소식 (0.918)</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        개념을 보여 주려고 2차원에 대충 옮겨 그린 그림이다(실제 각도와 정확히 같지는 않다). 괄호 안이 위 코드에서 나온 코사인 거리다. 화살표 길이가 아니라 방향이 같은지를 본다.
+      </figcaption>
+    </figure>
+
+    <!-- ============================================================ -->
+    <h3>pgvector — PostgreSQL 에서 바로 벡터 검색</h3>
+
+    <p>
+      조각이 수백만 개면 파이썬으로 하나씩 다 재 볼 수 없다. 벡터를 저장하고 가까운 것을 빨리 찾아 주는 저장소가 필요하다.
+      전용 벡터 DB 도 있지만, 이미 PostgreSQL 을 쓰고 있다면 확장 기능 <strong>pgvector</strong> 를 켜서 같은 DB 안에서 할 수 있다. 데이터가 한 곳에 있다는 게 큰 장점이다.
+    </p>
+
+<pre><code>-- 확장 켜기
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- 조각을 담는 테이블. 차원 수는 쓰는 임베딩 모델에 맞춘다
+CREATE TABLE memo_chunks (
+    id        bigserial PRIMARY KEY,
+    memo_id   bigint,
+    content   text,
+    embedding vector(1536)
+);
+
+-- 질문 좌표(:q)와 코사인 거리가 가장 가까운 5개
+SELECT content, embedding &lt;=&gt; :q AS distance
+FROM memo_chunks
+ORDER BY embedding &lt;=&gt; :q
+LIMIT 5;</code></pre>
+
+    <table>
+      <tr><th>연산자</th><th>재는 것</th></tr>
+      <tr><td><code>&lt;=&gt;</code></td><td>코사인 거리 (위에서 계산한 그것)</td></tr>
+      <tr><td><code>&lt;-&gt;</code></td><td>유클리드(L2) 거리 — 점과 점 사이 직선 거리</td></tr>
+      <tr><td><code>&lt;#&gt;</code></td><td>내적에 음수를 붙인 값 — 작을수록 가깝게 맞춰 둔 것</td></tr>
+    </table>
+
+    <h4>인덱스 — 정확도를 조금 내주고 속도를 산다</h4>
+    <p>
+      인덱스 없이 <code>ORDER BY … LIMIT</code> 을 하면 모든 줄과 거리를 잰다(정확하지만 느리다). 그래서 <strong>근사 최근접 이웃(ANN)</strong> 인덱스를 단다.
+      "거의 확실히 가까운 것"을 훨씬 빨리 찾는 대신, 아주 가끔 진짜 1등을 놓칠 수 있다.
+    </p>
+
+<pre><code>-- HNSW: 이웃끼리 그물처럼 이어 두고 타고 가며 찾는다. 검색이 빠르고 정확한 편, 만들 때 느리고 메모리를 더 쓴다
+CREATE INDEX ON memo_chunks USING hnsw (embedding vector_cosine_ops);
+
+-- IVFFlat: 좌표를 몇 개 무리(lists)로 나눠 두고 가까운 무리만 뒤진다. 만들기 빠르고 가볍다. 데이터가 어느 정도 쌓인 뒤 만든다
+CREATE INDEX ON memo_chunks USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);</code></pre>
+
+    <p>
+      인덱스의 거리 종류(<code>vector_cosine_ops</code>)와 쿼리의 연산자(<code>&lt;=&gt;</code>)가 같아야 인덱스를 탄다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>자르기(chunking) — 얼마만큼씩 넣을까</h3>
+
+    <p>
+      문서 하나를 통째로 임베딩하면 여러 이야기가 한 좌표에 뭉개져서 무엇과도 애매하게 가까워진다. 반대로 너무 잘게 자르면 앞뒤 맥락이 사라진다.
+      그래서 문단 정도 크기로 자르고, 경계에서 뜻이 끊기지 않게 앞뒤를 조금씩 <strong>겹쳐서(overlap)</strong> 자르는 게 보통이다.
+      조각마다 원래 문서 id, 제목 같은 <strong>메타데이터</strong>를 같이 저장해 두면 "내 메모 중에서만" 같은 조건 검색과 출처 표시가 된다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>잘 안 되는 경우</h3>
+    <table>
+      <tr><th>증상</th><th>원인</th><th>흔한 대처</th></tr>
+      <tr><td>엉뚱한 조각이 뽑힌다</td><td>조각이 너무 크거나 작다. 질문과 문서의 말투가 다르다</td><td>자르는 크기·겹침 조정, 다른 임베딩 모델</td></tr>
+      <tr><td>제품 코드·고유명사를 못 찾는다</td><td>임베딩은 뜻은 잘 잡지만 정확한 글자 맞추기는 약하다</td><td>키워드 검색과 섞는 하이브리드 검색</td></tr>
+      <tr><td>찾았는데 답이 틀린다</td><td>조각을 붙였지만 LLM 이 무시하거나 섞어 지어낸다</td><td>"주어진 자료로만 답하라"는 지시, 출처 함께 표시</td></tr>
+      <tr><td>점점 느려진다</td><td>인덱스 없이 전체 비교</td><td>HNSW·IVFFlat 인덱스</td></tr>
+    </table>
+
+    <p class="gloss">
+      <b>벡터</b> — 숫자를 순서대로 늘어놓은 목록. 여기서는 의미 공간의 좌표.<br>
+      <b>임베딩 모델</b> — 글을 벡터로 바꿔 주는 모델. 색인과 질문에 반드시 같은 모델을 써야 한다.<br>
+      <b>코사인 유사도 / 거리</b> — 두 벡터 방향이 얼마나 같은지. 유사도 1 = 같은 방향, 거리 = 1 − 유사도.<br>
+      <b>k-NN / top-k</b> — 가장 가까운 k 개를 고르는 검색.<br>
+      <b>ANN (근사 최근접 이웃)</b> — 조금 덜 정확한 대신 훨씬 빠르게 가까운 것을 찾는 방법. HNSW, IVFFlat 이 대표적이다.<br>
+      <b>chunk</b> — 임베딩하기 좋게 자른 문서 조각.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>정리</h3>
+    <table>
+      <tr><th>단계</th><th>한 줄로</th></tr>
+      <tr><td>RAG</td><td>찾아서 붙여 주고 답하게 한다 — 오픈북 시험</td></tr>
+      <tr><td>임베딩</td><td>뜻이 비슷하면 좌표가 가깝다</td></tr>
+      <tr><td>코사인 거리</td><td>화살표 방향이 얼마나 같은가. 작을수록 가깝다</td></tr>
+      <tr><td>top-k</td><td>가장 가까운 k 조각을 프롬프트에</td></tr>
+      <tr><td>pgvector</td><td>PostgreSQL 안에서 <code>ORDER BY embedding &lt;=&gt; :q LIMIT k</code></td></tr>
+      <tr><td>chunking</td><td>문단 크기 + 조금 겹치게 + 메타데이터</td></tr>
+    </table>
+
+    <p>
+      구조 시리즈와 이어 보면, 이 "찾기"도 결국 <a href="/learn/arch-layers/">영속 층</a>의 일이다. 서비스는 "관련 문서를 가져온다"만 말하고(<a href="/learn/arch-code-principles/">SLAP</a>),
+      그 아래에서 "질문을 임베딩하고 → pgvector 로 코사인 거리 top-k 를 가져온다"는 저수준 일이 일어난다.
+    </p>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 읽기</p>
+      <ul>
+        <li><a href="/learn/arch-overview/">코드 구조 한눈에</a> — 이 기능이 들어갈 자리</li>
+        <li><a href="/learn/arch-code-principles/">읽히는 코드의 원칙</a> — 고수준에서 벡터 검색까지 내려가는 SLAP</li>
+        <li><a href="/learn/arch-layers/">층마다 하는 일</a> — 저장소가 DB 를 맡는 이유</li>
+        <li><a href="/learn/arch-di/">의존성 주입(DI)</a> — LLM·임베딩 클라이언트를 갈아 끼우기</li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

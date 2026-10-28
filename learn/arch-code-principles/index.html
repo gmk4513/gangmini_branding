@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>읽히는 코드의 원칙 — SLAP · 동형원리 · 선형원리 · 생성원칙 · gangmin</title>
+<meta name="description" content="함수 안 줄들의 높이를 맞추고(SLAP), 이름과 순서를 통일하고(동형원리), if 를 줄여 위에서 아래로 읽히게 하고(선형원리), 반복되는 코드는 생성기에 맡기기(생성원칙).">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="읽히는 코드의 원칙 — SLAP · 동형원리 · 선형원리 · 생성원칙">
+<meta property="og:description" content="추상화 수준 맞추기, 이름 규칙, 직선 흐름, 코드 생성.">
+<meta property="og:url" content="https://gangmini.com/learn/arch-code-principles/">
+<meta property="og:image" content="https://gangmini.com/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../../notes/note.css?v=20261028">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/learn/">← 이론/용어</a>
+    <p class="eyebrow">THEORY</p>
+    <h2 class="masthead__title">읽히는 코드의 원칙<br>— SLAP · 동형원리 · 선형원리 · 생성원칙</h2>
+    <div class="doc__meta">
+      <span class="tag">이론</span>
+      <span class="tag">SLAP</span>
+      <span class="tag">이름 규칙</span>
+      <span class="tag">예외 처리</span>
+      <span class="tag">OpenAPI</span>
+      <span class="tag">코드 생성</span>
+      <time class="note__date">2026.10.28</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      앞 글들이 "코드를 어느 폴더·층에 둘까"였다면, 이 글은 <strong>함수 하나를 어떻게 써야 남이 읽기 쉬운가</strong>다.
+      코드는 쓰는 시간보다 읽히는 시간이 훨씬 길다. 리뷰어가 읽고, 몇 달 뒤의 내가 읽고, AI 가 읽는다. 네 가지 원칙을 <code>memo-api</code> 예시로 본다.
+      예시 코드는 모두 직접 돌려 본 것이다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>1. SLAP — 한 함수 안의 줄들은 같은 높이로</h3>
+
+    <p>
+      <strong>SLAP(Single Level of Abstraction Principle)</strong>은 "한 함수 안의 줄들은 추상화 수준이 같아야 한다"는 원칙이다.
+      책의 목차를 떠올리면 쉽다. 목차에 "1장 시작하기 · 2장 설치 · 3장 <code>pip install</code> 을 치고 엔터를 누른다"가 섞여 있으면 이상하다. 3장만 갑자기 너무 자세하다.
+    </p>
+
+    <h4>섞여 있는 함수</h4>
+<pre><code>def create_memo_with_summary(self, user_id, title, body):
+    if not title.strip():                       # 검사 (세부)
+        raise InvalidInput("제목이 비었다")
+    if len(title) &gt; 50:
+        raise InvalidInput("제목은 50자까지")
+    summary = body[:20]                          # 요약 (아주 세부)
+    row = MemoRow(user_id=user_id, title=title.strip(), body=body, summary=summary)
+    self.session.add(row)                        # DB (가장 세부)
+    self.session.commit()
+    return Memo(id=row.id, user_id=user_id, title=row.title, body=body, summary=summary)</code></pre>
+
+    <p>"메모를 요약해서 만든다"는 한 문장짜리 일인데, 읽으려면 글자 수 검사, 문자열 자르기, DB 세션까지 다 머리에 올려야 한다.</p>
+
+    <h4>높이를 맞춘 함수</h4>
+<pre><code>class MemoService:
+    # 고수준: 무엇을 하는지만
+    def create_memo_with_summary(self, user_id: int, title: str, body: str) -&gt; Memo:
+        validate_title(title)
+        memo = self._build_memo(user_id, title, body)
+        return self.repository.create(memo)
+
+    # 중간 수준: 어떻게 조립하는지
+    def _build_memo(self, user_id: int, title: str, body: str) -&gt; Memo:
+        summary = summarize(body)
+        return Memo(id=0, user_id=user_id, title=title.strip(), body=body, summary=summary)</code></pre>
+
+<pre><code>&gt;&gt;&gt; s.create_memo_with_summary(7, " 장보기 ", "우유, 달걀, 두부, 파, 양파, 사과 사기")
+Memo(id=1, user_id=7, title='장보기', body='우유, 달걀, 두부, 파, 양파, 사과 사기', summary='우유, 달걀, 두부, 파, 양파, 사')</code></pre>
+
+    <p>
+      이제 맨 위 함수는 세 줄짜리 목차다. <em>검사하고, 만들고, 저장한다.</em> 더 궁금한 사람만 한 칸 아래로 내려가면 된다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 250" role="img" aria-label="추상화 수준 네 단계. 맨 위 create_memo_with_summary, 그 아래 validate_title, _build_memo, repository.create, 그 아래 summarize 와 INSERT 문, 맨 아래 DB 드라이버.">
+          <text class="d-t-s" x="10" y="44">고수준</text>
+          <text class="d-t-s" x="10" y="232">저수준</text>
+          <path class="d-line" d="M30,56 V210"/><polygon points="30,217 26,210 34,210" fill="#1A1D18"/>
+
+          <rect class="d-box-m" x="200" y="22" width="260" height="36" rx="4"/>
+          <text class="d-t-m" x="330" y="44" text-anchor="middle">create_memo_with_summary()</text>
+
+          <rect class="d-box" x="70" y="84" width="150" height="36" rx="4"/>
+          <text class="d-t-m" x="145" y="106" text-anchor="middle">validate_title()</text>
+          <rect class="d-box" x="255" y="84" width="150" height="36" rx="4"/>
+          <text class="d-t-m" x="330" y="106" text-anchor="middle">_build_memo()</text>
+          <rect class="d-box" x="440" y="84" width="170" height="36" rx="4"/>
+          <text class="d-t-m" x="525" y="106" text-anchor="middle">repository.create()</text>
+
+          <rect class="d-box" x="255" y="146" width="150" height="36" rx="4"/>
+          <text class="d-t-m" x="330" y="168" text-anchor="middle">summarize()</text>
+          <rect class="d-box" x="440" y="146" width="170" height="36" rx="4"/>
+          <text class="d-t-m" x="525" y="168" text-anchor="middle">INSERT INTO memos</text>
+
+          <rect class="d-box" x="440" y="206" width="170" height="36" rx="4"/>
+          <text class="d-t-m" x="525" y="228" text-anchor="middle">DB 드라이버</text>
+
+          <path class="d-line" d="M330,58 V71 M145,71 H525 M145,71 V84 M330,71 V84 M525,71 V84"/>
+          <path class="d-line" d="M330,120 V146"/>
+          <path class="d-line" d="M525,120 V146"/>
+          <path class="d-line" d="M525,182 V206"/>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        한 함수는 한 줄(층)에만 산다. 아래로 내려갈수록 "어떻게"가 자세해진다. 읽는 사람은 필요한 깊이까지만 내려간다.
+      </figcaption>
+    </figure>
+
+    <!-- ============================================================ -->
+    <h3>2. 동형원리 — 같은 일은 같은 모양으로</h3>
+
+    <p>
+      <strong>동형원리(Isomorphism)</strong>는 함수 이름, 매개변수 순서, 돌려주는 값의 규칙을 프로젝트 전체에서 통일하자는 원칙이다.
+      한 저장소의 규칙을 익히면 다른 저장소는 안 열어 봐도 쓸 수 있게 된다.
+    </p>
+
+    <table>
+      <tr><th>이름</th><th>돌려주는 것</th><th>없을 때</th></tr>
+      <tr><td><code>get_xxx</code> / <code>get</code></td><td>도메인 객체 하나</td><td><strong>예외</strong>(<code>NotFound</code>)를 던진다</td></tr>
+      <tr><td><code>find_xxx</code> / <code>find</code></td><td><code>Optional[도메인]</code> 또는 <code>list[도메인]</code></td><td><code>None</code> 이나 빈 리스트</td></tr>
+      <tr><td><code>…_by_yyy</code></td><td>by 뒤가 조건</td><td><code>find_all_by_user(user_id)</code> = "user_id 가 같은 것 전부"</td></tr>
+    </table>
+
+<pre><code>class MemoRepository:
+    def get(self, memo_id: int) -&gt; Memo:                       # 없으면 예외
+        memo = self._rows.get(memo_id)
+        if memo is None:
+            raise NotFound(f"memo {memo_id}")
+        return memo
+
+    def find(self, memo_id: int) -&gt; Optional[Memo]:            # 없으면 None
+        return self._rows.get(memo_id)
+
+    def find_all_by_user(self, user_id: int) -&gt; list[Memo]:    # by 뒤가 조건
+        return [m for m in self._rows.values() if m.user_id == user_id]</code></pre>
+
+<pre><code>&gt;&gt;&gt; repo.find(99)
+None
+&gt;&gt;&gt; repo.get(99)
+NotFound: memo 99</code></pre>
+
+    <p>
+      이렇게 정해 두면 이름만 보고 "<code>get</code> 이니까 None 검사는 안 해도 되겠구나", "<code>find</code> 니까 None 을 처리해야겠구나"를 안다.
+      매개변수 순서도 맞춘다. <code>memo-api</code> 에서는 <strong>누가(user_id) → 무엇을(memo_id) → 어떻게(내용)</strong> 순서로 통일했다: <code>update_title(user_id, memo_id, title)</code>.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>3. 선형원리 — 위에서 아래로 한 줄로 읽히게</h3>
+
+    <p>
+      <strong>선형원리</strong>는 처리 흐름이 가능한 한 직선이어야 한다는 원칙이다. <code>if</code> 와 반복문이 겹겹이 쌓이면 읽는 사람은 "지금 몇 번째 조건 안에 있지?"를 계속 세야 한다.
+    </p>
+
+    <h4>전: 중첩된 if</h4>
+<pre><code>def update_title(repository, user_id, memo_id, title):
+    memo = repository.find(memo_id)
+    if memo is not None:
+        if memo.user_id == user_id:
+            if title.strip():
+                if len(title) &lt;= 50:
+                    memo.title = title.strip()
+                    return memo
+                else:
+                    return "제목은 50자까지"
+            else:
+                return "제목이 비었다"
+        else:
+            return "남의 메모"
+    else:
+        return "메모가 없다"</code></pre>
+
+    <h4>후: 검사는 validate 안에서 raise</h4>
+<pre><code>def validate_owner(memo: Memo, user_id: int) -&gt; None:
+    if memo.user_id != user_id:
+        raise Forbidden("남의 메모")
+
+def validate_title(title: str) -&gt; None:
+    if not title.strip():
+        raise InvalidInput("제목이 비었다")
+    if len(title) &gt; 50:
+        raise InvalidInput("제목은 50자까지")
+
+class MemoService:
+    def update_title(self, user_id: int, memo_id: int, title: str) -&gt; Memo:
+        memo = self.repository.get(memo_id)      # 없으면 여기서 NotFound
+        validate_owner(memo, user_id)
+        validate_title(title)
+        memo.title = title.strip()
+        return memo</code></pre>
+
+<pre><code>NotFound memo 99
+Forbidden 남의 메모
+InvalidInput 제목이 비었다</code></pre>
+
+    <p>
+      성공하는 길(happy path)이 들여쓰기 없이 한 줄로 내려간다. 실패는 각 검사 안에서 예외로 빠져나가고,
+      예외를 HTTP 상태 코드(404 · 403 · 422)로 바꾸는 일은 표현 층(webapp)이 한 곳에서 맡는다. 서비스는 HTTP 를 모른 채로 남는다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>4. 생성원칙 — 반복되는 코드는 생성기에게</h3>
+
+    <p>
+      <strong>생성원칙(Rule of Generation)</strong>은 "코드를 작성하는 코드를 작성하라"다. 사람은 똑같은 걸 백 번 손으로 옮겨 적는 데 약하다. 한 번은 꼭 틀린다.
+    </p>
+    <p>
+      대표적인 예가 <strong>API 클라이언트</strong>다. 프론트엔드는 서버의 주소마다 요청 함수와 응답 타입을 만들어야 한다. 서버가 바뀔 때마다 손으로 맞추면 언젠가 어긋난다.
+      FastAPI 는 라우터와 DTO 를 보고 API 명세(<code>/openapi.json</code>)를 저절로 만들어 준다. 이 명세를 읽어서 TypeScript 함수와 타입을 뽑아 주는 도구(<code>openapi-typescript</code>, <code>orval</code> 등)가 있다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 150" role="img" aria-label="FastAPI 라우터와 DTO 에서 openapi.json 명세가 자동으로 나오고, 코드 생성기가 이를 읽어 프론트엔드의 generated 폴더에 타입과 요청 함수를 만든다">
+          <rect class="d-box" x="10" y="40" width="140" height="64" rx="4"/>
+          <text class="d-t" x="80" y="66" text-anchor="middle">FastAPI</text>
+          <text class="d-t-s" x="80" y="86" text-anchor="middle">라우터 · DTO</text>
+
+          <rect class="d-box-m" x="180" y="40" width="130" height="64" rx="4"/>
+          <text class="d-t-m" x="245" y="66" text-anchor="middle">openapi.json</text>
+          <text class="d-t-s" x="245" y="86" text-anchor="middle">API 명세 (자동)</text>
+
+          <rect class="d-box" x="340" y="40" width="130" height="64" rx="4"/>
+          <text class="d-t" x="405" y="66" text-anchor="middle">코드 생성기</text>
+          <text class="d-t-s" x="405" y="86" text-anchor="middle">orval 등</text>
+
+          <rect class="d-box" x="500" y="40" width="130" height="64" rx="4"/>
+          <text class="d-t-m" x="565" y="66" text-anchor="middle">src/generated/</text>
+          <text class="d-t-s" x="565" y="86" text-anchor="middle">타입 · 요청 함수</text>
+
+          <path class="d-line" d="M150,72 H173"/><polygon points="180,72 173,68 173,76" fill="#1A1D18"/>
+          <path class="d-line" d="M310,72 H333"/><polygon points="340,72 333,68 333,76" fill="#1A1D18"/>
+          <path class="d-line" d="M470,72 H493"/><polygon points="500,72 493,68 493,76" fill="#1A1D18"/>
+          <text class="d-t-s" x="320" y="136" text-anchor="middle">서버가 바뀌면 명령 한 번으로 다시 뽑는다. generated 폴더는 손으로 고치지 않는다</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        서버의 DTO 가 "진짜 원본"이고, 프론트엔드 코드는 거기서 찍어 낸 사본이다. 원본이 하나라 둘이 어긋날 수 없다.
+      </figcaption>
+    </figure>
+
+    <p>
+      나는 아직 이 도구들을 내 프로젝트에 써 보지 않았다. 다만 생각해 보면 비슷한 일을 이미 하고 있었다. 스토어 스크린샷이나 인스타 카드처럼 똑같은 작업을 여러 번 해야 할 때
+      손으로 만들지 않고 파이썬 스크립트로 뽑았다. 같은 원칙이다. 반복은 사람이 아니라 생성기가 한다.
+    </p>
+
+    <p class="gloss">
+      <b>추상화 수준</b> — "무엇을" 하는지에 가까울수록 높고, "어떻게" 하는지에 가까울수록 낮다. "메모를 만든다"는 높고, "INSERT 문을 보낸다"는 낮다.<br>
+      <b>happy path</b> — 아무 문제 없이 성공하는 흐름. 선형원리는 이 길을 들여쓰기 없이 곧게 두자는 것이다.<br>
+      <b>OpenAPI</b> — HTTP API 의 주소, 입력, 출력을 기계가 읽을 수 있게 적는 표준 형식(JSON/YAML).<br>
+      <b>코드 생성기</b> — 명세나 스키마를 읽어 코드를 대신 써 주는 도구. 만든 결과는 손으로 고치지 않고, 원본을 고친 뒤 다시 생성한다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>정리</h3>
+    <table>
+      <tr><th>원칙</th><th>한 줄로</th><th>memo-api 에서</th></tr>
+      <tr><td>SLAP</td><td>한 함수 안은 같은 높이</td><td><code>create_memo_with_summary</code> 는 세 줄짜리 목차</td></tr>
+      <tr><td>동형원리</td><td>같은 일은 같은 이름·순서</td><td><code>get</code>=예외, <code>find</code>=None, <code>_by_</code>=조건, user → memo → 내용</td></tr>
+      <tr><td>선형원리</td><td>if 를 줄여 위에서 아래로</td><td><code>validate_*</code> 가 raise, 성공 길은 한 줄</td></tr>
+      <tr><td>생성원칙</td><td>반복은 생성기에게</td><td>OpenAPI → 프론트엔드 클라이언트</td></tr>
+    </table>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 읽기</p>
+      <ul>
+        <li><a href="/learn/arch-overview/">코드 구조 한눈에</a> — 시리즈 지도</li>
+        <li><a href="/learn/arch-layers/">층마다 하는 일</a> — 예외를 HTTP 로 바꾸는 곳</li>
+        <li><a href="/learn/arch-test-cicd/">테스트와 CI/CD</a> — 이 원칙들을 지키는지 자동으로 확인하기</li>
+        <li><a href="/learn/arch-refactor-practice/">실습: 구조 바꾸기</a></li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

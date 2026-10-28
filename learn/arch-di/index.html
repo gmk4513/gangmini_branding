@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>의존성 주입(DI) — 직접 넣기부터 컨테이너까지 · gangmin</title>
+<meta name="description" content="서비스 안에서 저장소를 직접 만들면 무엇이 곤란한가. 생성자 주입, 가짜 저장소로 테스트, dependency-injector 컨테이너, Singleton 과 Factory, 앱 수명과 요청 수명까지 직접 돌려 본다.">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="의존성 주입(DI) — 직접 넣기부터 컨테이너까지">
+<meta property="og:description" content="생성자 주입부터 dependency-injector 컨테이너, 앱 수명과 요청 수명까지 직접 돌려 본다.">
+<meta property="og:url" content="https://gangmini.com/learn/arch-di/">
+<meta property="og:image" content="https://gangmini.com/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../../notes/note.css?v=20261028">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/learn/">← 이론/용어</a>
+    <p class="eyebrow">PRACTICE</p>
+    <h2 class="masthead__title">의존성 주입(DI)<br>— 직접 넣기부터 컨테이너까지</h2>
+    <div class="doc__meta">
+      <span class="tag">실습</span>
+      <span class="tag">Python</span>
+      <span class="tag">DI</span>
+      <span class="tag">dependency-injector</span>
+      <span class="tag">FastAPI</span>
+      <span class="tag">pytest</span>
+      <time class="note__date">2026.10.28</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      <a href="/learn/arch-layers/">앞 글</a>에서 메모 API 를 router · service · repository 세 층으로 나눴다. 그때 서비스가 저장소를 "직접 만들지 않고 받는다"고만 하고 넘어갔다.
+      이 글은 그 "받는다"를 파고든다. 취업 준비하며 본 설계 자료에서 <code>container.py</code> 에 의존 관계를 모아 둔 걸 보고, 왜 그렇게 하는지 직접 돌려 보며 이해한 과정이다.
+    </p>
+    <p>
+      한 줄로 줄이면 이렇다. <strong>부품이 자기 부품을 직접 만들지 말고, 바깥에서 끼워 받게 한다. 그리고 누가 누구를 끼우는지는 한 곳(컨테이너)에 적어 둔다.</strong>
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>문제 — 서비스가 저장소를 직접 만들면</h3>
+
+<pre><code>class MemoService:
+    def __init__(self) -&gt; None:
+        conn = sqlite3.connect("memo.db")
+        self.repository = SqliteMemoRepository(conn)   # 안에서 직접 만든다</code></pre>
+
+    <p>얼핏 편해 보인다. 쓰는 쪽은 <code>MemoService()</code> 만 부르면 된다. 그런데 이러면 세 가지가 막힌다.</p>
+    <ul>
+      <li><strong>테스트가 진짜 DB 를 건드린다.</strong> 서비스를 시험하려고 만들기만 해도 <code>memo.db</code> 파일이 생기고, 이전 테스트가 남긴 데이터가 다음 테스트에 섞인다.</li>
+      <li><strong>저장소를 못 바꾼다.</strong> 앞 글의 "바꿔 끼우기"가 안 된다. 바꾸려면 서비스 코드를 고쳐야 한다.</li>
+      <li><strong>설정이 숨는다.</strong> DB 경로 <code>"memo.db"</code> 가 서비스 깊숙이 박혀 있다. 운영과 테스트에서 다른 DB 를 쓰기 어렵다.</li>
+    </ul>
+
+    <p>
+      전기 제품으로 생각하면 쉽다. 선풍기 안에 발전기를 넣어 팔지 않는다. 선풍기는 플러그(약속된 모양)만 갖고, 전기는 벽(바깥)이 넣어 준다.
+      그래서 집에서든 사무실에서든, 발전기든 배터리든 같은 선풍기를 쓸 수 있다.
+    </p>
+
+    <p class="gloss">
+      <b>의존(dependency)</b> — A 가 일하려면 B 가 필요할 때 "A 는 B 에 의존한다"고 한다. MemoService 는 저장소에 의존한다.<br>
+      <b>의존성 주입(Dependency Injection, DI)</b> — 필요한 B 를 A 가 직접 만들지 않고, 바깥에서 만들어 A 에게 넣어 주는 방식.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>1단계 — 손으로 넣기 (생성자 주입)</h3>
+
+<pre><code># src/memo/service.py
+class MemoService:
+    def __init__(self, repository: MemoRepository) -&gt; None:   # 받는다
+        self.repository = repository</code></pre>
+
+    <p>
+      이게 DI 의 전부다. 라이브러리도 필요 없다. 타입은 구현(<code>SqliteMemoRepository</code>)이 아니라 약속(<code>MemoRepository</code>)으로 적는다.
+      이제 쓰는 쪽이 무엇을 넣을지 고른다.
+    </p>
+
+<pre><code># 운영: 진짜 DB
+service = MemoService(repository=SqliteMemoRepository(sqlite3.connect("memo.db")))
+
+# 테스트: dict 저장소
+service = MemoService(repository=InMemoryMemoRepository())</code></pre>
+
+    <h4>바로 얻는 것 — DB 없는 테스트</h4>
+
+<pre><code># tests/test_memo_service.py
+@pytest.fixture
+def service():
+    return MemoService(repository=InMemoryMemoRepository())
+
+def test_other_user_cannot_read(service):
+    memo = service.create_memo("kim", "비밀")
+    with pytest.raises(PermissionDenied):
+        service.get_memo("lee", memo.id)</code></pre>
+
+    <p>서버도, DB 파일도 없이 규칙을 시험한다. 실제로 돌린 결과다.</p>
+
+<pre><code>$ python -m pytest tests/test_memo_service.py -v
+tests/test_memo_service.py::test_create_and_list PASSED
+tests/test_memo_service.py::test_empty_title_is_rejected PASSED
+tests/test_memo_service.py::test_other_user_cannot_read PASSED
+tests/test_memo_service.py::test_rename_keeps_rule PASSED
+tests/test_memo_service.py::test_missing_memo PASSED</code></pre>
+
+    <!-- ============================================================ -->
+    <h3>2단계 — 조립이 늘어나면: 컨테이너</h3>
+
+    <p>
+      부품이 몇 개일 땐 손으로 넣어도 된다. 그런데 모듈이 늘면 조립 코드가 길어지고 여기저기 흩어진다.
+      user 모듈의 <code>ProfileService</code> 는 <code>MemoService</code> 가 필요하고, 그건 저장소가, 저장소는 DB 연결이 필요하다.
+      이 "누가 누구를 쓰나"를 한 파일에 적어 두고, 실제로 만들어 끼우는 일까지 맡기는 게 <strong>DI 컨테이너</strong>다.
+      파이썬에서는 <code>dependency-injector</code> 라이브러리를 썼다.
+    </p>
+
+<pre><code># src/memo/container.py — memo 모듈 안의 지도
+class MemoContainer(containers.DeclarativeContainer):
+    db = providers.Dependency(instance_of=sqlite3.Connection)   # 바깥이 넣어 준다
+
+    repository = providers.Singleton(SqliteMemoRepository, conn=db)
+    service = providers.Singleton(MemoService, repository=repository)
+
+
+# src/user/container.py
+class UserContainer(containers.DeclarativeContainer):
+    memo_service = providers.Dependency(instance_of=MemoService)
+
+    profile_service = providers.Singleton(ProfileService, memo_service=memo_service)
+
+
+# src/container.py — 앱 전체 지도. 모듈 컨테이너를 엮는다
+class AppContainer(containers.DeclarativeContainer):
+    config = providers.Configuration()
+
+    db = providers.Singleton(sqlite3.connect, config.db_path, check_same_thread=False)
+
+    memo = providers.Container(MemoContainer, db=db)
+    user = providers.Container(UserContainer, memo_service=memo.service)</code></pre>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 300" role="img" aria-label="AppContainer 가 config, db, memo, user 를 갖는다. memo 컨테이너 안에서 db 가 repository 로, repository 가 service 로 들어간다. user 컨테이너의 profile_service 는 memo.service 를 받는다.">
+          <rect class="d-box" x="16" y="16" width="608" height="268" rx="6"/>
+          <text class="d-t" x="30" y="38">AppContainer (src/container.py)</text>
+
+          <rect class="d-box" x="36" y="56" width="140" height="40" rx="4"/>
+          <text class="d-t-m" x="106" y="80" text-anchor="middle">config.db_path</text>
+          <path class="d-line" d="M176,76 H213"/><polygon points="220,76 213,72 213,80" fill="#1A1D18"/>
+          <rect class="d-box" x="220" y="56" width="150" height="40" rx="4"/>
+          <text class="d-t-m" x="295" y="80" text-anchor="middle">db (Singleton)</text>
+          <text class="d-t-s" x="392" y="80">sqlite3 연결 하나를 앱 전체가 같이 쓴다</text>
+
+          <!-- memo -->
+          <rect class="d-box-m" x="36" y="120" width="290" height="148" rx="4"/>
+          <text class="d-t" x="50" y="140">MemoContainer</text>
+          <rect class="d-box" x="56" y="154" width="250" height="36" rx="4"/>
+          <text class="d-t-m" x="181" y="176" text-anchor="middle">repository ← db</text>
+          <path class="d-line" d="M181,190 V209"/><polygon points="181,216 177,209 185,209" fill="#1A1D18"/>
+          <rect class="d-box" x="56" y="216" width="250" height="36" rx="4"/>
+          <text class="d-t-m" x="181" y="238" text-anchor="middle">service ← repository</text>
+
+          <path class="d-line" d="M295,96 V113"/><polygon points="295,120 291,113 299,113" fill="#1A1D18"/>
+
+          <!-- user -->
+          <rect class="d-box" x="364" y="120" width="240" height="148" rx="4"/>
+          <text class="d-t" x="378" y="140">UserContainer</text>
+          <rect class="d-box" x="384" y="216" width="200" height="36" rx="4"/>
+          <text class="d-t-m" x="484" y="238" text-anchor="middle">profile_service ← memo.service</text>
+
+          <path class="d-line" d="M306,234 H377"/><polygon points="384,234 377,230 377,238" fill="#1A1D18"/>
+          <text class="d-t-s" x="484" y="180" text-anchor="middle">메모 수는 memo.service 에게 묻는다</text>
+          <text class="d-t-s" x="484" y="198" text-anchor="middle">(memo 테이블을 직접 안 본다)</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        컨테이너 파일만 열면 "앱이 무엇으로 이루어져 있고, 누가 누구를 쓰는지"가 한눈에 보인다. 클래스 안을 뒤질 필요가 없다.
+      </figcaption>
+    </figure>
+
+    <h4>provider 종류 — 어떻게 만들어 줄지</h4>
+
+    <table>
+      <tr><th>provider</th><th>하는 일</th><th>여기서 쓴 곳</th></tr>
+      <tr><td><code>Singleton</code></td><td>처음 한 번 만들고, 그 뒤로는 같은 것을 준다</td><td>DB 연결, 저장소, 서비스</td></tr>
+      <tr><td><code>Factory</code></td><td>부를 때마다 새로 만든다</td><td>요청마다 상태가 달라야 하는 것 (이 앱엔 없음)</td></tr>
+      <tr><td><code>Configuration</code></td><td>설정 값을 담는다. 파일·환경 변수·코드로 채운다</td><td><code>config.db_path</code></td></tr>
+      <tr><td><code>Dependency</code></td><td>"여긴 바깥이 채워 줘" 하고 비워 둔 자리</td><td>MemoContainer 의 <code>db</code></td></tr>
+      <tr><td><code>Container</code></td><td>다른 컨테이너를 통째로 끼운다</td><td>AppContainer 의 <code>memo</code>, <code>user</code></td></tr>
+    </table>
+
+    <p>Singleton 과 Factory 의 차이, 그리고 바꿔 끼우기(override)를 직접 눌러 봤다.</p>
+
+<pre><code># provider_demo.py
+class Box(containers.DeclarativeContainer):
+    factory = providers.Factory(list)      # 부를 때마다 새로
+    singleton = providers.Singleton(list)  # 한 번만
+
+box = Box()
+print("Factory   같은 객체?", box.factory() is box.factory())
+print("Singleton 같은 객체?", box.singleton() is box.singleton())
+
+app = AppContainer(); app.config.db_path.from_value(":memory:")
+print("기본 저장소:", type(app.memo.service().repository).__name__)
+
+app2 = AppContainer(); app2.config.db_path.from_value(":memory:")
+with app2.memo.repository.override(providers.Singleton(InMemoryMemoRepository)):
+    print("override 중:", type(app2.memo.service().repository).__name__)
+
+$ python provider_demo.py
+Factory   같은 객체? False
+Singleton 같은 객체? True
+기본 저장소: SqliteMemoRepository
+override 중: InMemoryMemoRepository</code></pre>
+
+    <p class="gloss">
+      <b>컨테이너</b> — 여기서는 "부품 목록 + 조립 설명서"를 들고 있다가, 요청하면 조립된 부품을 내주는 객체. 도커의 컨테이너와는 다른 말이다.<br>
+      <b>provider</b> — 컨테이너 안에서 "이 부품을 어떻게 만들지"를 정한 항목 하나.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>3단계 — 수명: 앱에 한 번 vs 요청마다</h3>
+
+    <p>
+      자료에서 가장 와닿은 부분이 이거였다. <strong>컨테이너는 앱이 켜질 때 한 번 만들고, 앱이 꺼질 때까지 재활용한다</strong>(앱 수명 = 컨테이너 수명).
+      반면 FastAPI 의 기본 의존성(<code>Depends</code>)은 <strong>요청이 올 때마다</strong> 함수를 다시 부른다. 그 함수 안에서 무거운 객체를 만들면, 요청마다 새로 만든다.
+    </p>
+    <p>정말 그런지 세어 봤다. 만들기 비싼 객체(<code>HeavyClient</code>)가 몇 번 만들어지는지 출력하게 했다.</p>
+
+<pre><code># lifecycle_demo.py
+class HeavyClient:
+    made = 0
+    def __init__(self) -&gt; None:
+        HeavyClient.made += 1
+        print(f"  HeavyClient 생성 #{HeavyClient.made}")
+
+class Container(containers.DeclarativeContainer):
+    heavy = providers.Singleton(HeavyClient)
+
+def per_request() -&gt; HeavyClient:      # FastAPI 의존성: 요청마다 불린다
+    return HeavyClient()
+
+app = FastAPI()
+app.state.container = Container()      # 앱이 켜질 때 한 번
+
+@app.get("/a")
+def a(heavy: HeavyClient = Depends(per_request)): ...
+
+@app.get("/b")
+def b(request: Request):
+    heavy = request.app.state.container.heavy()
+    ...
+
+$ python lifecycle_demo.py
+[Depends] 요청 3번
+  HeavyClient 생성 #1
+  HeavyClient 생성 #2
+  HeavyClient 생성 #3
+  서로 다른 객체 수: 3
+[컨테이너 Singleton] 요청 3번
+  HeavyClient 생성 #1
+  서로 다른 객체 수: 1</code></pre>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 210" role="img" aria-label="시간 축 위에 요청 세 번. 위 줄 Depends 는 요청마다 객체를 새로 만든다. 아래 줄 컨테이너 Singleton 은 앱이 켜질 때 만든 객체 하나를 세 요청이 같이 쓴다.">
+          <path class="d-line" d="M40,186 H610"/>
+          <text class="d-t-s" x="610" y="202" text-anchor="end">시간</text>
+          <text class="d-t-s" x="40" y="202">앱 시작</text>
+          <path class="d-dash" d="M200,20 V186 M340,20 V186 M480,20 V186"/>
+          <text class="d-t-m" x="200" y="16" text-anchor="middle">요청 1</text>
+          <text class="d-t-m" x="340" y="16" text-anchor="middle">요청 2</text>
+          <text class="d-t-m" x="480" y="16" text-anchor="middle">요청 3</text>
+
+          <text class="d-t" x="40" y="60">Depends</text>
+          <rect class="d-box" x="176" y="44" width="48" height="26" rx="3"/><text class="d-t-m" x="200" y="61" text-anchor="middle">#1</text>
+          <rect class="d-box" x="316" y="44" width="48" height="26" rx="3"/><text class="d-t-m" x="340" y="61" text-anchor="middle">#2</text>
+          <rect class="d-box" x="456" y="44" width="48" height="26" rx="3"/><text class="d-t-m" x="480" y="61" text-anchor="middle">#3</text>
+          <text class="d-t-s" x="40" y="86">요청마다 새로 만든다</text>
+
+          <text class="d-t" x="40" y="130">컨테이너</text>
+          <rect class="d-box-m" x="100" y="114" width="48" height="26" rx="3"/><text class="d-t-m" x="124" y="131" text-anchor="middle">#1</text>
+          <path class="d-line" d="M148,127 H580"/>
+          <circle cx="200" cy="127" r="4" fill="#1A1D18"/><circle cx="340" cy="127" r="4" fill="#1A1D18"/><circle cx="480" cy="127" r="4" fill="#1A1D18"/>
+          <text class="d-t-s" x="40" y="160">켜질 때 한 번 만들고 셋이 같이 쓴다</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        DB 연결, 외부 API 클라이언트, 불러오는 데 오래 걸리는 모델처럼 만들기 비싼 것은 앱 수명에 묶는다. 요청마다 달라야 하는 것(로그인한 사용자 등)만 요청 수명으로 둔다.
+      </figcaption>
+    </figure>
+
+    <p>
+      그래서 memo-api 에서는 앱을 조립할 때 컨테이너를 한 번 만들어 <code>app.state</code> 에 붙여 두고, 라우터의 의존성 함수는 그걸 <strong>꺼내기만</strong> 하게 했다.
+      의존성 함수 자체는 요청마다 불리지만, 꺼내는 건 이미 만들어 둔 Singleton 이라 새로 만들지 않는다.
+    </p>
+
+<pre><code># webapp/main.py
+def create_app(db_path: str = "memo.db", container: AppContainer | None = None) -&gt; FastAPI:
+    if container is None:
+        container = AppContainer()
+        container.config.db_path.from_value(db_path)
+    app = FastAPI(title="memo-api")
+    app.state.container = container          # 앱 수명 = 컨테이너 수명
+    app.include_router(memo.router)
+    ...
+
+# webapp/routers/memo.py
+def memo_service(request: Request) -&gt; MemoService:
+    return request.app.state.container.memo.service()   # 꺼내기만 한다</code></pre>
+
+    <p>
+      <code>dependency-injector</code> 에는 <code>@inject</code> 와 <code>Provide[...]</code> 로 라우터에 바로 꽂아 주는 "wiring" 기능도 있다.
+      나는 흐름을 눈으로 따라가기 쉬워서 <code>app.state</code> 에서 꺼내는 방식을 썼다. 어느 쪽이든 핵심은 같다. 만드는 건 한 번, 쓰는 건 여러 번.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>4단계 — 테스트에서 바꿔 끼우기 (override)</h3>
+
+    <p>
+      컨테이너의 진짜 힘은 테스트에서 나온다. 앱 전체(라우터 → 서비스 → 저장소)를 그대로 두고, <strong>저장소 하나만</strong> dict 저장소로 바꿔 끼운다.
+      라우터·서비스 코드는 테스트 때문에 한 줄도 바뀌지 않는다.
+    </p>
+
+<pre><code># tests/conftest.py
+@pytest.fixture
+def container():
+    c = AppContainer()
+    c.config.db_path.from_value(":memory:")
+    c.memo.repository.override(providers.Singleton(InMemoryMemoRepository))
+    yield c
+    c.memo.repository.reset_override()
+
+@pytest.fixture
+def client(container):
+    return TestClient(create_app(container=container))
+
+
+# tests/test_api.py
+def test_status_codes(client):
+    memo_id = client.post("/memos", json={"title": "비밀"}, headers=KIM).json()["id"]
+    assert client.get(f"/memos/{memo_id}", headers=LEE).status_code == 403
+    assert client.get("/memos/999", headers=KIM).status_code == 404
+    assert client.post("/memos", json={"title": " "}, headers=KIM).status_code == 400</code></pre>
+
+<pre><code>$ python -m pytest -v
+tests/test_api.py::test_create_then_get PASSED                           [ 12%]
+tests/test_api.py::test_status_codes PASSED                              [ 25%]
+tests/test_api.py::test_profile_counts_through_memo_service PASSED       [ 37%]
+tests/test_memo_service.py::test_create_and_list PASSED                  [ 50%]
+tests/test_memo_service.py::test_empty_title_is_rejected PASSED          [ 62%]
+tests/test_memo_service.py::test_other_user_cannot_read PASSED           [ 75%]
+tests/test_memo_service.py::test_rename_keeps_rule PASSED                [ 87%]
+tests/test_memo_service.py::test_missing_memo PASSED                     [100%]
+============================== 8 passed in 0.08s ==============================</code></pre>
+
+    <p>
+      <code>create_app</code> 이 컨테이너를 인자로 받을 수 있게 한 것도 같은 이유다. 앱을 조립하는 함수 자체도 "받는" 구조라서, 테스트가 미리 손본 컨테이너를 넣을 수 있다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>정리</h3>
+
+    <table>
+      <tr><th>단계</th><th>한 일</th><th>얻은 것</th></tr>
+      <tr><td>직접 만들기</td><td>서비스 안에서 <code>SqliteMemoRepository()</code></td><td>(문제) 테스트가 진짜 DB 를 쓴다, 못 바꾼다</td></tr>
+      <tr><td>생성자 주입</td><td><code>MemoService(repository=…)</code></td><td>가짜 저장소로 DB 없는 테스트</td></tr>
+      <tr><td>컨테이너</td><td><code>container.py</code> 에 누가 누구를 쓰는지</td><td>조립을 한 곳에서, 의존 관계가 한눈에</td></tr>
+      <tr><td>수명</td><td>앱 시작 때 한 번 만들고 <code>app.state</code> 에</td><td>비싼 객체를 요청마다 다시 만들지 않는다</td></tr>
+      <tr><td>override</td><td>테스트에서 저장소만 바꿔 끼움</td><td>앱 전체를 그대로 두고 HTTP 까지 시험</td></tr>
+    </table>
+
+    <p>
+      처음엔 "그냥 import 해서 쓰면 되지 왜 이렇게 돌아가나" 싶었다. 직접 만들어 보니 DI 는 코드를 줄이는 기술이 아니라 <strong>바꿀 수 있는 자리를 미리 만들어 두는 기술</strong>이었다.
+      그 자리가 있으니 테스트에서는 가짜를, 운영에서는 진짜를, 나중에는 다른 DB 를 끼울 수 있다.
+    </p>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 읽기</p>
+      <ul>
+        <li><a href="/learn/arch-layers/">레이어드 아키텍처 따라 만들기</a> — 앞 글. 세 층 나누기</li>
+        <li><a href="/learn/arch-overview/">코드 구조와 설계 — 전체 지도</a></li>
+        <li><a href="/learn/arch-modules/">모듈 나누기</a></li>
+        <li><a href="/learn/arch-code-principles/">코드 작성 원칙</a></li>
+        <li><a href="/learn/arch-test-cicd/">테스트와 CI/CD</a> — 이 테스트를 PR 마다 자동으로</li>
+        <li><a href="/learn/arch-refactor-practice/">실습: 브랜치 따서 계층 + DI 로 정리하기</a></li>
+        <li><a href="/learn/team-verification/">검증을 남기는 능력</a></li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

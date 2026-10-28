@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>실습: 브랜치 따서 한 파일짜리 API 를 계층 + DI 로 정리하기 · gangmin</title>
+<meta name="description" content="main(운영)·dev(개발) 저장소에서 리팩터링 브랜치를 따고, 78줄짜리 한 파일 API 를 다섯 커밋에 걸쳐 계층과 DI 구조로 바꾼 뒤, PR 로 dev 에 합치고 v0.2.0 으로 출시하는 과정을 처음부터 끝까지.">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="실습: 브랜치 따서 한 파일짜리 API 를 계층 + DI 로 정리하기">
+<meta property="og:description" content="리팩터링 브랜치 → 다섯 커밋 → PR → dev → main v0.2.0 까지 따라 하는 실습.">
+<meta property="og:url" content="https://gangmini.com/learn/arch-refactor-practice/">
+<meta property="og:image" content="https://gangmini.com/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../../notes/note.css?v=20261028">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/learn/">← 이론/용어</a>
+    <p class="eyebrow">PRACTICE</p>
+    <h2 class="masthead__title">실습: 브랜치 따서 한 파일짜리 API 를<br>계층 + DI 로 정리하기</h2>
+    <div class="doc__meta">
+      <span class="tag">실습</span>
+      <span class="tag">Git</span>
+      <span class="tag">리팩터링</span>
+      <span class="tag">브랜치 전략</span>
+      <span class="tag">FastAPI</span>
+      <span class="tag">DI</span>
+      <time class="note__date">2026.10.28</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      취업 준비 공부 메모에 이렇게 적어 뒀었다. <em>"main(운영), dev(개발). 브랜치 따서 DI 구조로 정리 → 공부해 보기."</em>
+      이 글은 그 메모를 그대로 실행한 기록이다. 78줄짜리 한 파일 메모 API 에서 시작해, <a href="/learn/arch-layers/">계층</a>과 <a href="/learn/arch-di/">DI</a> 구조로 바꾸고,
+      그 과정을 회사에서 하듯 브랜치 → 작은 커밋 → PR → 출시 순서로 밟는다.
+    </p>
+    <p>
+      명령과 출력은 내 컴퓨터에서 실제로 돌린 것이다. GitHub 대신 같은 컴퓨터 안의 빈 저장소(<code>remote.git</code>)를 원격으로 썼다. 명령은 GitHub 일 때와 똑같다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>전체 그림</h3>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 230" role="img" aria-label="main 브랜치에 v0.1.0 태그. dev 브랜치가 main 에서 갈라지고, dev 에서 refactor/layered-di 브랜치가 갈라져 커밋 다섯 개를 쌓는다. 그 브랜치가 PR 로 dev 에 합쳐지고, dev 가 main 에 합쳐지며 v0.2.0 태그가 붙는다.">
+          <text class="d-t" x="16" y="44">main</text>
+          <text class="d-t" x="16" y="104">dev</text>
+          <text class="d-t" x="16" y="164">refactor/</text>
+          <text class="d-t" x="16" y="180">layered-di</text>
+
+          <path class="d-line" d="M90,40 H600"/>
+          <path class="d-line" d="M120,100 H600"/>
+          <path class="d-line" d="M150,160 H470"/>
+
+          <path class="d-line" d="M100,40 L120,100"/>
+          <path class="d-line" d="M130,100 L150,160"/>
+          <path class="d-line" d="M470,160 L500,100"/>
+          <path class="d-line" d="M510,100 L540,40"/>
+
+          <circle cx="100" cy="40" r="7" fill="#1A1D18"/>
+          <text class="d-t-m" x="100" y="22" text-anchor="middle">v0.1.0</text>
+
+          <circle cx="190" cy="160" r="6" style="fill:var(--mark)"/>
+          <circle cx="250" cy="160" r="6" style="fill:var(--mark)"/>
+          <circle cx="310" cy="160" r="6" style="fill:var(--mark)"/>
+          <circle cx="370" cy="160" r="6" style="fill:var(--mark)"/>
+          <circle cx="430" cy="160" r="6" style="fill:var(--mark)"/>
+          <text class="d-t-m" x="190" y="186" text-anchor="middle">1</text>
+          <text class="d-t-m" x="250" y="186" text-anchor="middle">2</text>
+          <text class="d-t-m" x="310" y="186" text-anchor="middle">3</text>
+          <text class="d-t-m" x="370" y="186" text-anchor="middle">4</text>
+          <text class="d-t-m" x="430" y="186" text-anchor="middle">5</text>
+          <text class="d-t-s" x="310" y="210" text-anchor="middle">작은 커밋 다섯 개 · 커밋마다 smoke 확인</text>
+
+          <circle cx="500" cy="100" r="7" fill="#1A1D18"/>
+          <text class="d-t-s" x="488" y="88" text-anchor="end">PR #1 합침</text>
+          <circle cx="540" cy="40" r="7" fill="#1A1D18"/>
+          <text class="d-t-m" x="540" y="22" text-anchor="middle">v0.2.0</text>
+          <text class="d-t-s" x="596" y="64" text-anchor="end">출시</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        main 은 운영 중인 코드, dev 는 다음 출시를 모으는 곳, 작업은 dev 에서 딴 브랜치에서 한다. 브랜치 전략 자체는 <a href="/learn/git-main-dev/">main · dev 브랜치 전략</a>에 따로 정리했다.
+      </figcaption>
+    </figure>
+
+    <p class="gloss">
+      <b>리팩터링</b> — 바깥에서 보이는 동작은 그대로 두고 안쪽 구조만 바꾸는 것. 기능 추가가 아니다. 그래서 "동작이 그대로인가"를 매 단계 확인할 방법이 먼저 필요하다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>0. 출발점 — 한 파일짜리 API</h3>
+
+    <p>
+      <code>app.py</code> 하나에 전역 DB 연결, 라우트, SQL, 규칙, 로그 형식이 다 들어 있다. 잘 돌아가지만 이런 문제가 있다.
+    </p>
+
+<pre><code># app.py (78줄 중 일부)
+db = sqlite3.connect("memo.db", check_same_thread=False)  # ① 전역 연결 — 바꿔 끼울 수 없다
+
+@app.post("/memos", status_code=201)
+def create_memo(m: MemoIn, x_user: str = Header()):
+    if not m.title.strip():                                 # ② 규칙이 라우트 안에
+        raise HTTPException(400, "제목이 비었습니다")
+    ...
+    cur = db.execute("INSERT INTO memo ...", ...)           # ③ SQL 이 라우트 안에
+    print(json.dumps({"level": "INFO", "msg": "메모를 만들었다", ...}))   # ④ 로그 형식이 비즈니스 코드 안에
+
+@app.patch("/memos/{memo_id}")
+def rename_memo(...):
+    ...
+    if not m.title.strip():                                 # ② 같은 규칙을 또 쓴다
+        raise HTTPException(400, "제목이 비었습니다")
+
+@app.get("/me")
+def me(x_user: str = Header()):
+    count = db.execute("SELECT COUNT(*) FROM memo WHERE owner = ?", ...)  # ⑤ 다른 기능이 memo 테이블을 직접</code></pre>
+
+    <h4>먼저, 동작이 그대로인지 확인하는 장치</h4>
+
+    <p>
+      구조를 바꾸다 보면 어딘가 깨진다. 그래서 바꾸기 전에 <strong>바깥에서 본 동작</strong>을 확인하는 짧은 스크립트(<code>smoke.py</code>)부터 만들었다.
+      API 를 실제로 불러 상태 코드와 결과를 본다. 구조가 바뀌어도 API 는 같아야 하니, 이 스크립트는 처음부터 끝까지 그대로 쓴다.
+    </p>
+
+<pre><code># smoke.py (요약)
+checks = [
+    ("만들기 201",   c.post("/memos", json={"title": "장보기"}, headers=K).status_code == 201),
+    ("내 것 읽기 200", c.get("/memos/1", headers=K).status_code == 200),
+    ("남의 것 403",  c.get("/memos/1", headers=L).status_code == 403),
+    ("없는 것 404",  c.get("/memos/9", headers=K).status_code == 404),
+    ("빈 제목 400",  c.post("/memos", json={"title": " "}, headers=K).status_code == 400),
+    ("이름 바꾸기",   c.patch("/memos/1", json={"title": "마트"}, headers=K).json()["title"] == "마트"),
+    ("내 메모 수",   c.get("/me", headers=K).json()["memo_count"] == 1),
+]</code></pre>
+
+    <p class="gloss">
+      <b>smoke 테스트</b> — "전원을 켰을 때 연기가 안 나는지"만 보는 가장 기본적인 확인. 꼼꼼하진 않지만 크게 깨진 건 바로 잡는다. 꼼꼼한 테스트는 마지막 커밋에서 따로 쓴다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>1. 저장소 준비 — main 과 dev</h3>
+
+<pre><code>$ git init -b main
+$ git add -A &amp;&amp; git commit -m "한 파일짜리 메모 API (일단 돌아가는 버전)"
+$ git tag v0.1.0
+$ git remote add origin ../remote.git        # GitHub 라면 https://github.com/&lt;나&gt;/memo-api.git
+$ git push -u origin main --tags
+branch 'main' set up to track 'origin/main'.
+To ../remote.git
+ * [new branch]      main -&gt; main
+ * [new tag]         v0.1.0 -&gt; v0.1.0
+
+$ git switch -c dev
+Switched to a new branch 'dev'
+$ git push -u origin dev
+branch 'dev' set up to track 'origin/dev'.
+To ../remote.git
+ * [new branch]      dev -&gt; dev</code></pre>
+
+    <p>
+      지금 운영 중인 버전에 <code>v0.1.0</code> 태그를 붙였다. 나중에 무슨 일이 생겨도 이 상태로 돌아올 수 있다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>2. 작업 브랜치 따기</h3>
+
+    <p>작업은 늘 <strong>dev 에서</strong> 딴다. main 에서 따면 아직 출시 안 된 dev 의 변경과 엇갈린다.</p>
+
+<pre><code>$ git switch dev
+Your branch is up to date with 'origin/dev'.
+Already on 'dev'
+$ git switch -c refactor/layered-di
+Switched to a new branch 'refactor/layered-di'</code></pre>
+
+    <p>
+      브랜치 이름 앞의 <code>refactor/</code> 는 "기능 추가가 아니라 구조 정리"라는 표시다. 팀마다 <code>feat/</code>, <code>fix/</code>, <code>refactor/</code> 같은 접두어를 정해 쓴다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>3. 다섯 번에 나눠 바꾸기</h3>
+
+    <p>
+      한 번에 전부 바꾸면 smoke 가 깨졌을 때 어디서 깨졌는지 모른다. 리뷰어도 수백 줄짜리 변경을 한 번에 읽어야 한다.
+      그래서 <strong>한 커밋에 한 가지 이유</strong>로 나눴다. 각 커밋 뒤에 smoke 를 돌려 통과할 때만 커밋했다.
+    </p>
+
+    <table>
+      <tr><th>커밋</th><th>바꾼 것</th><th>해결한 문제</th></tr>
+      <tr><td>① 저장소</td><td>SQL 을 <code>src/memo/repository.py</code> 로</td><td>③ SQL 이 라우트 안에</td></tr>
+      <tr><td>② 도메인·서비스</td><td>규칙은 <code>Memo</code>, 흐름은 <code>MemoService</code></td><td>② 같은 규칙 중복, ⑤ 다른 기능의 테이블 직접 접근</td></tr>
+      <tr><td>③ 라우터·DTO</td><td>HTTP 를 <code>webapp/</code> 으로, 요청·응답 모양 분리</td><td>표현 계층 분리</td></tr>
+      <tr><td>④ 컨테이너</td><td>조립을 <code>container.py</code> 로, 로그 형식은 webapp 으로</td><td>① 전역 연결, ④ 로그 형식</td></tr>
+      <tr><td>⑤ 테스트</td><td>서비스·API 테스트, 가짜 저장소</td><td>바뀐 구조가 주는 이득 확인</td></tr>
+    </table>
+
+    <h4>① 저장소 분리 — SQL 을 한 곳으로</h4>
+
+    <p>
+      가장 안전한 첫걸음이다. 라우트 안의 SQL 을 <code>SqliteMemoRepository</code> 메서드로 옮기고, 라우트는 그 메서드를 부르게만 바꾼다.
+      이 단계에서는 아직 dict 를 돌려준다. 한 번에 하나만 바꾼다.
+    </p>
+
+<pre><code># 바뀌기 전
+row = db.execute("SELECT id, owner, title, body, created_at FROM memo WHERE id = ?", (memo_id,)).fetchone()
+# 바뀐 뒤
+m = repo.find_memo(memo_id)
+
+$ python smoke.py
+ok   만들기 201
+ok   내 것 읽기 200
+ok   남의 것 403
+ok   없는 것 404
+ok   빈 제목 400
+ok   이름 바꾸기
+ok   내 메모 수
+smoke: 통과
+$ git add -A &amp;&amp; git commit -m "refactor: SQL 을 repository 로 모으기"
+[refactor/layered-di 68a6b9f] refactor: SQL 을 repository 로 모으기
+ 4 files changed, 77 insertions(+), 42 deletions(-)</code></pre>
+
+    <h4>② 도메인과 서비스 — 규칙과 흐름 나누기</h4>
+
+    <p>
+      "제목은 비면 안 된다", "내 메모만"을 <code>Memo</code> 도메인으로 옮겨 한 번만 쓰게 하고, 일의 순서는 <code>MemoService</code> 로 옮겼다.
+      예외도 <code>HTTPException</code> 대신 HTTP 를 모르는 <code>NotFound</code>·<code>PermissionDenied</code>·<code>InvalidInput</code> 으로 바꿨다.
+      저장소는 이제 dict 대신 <code>Memo</code> 를 돌려준다(엔티티 <code>MemoRow</code> 가 변환). <code>/me</code> 는 memo 테이블을 직접 세지 않고 <code>service.count_memos</code> 를 부른다.
+    </p>
+
+<pre><code>$ python smoke.py
+smoke: 통과
+$ git add -A &amp;&amp; git commit -m "refactor: 규칙은 Memo 도메인, 흐름은 MemoService 로"
+[refactor/layered-di 653eae3] refactor: 규칙은 Memo 도메인, 흐름은 MemoService 로
+ 7 files changed, 213 insertions(+), 53 deletions(-)</code></pre>
+
+    <p>
+      이 커밋에서도 서비스 안에는 <code>print(json.dumps(...))</code> 가 남아 있다. 로그는 ④ 에서 고친다. 한 커밋에 이유 하나.
+    </p>
+
+    <h4>③ 라우터와 DTO — HTTP 는 webapp 으로</h4>
+
+    <p>
+      <code>app.py</code> 를 지우고 <code>webapp/routers/memo.py</code>(라우트 + DTO)와 <code>webapp/main.py</code>(앱 조립)로 옮겼다.
+      응답은 <code>MemoResponse</code> 로만 나가서 <code>owner</code> 가 빠진다. 도메인 예외를 404·403·400 으로 바꾸는 일도 여기서 한 번에 한다.
+      조립은 아직 손으로 한다.
+    </p>
+
+<pre><code># webapp/main.py (③ 시점)
+def create_app(db_path: str = "memo.db") -&gt; FastAPI:
+    conn = sqlite3.connect(db_path, check_same_thread=False)
+    app = FastAPI(title="memo-api")
+    app.state.memo_service = MemoService(SqliteMemoRepository(conn))   # 손으로 조립
+    ...
+
+$ python smoke.py
+smoke: 통과
+$ git add -A &amp;&amp; git commit -m "refactor: HTTP 는 webapp 으로, 요청·응답은 DTO 로"
+[refactor/layered-di 53b38d4] refactor: HTTP 는 webapp 으로, 요청·응답은 DTO 로
+ 5 files changed, 97 insertions(+), 59 deletions(-)</code></pre>
+
+    <h4>④ 컨테이너 — 조립을 한 곳으로</h4>
+
+    <p>
+      손 조립을 <code>MemoContainer</code>·<code>UserContainer</code>·<code>AppContainer</code> 로 옮겼다. DB 경로는 <code>config</code> 로 받고, 연결은 Singleton 으로 앱에 하나만 둔다.
+      서비스의 <code>print(json.dumps(...))</code> 는 <code>log.info("메모를 만들었다", extra=...)</code> 로 바꾸고, JSON 형식은 <code>webapp/log_format.py</code> 가 정하게 했다.
+      user 모듈(<code>ProfileService</code>)도 이때 따로 떼어 냈다.
+    </p>
+
+<pre><code>$ python smoke.py
+smoke: 통과
+$ git add -A &amp;&amp; git commit -m "refactor: 의존 관계를 컨테이너로, 로그 형식은 바깥에서"
+[refactor/layered-di f84b284] refactor: 의존 관계를 컨테이너로, 로그 형식은 바깥에서
+ 10 files changed, 162 insertions(+), 76 deletions(-)</code></pre>
+
+    <h4>⑤ 테스트 — 바꾼 구조의 값어치 확인</h4>
+
+    <p>
+      구조를 바꾼 이유가 여기서 드러난다. 서비스는 dict 저장소를 손으로 넣어 시험하고, API 는 컨테이너에서 저장소만 override 해서 시험한다. 자세한 건 <a href="/learn/arch-di/">DI 글</a>에 있다.
+    </p>
+
+<pre><code>$ python smoke.py
+smoke: 통과
+$ python -m pytest -q
+8 passed in 0.11s
+$ git add -A &amp;&amp; git commit -m "test: 서비스·API 테스트 (가짜 저장소로)"
+[refactor/layered-di 4b8679d] test: 서비스·API 테스트 (가짜 저장소로)
+ 4 files changed, 92 insertions(+)</code></pre>
+
+    <!-- ============================================================ -->
+    <h3>4. 올리고 PR 열기</h3>
+
+<pre><code>$ git push -u origin refactor/layered-di
+branch 'refactor/layered-di' set up to track 'origin/refactor/layered-di'.
+To ../remote.git
+ * [new branch]      refactor/layered-di -&gt; refactor/layered-di
+
+$ git log --oneline dev..refactor/layered-di       # dev 에 없는, 이번 PR 에 들어갈 커밋
+4b8679d test: 서비스·API 테스트 (가짜 저장소로)
+f84b284 refactor: 의존 관계를 컨테이너로, 로그 형식은 바깥에서
+53b38d4 refactor: HTTP 는 webapp 으로, 요청·응답은 DTO 로
+653eae3 refactor: 규칙은 Memo 도메인, 흐름은 MemoService 로
+68a6b9f refactor: SQL 을 repository 로 모으기</code></pre>
+
+    <p>
+      GitHub 이라면 여기서 PR 을 연다. 중요한 건 <strong>받는 쪽(base)을 main 이 아니라 dev 로</strong> 고르는 것이다. 웹에서는 "base: dev ← compare: refactor/layered-di", 명령으로는 이렇다.
+    </p>
+
+<pre><code>gh pr create --base dev --title "refactor: 계층 + DI 구조로 정리" --body "동작은 그대로(smoke 통과), 구조만 바꿈. 커밋 5개로 나눠 두었으니 하나씩 보면 됩니다."</code></pre>
+
+    <p>
+      PR 설명에는 "무엇을, 왜, 어떻게 확인했나"를 적는다. 리팩터링 PR 은 특히 "동작은 그대로"라는 근거(smoke·테스트 결과)가 리뷰어를 안심시킨다.
+      PR 작성법은 <a href="/learn/git-branch-pr/">브랜치와 Pull Request</a>에 따로 있다.
+    </p>
+
+    <p>리뷰가 끝나면 PR 화면의 Merge 버튼을 누른다. 로컬에서는 같은 일을 이렇게 흉내 냈다.</p>
+
+<pre><code>$ git switch dev
+$ git merge --no-ff refactor/layered-di -m "Merge pull request #1 from refactor/layered-di"
+$ git push origin dev
+   0d8353f..7e9ca67  dev -&gt; dev</code></pre>
+
+    <!-- ============================================================ -->
+    <h3>5. 출시 — dev 를 main 으로</h3>
+
+    <p>
+      dev 에 모인 변경을 확인한 뒤(실무라면 dev 서버에서 한 번 더 돌려 본다) main 에 합치고 새 버전 태그를 붙인다.
+      태그는 "운영에 나간 정확한 상태"에 붙이는 이름표라, 문제가 생기면 <code>v0.1.0</code> 으로 바로 되돌릴 수 있다.
+    </p>
+
+<pre><code>$ git switch main
+$ git merge --no-ff dev -m "release: v0.2.0 계층 + DI 구조"
+$ git tag -a v0.2.0 -m "계층 + DI 구조"
+$ git push origin main --tags
+To ../remote.git
+   0d8353f..acef3ca  main -&gt; main
+ * [new tag]         v0.2.0 -&gt; v0.2.0
+
+$ git log --oneline --graph --all
+*   acef3ca (HEAD -&gt; main, tag: v0.2.0, origin/main) release: v0.2.0 계층 + DI 구조
+|\
+| * 7e9ca67 (origin/dev, dev) Merge pull request #1 from refactor/layered-di
+|/|
+| * 4b8679d (origin/refactor/layered-di, refactor/layered-di) test: 서비스·API 테스트 (가짜 저장소로)
+| * f84b284 refactor: 의존 관계를 컨테이너로, 로그 형식은 바깥에서
+| * 53b38d4 refactor: HTTP 는 webapp 으로, 요청·응답은 DTO 로
+| * 653eae3 refactor: 규칙은 Memo 도메인, 흐름은 MemoService 로
+| * 68a6b9f refactor: SQL 을 repository 로 모으기
+|/
+* 0d8353f (tag: v0.1.0) 한 파일짜리 메모 API (일단 돌아가는 버전)</code></pre>
+
+    <p>맨 위 그림이 실제 기록으로 그대로 남았다. 다 끝난 작업 브랜치는 지워도 된다(<code>git branch -d refactor/layered-di</code>, <code>git push origin --delete refactor/layered-di</code>).</p>
+
+    <!-- ============================================================ -->
+    <h3>해 보고 남은 것</h3>
+
+    <table>
+      <tr><th>한 것</th><th>이유</th></tr>
+      <tr><td>바꾸기 전에 smoke 부터</td><td>리팩터링은 "동작 그대로"가 약속이다. 확인 장치 없이 시작하면 약속을 지켰는지 모른다</td></tr>
+      <tr><td>dev 에서 브랜치</td><td>main 은 운영 그대로 둔다. 실험은 브랜치에서</td></tr>
+      <tr><td>한 커밋에 이유 하나</td><td>깨지면 어느 커밋인지 바로 안다. 리뷰어가 하나씩 읽을 수 있다</td></tr>
+      <tr><td>커밋마다 smoke</td><td>중간 상태도 늘 돌아가게. 어느 커밋으로 돌아가도 쓸 수 있다</td></tr>
+      <tr><td>PR 은 dev 로, 출시는 main 으로 + 태그</td><td>출시 단위가 분명해지고, 되돌릴 자리가 생긴다</td></tr>
+    </table>
+
+    <p>
+      처음 메모에는 "DI 구조로 정리"가 한 줄이었다. 막상 해 보니 구조를 바꾸는 코드보다 <strong>바꾸는 순서</strong>가 더 중요했다.
+      SQL 을 먼저 모으고, 규칙을 옮기고, HTTP 를 떼고, 마지막에 조립을 모은다. 각 단계가 작아서 무섭지 않았고, 어느 단계에서 멈춰도 코드는 돌아가는 상태였다.
+    </p>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 읽기</p>
+      <ul>
+        <li><a href="/learn/git-main-dev/">main · dev 브랜치 전략</a> — 왜 두 줄기로 나누나</li>
+        <li><a href="/learn/arch-layers/">레이어드 아키텍처 따라 만들기</a> — 바꾼 뒤의 구조 설명</li>
+        <li><a href="/learn/arch-di/">의존성 주입(DI)</a> — 컨테이너와 수명, override</li>
+        <li><a href="/learn/arch-overview/">코드 구조와 설계 — 전체 지도</a></li>
+        <li><a href="/learn/arch-test-cicd/">테스트와 CI/CD</a> — 이 smoke 와 테스트를 PR 마다 자동으로</li>
+        <li><a href="/learn/git-branch-pr/">브랜치와 Pull Request</a></li>
+        <li><a href="/learn/team-verification/">검증을 남기는 능력</a></li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

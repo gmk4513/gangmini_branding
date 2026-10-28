@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>운영 브랜치와 개발 브랜치 — main 과 dev 로 일하기 · gangmin</title>
+<meta name="description" content="main 은 운영 서버에 나간 것, dev 는 다음에 나갈 것. 기능 브랜치 → dev → 확인 → 릴리스 → 태그 → 배포, 급한 불은 hotfix. 내 컴퓨터에서 한 바퀴 따라 한다.">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="운영 브랜치와 개발 브랜치 — main 과 dev 로 일하기">
+<meta property="og:description" content="main(운영)과 dev(개발)를 나눠 일하는 흐름을 직접 따라 한다.">
+<meta property="og:url" content="https://gangmini.com/learn/git-main-dev/">
+<meta property="og:image" content="https://gangmini.com/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../../notes/note.css?v=20261028">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/learn/">← 이론/용어</a>
+    <p class="eyebrow">PRACTICE</p>
+    <h2 class="masthead__title">운영 브랜치와 개발 브랜치<br>— main 과 dev 로 일하기</h2>
+    <div class="doc__meta">
+      <span class="tag">실습</span>
+      <span class="tag">Git</span>
+      <span class="tag">브랜치 전략</span>
+      <span class="tag">Git Flow</span>
+      <span class="tag">태그</span>
+      <span class="tag">hotfix</span>
+      <time class="note__date">2026.10.28</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      <a href="/learn/git-branch-pr/">브랜치와 Pull Request</a> 에서는 브랜치가 <code>main</code> 하나였다. 일을 브랜치에서 하고, PR 로 main 에 합친다.
+      그런데 회사 저장소를 열어 보면 <code>main</code> 옆에 <code>dev</code>(또는 <code>develop</code>)가 하나 더 있는 경우가 많다.
+      내 공부 메모에도 이렇게 적혀 있다. "main(운영), dev(개발)". 왜 둘로 나누는지, 하루하루 어떻게 오가는지를 내 컴퓨터 안에서 한 바퀴 돌려 본다.
+    </p>
+
+    <p>
+      한 줄로 줄이면 이렇다. <strong>main 은 "지금 손님이 쓰고 있는 것", dev 는 "다음에 손님에게 나갈 것"이다.</strong>
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>왜 둘로 나누나</h3>
+
+    <p>
+      혼자 만든 사이트는 main 에 합치는 순간 바로 배포돼도 괜찮았다. 망가지면 내가 고치면 된다.
+      손님이 있는 서비스는 다르다. 기능 다섯 개가 동시에 만들어지고 있고, 그중 둘은 아직 덜 됐는데, 이미 나간 버전에서 급한 버그가 터진다.
+      이때 "지금 운영 중인 코드가 정확히 무엇인가"를 바로 알 수 있어야 한다.
+    </p>
+
+    <table>
+      <tr><th>브랜치</th><th>뜻</th><th>어디에 배포되나</th><th>누가 합치나</th></tr>
+      <tr><td><code>main</code></td><td>운영. 지금 손님이 쓰는 코드와 똑같다</td><td>운영 서버 (실제 서비스)</td><td>릴리스 때만. 보통 책임자가</td></tr>
+      <tr><td><code>dev</code></td><td>개발. 다음 릴리스에 들어갈 것들을 모으는 곳</td><td>개발 서버 (팀만 들어가는 주소)</td><td>기능 PR 이 리뷰를 통과하면</td></tr>
+      <tr><td><code>feature/*</code></td><td>기능 하나. 며칠 살다가 지워진다</td><td>없음 (내 컴퓨터)</td><td>나</td></tr>
+      <tr><td><code>hotfix/*</code></td><td>운영 중 급한 버그 하나</td><td>main 에 합쳐 바로 운영으로</td><td>급한 사람이, 리뷰는 빠르게</td></tr>
+    </table>
+
+    <p>
+      dev 가 "완충지대"다. 새 기능은 먼저 dev 에 모여 개발 서버에서 팀이 직접 눌러 본다. 문제가 있으면 운영에 나가기 전에 거기서 잡힌다.
+      그리고 main 은 릴리스할 때만 움직이니, main 의 기록이 곧 "언제 무엇을 배포했나"의 기록이 된다.
+    </p>
+
+    <p class="gloss">
+      <b>운영(production)</b> — 실제 사용자가 쓰는 환경. 줄여서 prod 라고 많이 부른다.<br>
+      <b>개발 서버 · 스테이징(staging)</b> — 운영과 비슷하게 꾸린, 팀만 들어가는 환경. 회사마다 dev / stage / qa 처럼 여러 단계를 두기도 한다.<br>
+      <b>릴리스(release)</b> — 모아 둔 변경을 묶어 운영에 내보내는 일, 또는 그렇게 나간 한 묶음.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>한 바퀴의 모양</h3>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 260" role="img" aria-label="main 에서 dev 를 따고, dev 에서 feature 브랜치를 따 커밋한 뒤 PR 로 dev 에 합친다. dev 를 개발 서버에서 확인한 다음 릴리스 PR 로 main 에 합치고 v0.1.0 태그를 단다. 운영에서 버그가 나면 main 에서 hotfix 를 따 고치고 main 에 합쳐 v0.1.1 을 단 뒤 dev 에도 반영한다.">
+          <!-- 레인 이름 -->
+          <text class="d-t-m" x="16" y="44">hotfix/*</text>
+          <text class="d-t" x="16" y="94">main</text>
+          <text class="d-t-s" x="16" y="108">운영</text>
+          <text class="d-t" x="16" y="164">dev</text>
+          <text class="d-t-s" x="16" y="178">개발</text>
+          <text class="d-t-m" x="16" y="224">feature/*</text>
+
+          <!-- 줄기 -->
+          <path class="d-line" d="M100,90 H570" style="stroke-width:2.4"/>
+          <path class="d-line" d="M130,160 H570" style="stroke-width:2.4"/>
+          <path class="d-line" d="M110,90 L130,160"/>
+
+          <!-- feature -->
+          <path class="d-line" d="M160,160 L180,220 H250 L290,160"/>
+          <circle cx="210" cy="220" r="5" fill="#FCFCFA" stroke="#1A1D18" stroke-width="1.4"/>
+          <circle cx="250" cy="220" r="5" fill="#FCFCFA" stroke="#1A1D18" stroke-width="1.4"/>
+          <text class="d-t-s" x="196" y="244">커밋 · push</text>
+          <text class="d-t-s" x="268" y="200">PR</text>
+
+          <!-- dev 커밋들 -->
+          <circle cx="160" cy="160" r="5" fill="#1A1D18"/>
+          <circle cx="290" cy="160" r="5" fill="#1A1D18"/>
+          <circle cx="360" cy="160" r="5" fill="#1A1D18"/>
+          <text class="d-t-s" x="300" y="184">개발 서버에서 확인</text>
+
+          <!-- 릴리스 -->
+          <path class="d-line" d="M360,160 L390,90"/>
+          <text class="d-t-s" x="356" y="128" text-anchor="end">릴리스 PR</text>
+          <circle cx="110" cy="90" r="5" fill="#1A1D18"/>
+          <circle cx="390" cy="90" r="6" style="fill:var(--mark)"/>
+          <text class="d-t-m" x="398" y="80" style="fill:var(--mark)">v0.1.0</text>
+
+          <!-- hotfix -->
+          <path class="d-line" d="M440,90 L470,40 H490 L520,90"/>
+          <circle cx="440" cy="90" r="5" fill="#1A1D18"/>
+          <circle cx="480" cy="40" r="5" fill="#FCFCFA" stroke="#1A1D18" stroke-width="1.4"/>
+          <text class="d-t-s" x="500" y="36">버그 수정</text>
+          <circle cx="520" cy="90" r="6" style="fill:var(--mark)"/>
+          <text class="d-t-m" x="532" y="80" style="fill:var(--mark)">v0.1.1</text>
+          <path class="d-dash" d="M520,90 L550,160"/>
+          <circle cx="550" cy="160" r="5" fill="#1A1D18"/>
+          <text class="d-t-s" x="526" y="140" text-anchor="end">dev 에도 반영</text>
+
+          <!-- 배포 대상 -->
+          <text class="d-t-s" x="578" y="94">운영 서버</text>
+          <text class="d-t-s" x="578" y="164">개발 서버</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        빨간 점이 운영에 나간 순간이다. main 에는 이 점들만 쌓인다. 기능 하나하나의 커밋은 dev 쪽에 있다.
+      </figcaption>
+    </figure>
+
+    <ol>
+      <li><strong>기능은 dev 에서 딴다.</strong> <code>feature/memo-search</code> 처럼 이름을 붙이고, 끝나면 <strong>dev 를 대상으로</strong> PR 을 연다.</li>
+      <li><strong>dev 는 개발 서버로 자동 배포된다.</strong> 팀이 거기서 직접 눌러 보고 확인한다(QA).</li>
+      <li><strong>모였으면 릴리스.</strong> dev → main PR 을 하나 열어 합친다. 이게 "이번 배포에 무엇이 나가나"의 목록이 된다.</li>
+      <li><strong>태그를 단다.</strong> main 의 그 커밋에 <code>v0.1.0</code> 같은 버전 이름표를 붙인다. 운영 배포는 보통 이 태그를 기준으로 한다.</li>
+      <li><strong>급한 불은 hotfix.</strong> 운영에서 버그가 나면 dev 가 아니라 <strong>main 에서</strong> 따서 고치고, main 에 합쳐 <code>v0.1.1</code> 로 내보낸 뒤, 같은 수정을 dev 에도 합친다. 안 그러면 다음 릴리스 때 버그가 되살아난다.</li>
+    </ol>
+
+    <!-- ============================================================ -->
+    <h3>따라 하기 — 내 컴퓨터 안에서 한 바퀴</h3>
+
+    <p>
+      GitHub 없이도 연습할 수 있다. 내 컴퓨터에 "원격 저장소 역할"을 할 빈 저장소(bare)를 하나 만들고, 거기서 받아 와서 일한다.
+      아래 출력은 Git 2.47 에서 실제로 돌린 결과다(같은 경고 몇 줄은 지웠다). 연습용 앱 이름은 <code>memo-api</code> 로 했다.
+    </p>
+
+    <h4>1. 연습용 원격과 main 준비</h4>
+
+<pre><code>$ mkdir gitprac3 &amp;&amp; cd gitprac3
+$ git init --bare remote.git          # 원격 역할. 작업 폴더가 없는 저장소
+$ git clone remote.git memo-api
+warning: You appear to have cloned an empty repository.
+$ cd memo-api
+$ git config user.name "me"; git config user.email "me@example.com"   # 이 저장소에서만
+$ git switch -c main
+$ echo "# memo-api" &gt; README.md
+$ git add . &amp;&amp; git commit -m "처음 커밋"
+$ git push -u origin main</code></pre>
+
+    <h4>2. dev 를 만들어 올리기</h4>
+
+<pre><code>$ git switch -c dev
+Switched to a new branch 'dev'
+$ git push -u origin dev
+ * [new branch]      dev -&gt; dev</code></pre>
+
+    <p>
+      처음 한 번만 하는 일이다. 이 뒤로 기능 브랜치는 전부 dev 에서 딴다.
+    </p>
+
+    <h4>3. 기능 브랜치에서 일하고 dev 에 합치기</h4>
+
+<pre><code>$ git switch -c feature/memo-search       # 지금 dev 위에 있으니 dev 에서 딴다
+$ echo "def search(q): ..." &gt; search.py
+$ git add . &amp;&amp; git commit -m "메모 검색 기능"
+$ git push -u origin feature/memo-search
+ * [new branch]      feature/memo-search -&gt; feature/memo-search
+
+# (GitHub 이었다면 여기서 base: dev 로 PR 을 열고 리뷰를 받는다. 여기서는 직접 합친다)
+$ git switch dev
+$ git merge --no-ff feature/memo-search -m "Merge feature/memo-search into dev"
+Merge made by the 'ort' strategy.
+ search.py | 1 +
+ 1 file changed, 1 insertion(+)
+$ git push</code></pre>
+
+    <p>
+      <code>--no-ff</code> 는 "앞으로 감기(fast-forward)로 끝낼 수 있어도 합치기 커밋을 꼭 만들어라"라는 뜻이다.
+      그래야 dev 의 기록에 "여기서 기능 하나가 들어왔다"는 매듭이 남는다. GitHub 의 "Create a merge commit" 버튼이 이것과 같다.
+    </p>
+
+    <h4>4. 릴리스 — dev 를 main 에 합치고 태그</h4>
+
+<pre><code>$ git switch main
+$ git merge --no-ff dev -m "Release v0.1.0"
+Merge made by the 'ort' strategy.
+ search.py | 1 +
+$ git tag -a v0.1.0 -m "첫 배포"
+$ git push
+$ git push origin v0.1.0
+ * [new tag]         v0.1.0 -&gt; v0.1.0</code></pre>
+
+    <p>
+      <code>-a</code> 를 붙인 태그(annotated tag)는 누가 언제 왜 달았는지가 같이 저장된다. 배포용 태그는 이걸 쓴다.
+    </p>
+
+<pre><code>$ git show v0.1.0 --no-patch
+tag v0.1.0
+Tagger: me &lt;me@example.com&gt;
+Date:   Wed Oct 28 16:59:31 2026 +0900
+
+첫 배포</code></pre>
+
+    <h4>5. 운영에서 버그 — hotfix</h4>
+
+<pre><code>$ git switch -c hotfix/login-500 main     # dev 가 아니라 main 에서 딴다
+$ echo "fix" &gt; fix.txt
+$ git add . &amp;&amp; git commit -m "로그인 500 에러 수정"
+
+$ git switch main
+$ git merge --no-ff hotfix/login-500 -m "Merge hotfix/login-500"
+$ git tag -a v0.1.1 -m "핫픽스"
+
+$ git switch dev                          # 잊으면 다음 릴리스에 버그가 돌아온다
+$ git merge --no-ff hotfix/login-500 -m "Merge hotfix/login-500 into dev"
+$ git push origin main dev v0.1.1</code></pre>
+
+    <p>
+      왜 dev 에서 따지 않을까. dev 에는 아직 손님에게 안 나간 기능이 섞여 있다. 거기서 고쳐 main 에 합치면 덜 된 기능까지 같이 운영으로 나간다.
+      운영에 있는 것(main)에서 따야 "버그 수정 하나만" 나간다.
+    </p>
+
+    <h4>6. 그림으로 확인</h4>
+
+<pre><code>$ git log --oneline --graph --all
+*   53cbd22 (HEAD -&gt; dev, origin/dev) Merge hotfix/login-500 into dev
+|\
+| | *   56f1393 (tag: v0.1.1, origin/main, main) Merge hotfix/login-500
+| | |\
+| | |/
+| |/|
+| * | e0c4b40 (hotfix/login-500) 로그인 500 에러 수정
+| |/
+| *   e26a861 (tag: v0.1.0) Release v0.1.0
+| |\
+| |/
+|/|
+* |   0aaff82 Merge feature/memo-search into dev
+|\ \
+| |/
+|/|
+| * 1de28e2 (origin/feature/memo-search, feature/memo-search) 메모 검색 기능
+|/
+* 5562457 처음 커밋</code></pre>
+
+    <p>
+      처음 보면 실이 엉킨 것 같다. 읽는 법은 하나다. <strong>위가 최신, 별표(<code>*</code>)가 커밋, 괄호 안이 그 커밋을 가리키는 이름표</strong>.
+      <code>tag: v0.1.0</code>, <code>tag: v0.1.1</code> 이 붙은 줄이 운영에 나간 순간이고, 둘 다 main 쪽 줄기에 있다.
+    </p>
+
+    <h4>7. 다음 릴리스에 무엇이 나가나</h4>
+
+<pre><code>$ git log --oneline main..dev     # dev 에는 있고 main 에는 없는 것
+53cbd22 Merge hotfix/login-500 into dev
+$ git log --oneline dev..main     # main 에는 있고 dev 에는 없는 것
+56f1393 Merge hotfix/login-500</code></pre>
+
+    <p>
+      <code>A..B</code> 는 "B 에는 있고 A 에는 없는 커밋"이다. 릴리스 PR 을 열기 전에 <code>main..dev</code> 를 보면 이번에 나갈 목록이 나온다.
+      여기서는 hotfix 를 양쪽에 따로 합쳐서 합치기 커밋 하나씩만 다르고, 파일 내용은 같다. 다음 릴리스 때 dev 를 main 에 합치면 이 차이도 정리된다.
+    </p>
+
+    <h4>8. 다 쓴 브랜치 지우기</h4>
+
+<pre><code>$ git branch -d feature/memo-search hotfix/login-500
+Deleted branch feature/memo-search (was 1de28e2).
+Deleted branch hotfix/login-500 (was e0c4b40).
+$ git push origin --delete feature/memo-search
+ - [deleted]         feature/memo-search</code></pre>
+
+    <p class="gloss">
+      <b>bare 저장소</b> — 작업 폴더 없이 Git 기록만 담은 저장소. GitHub 의 저장소도 서버 쪽에서는 이런 모양이다.<br>
+      <b>fast-forward</b> — 합칠 쪽에 새 커밋이 없으면, 합치기 커밋을 만들지 않고 이름표만 앞으로 옮기는 것.<br>
+      <b>태그(tag)</b> — 특정 커밋에 붙이는, 움직이지 않는 이름표. 브랜치는 커밋할 때마다 앞으로 가지만 태그는 그 자리에 있다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>GitHub 에서는</h3>
+
+    <ul>
+      <li><strong>기본 브랜치를 dev 로.</strong> Settings → General → Default branch 를 <code>dev</code> 로 바꾸면 새 PR 의 기본 대상(base)이 dev 가 된다. 실수로 main 에 기능 PR 을 여는 일이 줄어든다.</li>
+      <li><strong>PR 을 열 때 base 를 본다.</strong> PR 화면 위쪽 <code>base: dev ← compare: feature/memo-search</code> 가 맞는지 확인한다. 릴리스 PR 만 <code>base: main ← compare: dev</code> 다.</li>
+      <li><strong>두 브랜치 모두 보호.</strong> main 과 dev 에 직접 push 를 막고, PR 과 리뷰, 자동 검사 통과를 요구한다(<a href="/learn/github-collab/">협업 기능 실습</a>). main 은 승인자를 더 엄격하게 두는 곳이 많다.</li>
+      <li><strong>태그로 배포.</strong> 릴리스 PR 을 합친 뒤 Releases → Draft a new release 에서 <code>v0.1.0</code> 태그를 만들면, 바뀐 것 목록(릴리스 노트)도 같이 남는다. 이 태그가 생길 때 운영 배포가 돌게 해 두는 경우가 많다(<a href="/learn/arch-test-cicd/">테스트와 CI/CD</a>).</li>
+    </ul>
+
+    <!-- ============================================================ -->
+    <h3>다른 방식들과 비교</h3>
+
+    <p>
+      main + dev 는 "Git Flow" 라는 방식을 가볍게 한 것이다. 이게 유일한 정답은 아니다. 자주 보는 셋을 놓고 보면 이렇다.
+    </p>
+
+    <table>
+      <tr><th>방식</th><th>브랜치</th><th>잘 맞는 곳</th><th>대가</th></tr>
+      <tr><td>Git Flow</td><td>main · develop · feature · release · hotfix</td><td>정해진 날에 버전을 묶어 내보내는 제품 (앱, 설치형 소프트웨어)</td><td>브랜치가 많고, 오래 사는 브랜치끼리 맞추는 일이 생긴다</td></tr>
+      <tr><td>main + dev (이 글)</td><td>main · dev · feature · hotfix</td><td>개발 서버에서 한 번 확인하고 내보내는 웹 서비스, 작은 팀</td><td>dev 와 main 이 벌어지지 않게 릴리스를 자주 해야 한다</td></tr>
+      <tr><td>GitHub Flow</td><td>main · 짧은 기능 브랜치</td><td>합치면 바로 배포해도 되는 서비스. 자동 검사가 든든할 때</td><td>"아직 내보내면 안 되는 기능"을 숨길 다른 수단이 필요하다</td></tr>
+      <tr><td>트렁크 기반</td><td>main 하나에 하루 안에 합침</td><td>배포가 아주 잦은 큰 팀. 기능 스위치(feature flag)를 쓰는 곳</td><td>테스트 자동화와 기능 스위치 없이는 위험하다</td></tr>
+    </table>
+
+    <p>
+      처음 들어간 팀에서 할 일은 방식을 고르는 게 아니라, <strong>그 팀이 무엇을 쓰는지 알아보는 것</strong>이다. 저장소의 기본 브랜치, 보호 규칙, 최근 PR 들의 base 를 보면 대개 바로 보인다.
+      혼자 하는 내 프로젝트는 지금처럼 main 하나(GitHub Flow)로 충분하다. 손님이 있는 서비스를 여럿이 만들게 되면 그때 dev 를 둔다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>정리</h3>
+
+    <table>
+      <tr><th>상황</th><th>어디서 따나</th><th>어디로 합치나</th></tr>
+      <tr><td>새 기능</td><td><code>dev</code></td><td><code>dev</code> (PR)</td></tr>
+      <tr><td>릴리스</td><td>—</td><td><code>dev</code> → <code>main</code>, 그리고 태그</td></tr>
+      <tr><td>운영 급한 버그</td><td><code>main</code></td><td><code>main</code> (태그) → <code>dev</code> 에도</td></tr>
+    </table>
+
+    <p>
+      main 은 손님이 보는 것과 늘 같아야 하고, dev 는 다음 배포의 대기실이다. 이 두 문장만 기억하면 나머지 규칙은 거기서 나온다.
+      다음은 이 흐름 위에서 코드를 어떻게 나눠 두는지(<a href="/learn/arch-overview/">코드 구조</a>), 그리고 dev·main 에 합칠 때 무엇이 자동으로 도는지(<a href="/learn/arch-test-cicd/">테스트와 CI/CD</a>)다.
+    </p>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 읽기</p>
+      <ul>
+        <li><a href="/learn/git-branch-pr/">브랜치와 Pull Request</a> — main 하나로 도는 기본 흐름</li>
+        <li><a href="/learn/git-conflict/">충돌 일부러 만들고 풀기</a> — dev 와 main 이 벌어지면 만나는 것</li>
+        <li><a href="/learn/github-collab/">GitHub 협업 기능 실습</a> — 브랜치 보호와 리뷰</li>
+        <li><a href="/learn/github-actions/">GitHub Actions 첫걸음</a> — PR 마다 자동 검사</li>
+        <li><a href="/learn/arch-test-cicd/">테스트와 CI/CD</a> — dev·main 에 합칠 때 도는 것들</li>
+        <li><a href="/learn/arch-overview/">코드 구조 큰 그림</a> · <a href="/learn/arch-di/">의존성 주입</a></li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

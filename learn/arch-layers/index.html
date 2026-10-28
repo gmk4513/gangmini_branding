@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>레이어드 아키텍처 따라 만들기 — router · service · repository · gangmin</title>
+<meta name="description" content="한 파일에 섞여 있던 HTTP·규칙·SQL 을 세 층으로 나눠 작은 메모 API 를 직접 만든다. DTO·도메인·엔티티가 오가는 길, 데이터 주권, 저장소 바꿔 끼우기까지.">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="레이어드 아키텍처 따라 만들기 — router · service · repository">
+<meta property="og:description" content="HTTP·규칙·SQL 을 세 층으로 나눠 메모 API 를 직접 만든다.">
+<meta property="og:url" content="https://gangmini.com/learn/arch-layers/">
+<meta property="og:image" content="https://gangmini.com/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../../notes/note.css?v=20261028">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/learn/">← 이론/용어</a>
+    <p class="eyebrow">PRACTICE</p>
+    <h2 class="masthead__title">레이어드 아키텍처 따라 만들기<br>— router · service · repository</h2>
+    <div class="doc__meta">
+      <span class="tag">실습</span>
+      <span class="tag">Python</span>
+      <span class="tag">FastAPI</span>
+      <span class="tag">레이어드 아키텍처</span>
+      <span class="tag">DTO</span>
+      <span class="tag">Repository</span>
+      <time class="note__date">2026.10.28</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      취업 준비를 하며 백엔드 코드 구조를 설명한 자료를 봤다. 슬라이드로 읽을 때는 고개가 끄덕여졌는데, 막상 "그래서 파일을 어떻게 나누라는 거지?" 하면 손이 안 나갔다.
+      그래서 아주 작은 메모 API(<code>memo-api</code>)를 처음부터 직접 만들어 보면서, 자료에 나온 원칙을 하나씩 코드로 옮겨 봤다. 이 글은 그 첫 번째, <strong>층을 나누는 법</strong>이다.
+    </p>
+    <p>
+      한 줄로 줄이면 이렇다. <strong>HTTP 를 다루는 코드, 규칙을 지키는 코드, DB 를 만지는 코드를 서로 다른 층에 두고, 위층만 아래층을 부른다.</strong>
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>왜 나누나 — 한 파일짜리의 문제</h3>
+
+    <p>
+      처음엔 <code>app.py</code> 한 파일(78줄)로 만들었다. 잘 돌아간다. 문제는 고칠 때 생긴다. 메모를 읽는 함수 하나에 세 가지 일이 뒤섞여 있다.
+    </p>
+
+<pre><code>@app.get("/memos/{memo_id}")
+def get_memo(memo_id: int, x_user: str = Header()):
+    row = db.execute("SELECT id, owner, ... FROM memo WHERE id = ?", (memo_id,)).fetchone()  # ① DB
+    if row is None:
+        raise HTTPException(404, f"메모 {memo_id} 가 없습니다")                          # ② HTTP
+    if row[1] != x_user:
+        raise HTTPException(403, "내 메모가 아닙니다")                                    # ③ 규칙
+    return {"id": row[0], "title": row[2], "body": row[3], "created_at": row[4]}</code></pre>
+
+    <ul>
+      <li><strong>같은 규칙이 여러 번 나온다.</strong> "내 메모만 볼 수 있다", "제목은 비면 안 된다"가 읽기·고치기·지우기 함수마다 복사돼 있다. 한 군데만 고치면 버그가 된다.</li>
+      <li><strong>규칙을 시험하려면 DB 와 서버가 다 있어야 한다.</strong> "남의 메모는 못 읽는다"를 확인하려면 HTTP 요청을 보내야 한다.</li>
+      <li><strong>DB 를 바꾸면 모든 함수가 바뀐다.</strong> SQL 이 라우트 함수마다 흩어져 있다.</li>
+    </ul>
+
+    <p>
+      식당으로 생각하면 쉽다. 홀 직원이 주문을 받다가 주방에 들어가 요리하고, 창고에 가서 재료까지 꺼내 오는 꼴이다.
+      홀(주문 받기), 주방(요리 규칙), 창고(재료 보관)를 나누면 각자 자기 일만 잘하면 된다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>세 층과 그 사이를 오가는 것</h3>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 400" role="img" aria-label="위에서부터 표현 계층(router), 비즈니스 계층(service와 domain), 영속 계층(repository와 entity), 그리고 DB. 화살표는 위에서 아래로만 흐르고, 층 사이를 오가는 데이터는 DTO, 도메인, 엔티티로 이름이 다르다.">
+          <!-- 외부 -->
+          <text class="d-t" x="200" y="24" text-anchor="middle">바깥 (브라우저 · 앱 · 다른 서버)</text>
+          <path class="d-line" d="M200,32 V53"/><polygon points="200,60 196,53 204,53" fill="#1A1D18"/>
+          <text class="d-t-m" x="212" y="50">JSON</text>
+
+          <!-- 표현 -->
+          <rect class="d-box" x="60" y="60" width="280" height="64" rx="4"/>
+          <text class="d-t" x="200" y="84" text-anchor="middle">표현 계층 (presentation)</text>
+          <text class="d-t-m" x="200" y="104" text-anchor="middle">webapp/routers/memo.py</text>
+          <path class="d-line" d="M200,124 V145"/><polygon points="200,152 196,145 204,145" fill="#1A1D18"/>
+          <text class="d-t-m" x="212" y="142">DTO → 값</text>
+
+          <!-- 비즈니스 -->
+          <rect class="d-box-m" x="60" y="152" width="280" height="64" rx="4"/>
+          <text class="d-t" x="200" y="176" text-anchor="middle">비즈니스 계층 (business)</text>
+          <text class="d-t-m" x="200" y="196" text-anchor="middle">src/memo/service.py · domains.py</text>
+          <path class="d-line" d="M200,216 V237"/><polygon points="200,244 196,237 204,237" fill="#1A1D18"/>
+          <text class="d-t-m" x="212" y="234">도메인(Memo)</text>
+
+          <!-- 영속 -->
+          <rect class="d-box" x="60" y="244" width="280" height="64" rx="4"/>
+          <text class="d-t" x="200" y="268" text-anchor="middle">영속 계층 (persistence)</text>
+          <text class="d-t-m" x="200" y="288" text-anchor="middle">src/memo/repository.py · entities.py</text>
+          <path class="d-line" d="M200,308 V329"/><polygon points="200,336 196,329 204,329" fill="#1A1D18"/>
+          <text class="d-t-m" x="212" y="326">엔티티(MemoRow)</text>
+
+          <!-- DB -->
+          <rect class="d-box" x="140" y="336" width="120" height="44" rx="12"/>
+          <text class="d-t" x="200" y="363" text-anchor="middle">DB (sqlite)</text>
+
+          <!-- 오른쪽 설명 -->
+          <text class="d-t" x="372" y="84">HTTP 를 안다</text>
+          <text class="d-t-s" x="372" y="102">요청 받기 · 응답 모양 · 상태 코드</text>
+          <text class="d-t" x="372" y="176">규칙을 안다</text>
+          <text class="d-t-s" x="372" y="194">제목 규칙 · 주인 확인 · 일의 순서</text>
+          <text class="d-t" x="372" y="268">저장 방법을 안다</text>
+          <text class="d-t-s" x="372" y="286">SQL · 테이블 모양 · 변환</text>
+          <text class="d-t-s" x="372" y="336">화살표는 아래로만.</text>
+          <text class="d-t-s" x="372" y="354">아래층은 위층을 모른다.</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        층마다 아는 것이 다르다. 비즈니스 계층은 HTTP 도 SQL 도 모르는 가운데 층이라, 가장 오래 살아남는 코드가 된다.
+      </figcaption>
+    </figure>
+
+    <p>(파일 경로의 <code>routers/</code> 는 <code>webapp/</code> 아래, <code>memo/</code> 는 <code>src/</code> 아래다.)</p>
+    <table>
+      <tr><th>층 · 파일</th><th>알아도 되는 것</th><th>몰라야 하는 것</th></tr>
+      <tr><td>표현<br><code>routers/memo.py</code></td><td>URL, 헤더, JSON 모양, 상태 코드</td><td>SQL, 제목 규칙</td></tr>
+      <tr><td>비즈니스<br><code>memo/service.py</code><br><code>memo/domains.py</code></td><td>메모 규칙, 일의 순서</td><td>HTTP, SQL</td></tr>
+      <tr><td>영속<br><code>memo/repository.py</code><br><code>memo/entities.py</code></td><td>테이블, SQL, 행 ↔ 도메인 변환</td><td>HTTP, 누가 요청했는지</td></tr>
+    </table>
+
+    <p class="gloss">
+      <b>계층(layer)</b> — 하는 일이 비슷한 코드끼리 묶은 층. 위층은 아래층을 부를 수 있지만 반대는 안 된다.<br>
+      <b>도메인(domain)</b> — 이 프로그램이 다루는 대상 그 자체와 그 규칙. 여기서는 "메모"와 "제목은 비면 안 된다" 같은 것.<br>
+      <b>영속(persistence)</b> — 프로그램이 꺼져도 데이터가 남게 저장하는 것. 보통 DB.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>따라 만들기 — 준비</h3>
+
+<pre><code>mkdir memo-api &amp;&amp; cd memo-api
+python -m venv .venv
+.venv\Scripts\activate          # 맥·리눅스: source .venv/bin/activate
+pip install fastapi uvicorn dependency-injector pytest httpx</code></pre>
+
+    <p>다 만들면 폴더가 이렇게 된다. <code>src/</code> 가 비즈니스와 영속, <code>webapp/</code> 이 표현 계층이다.</p>
+
+<pre><code>memo-api/
+├── src/
+│   ├── common/      exceptions.py · logger.py
+│   ├── memo/        domains.py · entities.py · repository.py · service.py · container.py
+│   ├── user/        service.py · container.py
+│   └── container.py
+├── webapp/
+│   ├── main.py      앱 조립
+│   ├── log_format.py
+│   └── routers/memo.py
+└── tests/           conftest.py · test_memo_service.py · test_api.py</code></pre>
+
+    <p>
+      모듈을 <strong>기능(database, services, utils …)이 아니라 도메인(memo, user …)</strong>으로 나눴다. "메모를 고치려면 <code>memo/</code> 만 보면 된다"가 되도록.
+      모듈 나누는 기준은 <a href="/learn/arch-modules/">모듈 나누기</a> 글에 따로 적었다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>1단계 — 도메인: 규칙을 한 곳에</h3>
+
+    <p>
+      가장 먼저 만드는 건 HTTP 도 DB 도 아닌 <strong>메모 그 자체</strong>다. 제목 규칙과 주인 확인을 메모 객체가 직접 지키게 한다.
+      그러면 "제목은 비면 안 된다"는 이 파일에 딱 한 번만 쓰인다.
+    </p>
+
+<pre><code># src/memo/domains.py
+@dataclass
+class Memo:
+    owner: str
+    title: str
+    body: str = ""
+    id: int | None = None
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+    def __post_init__(self) -&gt; None:          # 만들 때 바로 검사
+        self.validate_title(self.title)
+
+    @staticmethod
+    def validate_title(title: str) -&gt; None:
+        if not title.strip():
+            raise InvalidInput("제목이 비었습니다")
+        if len(title) &gt; TITLE_MAX:
+            raise InvalidInput(f"제목은 {TITLE_MAX}자까지입니다")
+
+    def rename(self, title: str) -&gt; None:
+        self.validate_title(title)
+        self.title = title
+
+    def ensure_owner(self, user: str) -&gt; None:
+        if self.owner != user:
+            raise PermissionDenied("내 메모가 아닙니다")</code></pre>
+
+    <p>
+      예외도 HTTP 를 모른다. <code>NotFound</code>, <code>PermissionDenied</code>, <code>InvalidInput</code> 을 <code>src/common/exceptions.py</code> 에 두고,
+      이걸 404·403·400 으로 바꾸는 건 표현 계층이 한다. 같은 서비스를 나중에 HTTP 가 아닌 곳(배치 작업, gRPC)에서 불러도 그대로 쓸 수 있다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>2단계 — 영속: 엔티티와 저장소</h3>
+
+    <p>
+      <strong>엔티티</strong>는 테이블 한 줄을 그대로 옮긴 모양이다. 도메인과 비슷하지만 다르다. 예를 들어 DB 에는 시간이 문자열로 들어가고, 도메인은 <code>datetime</code> 을 쓴다.
+      이 둘을 오가는 변환을 엔티티에 둔다.
+    </p>
+
+<pre><code># src/memo/entities.py
+@dataclass(frozen=True)
+class MemoRow:
+    id: int
+    owner: str
+    title: str
+    body: str
+    created_at: str        # sqlite 에는 ISO 문자열
+
+    @classmethod
+    def from_domain(cls, memo: Memo) -&gt; "MemoRow": ...
+    def to_domain(self) -&gt; Memo: ...</code></pre>
+
+    <p>
+      <strong>저장소(repository)</strong>는 "메모를 어디에 어떻게 넣고 꺼내나"만 안다. 서비스는 저장소에게 "1번 메모 줘"라고만 하고, 그게 sqlite 인지 다른 DB 인지 모른다.
+      먼저 약속(추상 클래스)을 정하고, 그 약속을 지키는 구현을 만든다.
+    </p>
+
+<pre><code># src/memo/repository.py
+class MemoRepository(ABC):                       # 약속
+    @abstractmethod
+    def find_memo(self, memo_id: int) -&gt; Memo | None: ...
+    @abstractmethod
+    def find_memos_by_owner(self, owner: str) -&gt; list[Memo]: ...
+    @abstractmethod
+    def create(self, memo: Memo) -&gt; Memo: ...
+    # update, delete …
+
+    def get_memo(self, memo_id: int) -&gt; Memo:   # 없으면 예외
+        memo = self.find_memo(memo_id)
+        if memo is None:
+            raise NotFound(f"메모 {memo_id} 가 없습니다")
+        return memo
+
+
+class SqliteMemoRepository(MemoRepository):      # 구현 ①
+    def find_memo(self, memo_id: int) -&gt; Memo | None:
+        row = self.conn.execute(
+            "SELECT id, owner, title, body, created_at FROM memo WHERE id = ?", (memo_id,)
+        ).fetchone()
+        return MemoRow(*row).to_domain() if row else None
+    ...</code></pre>
+
+    <h4>이름만 보고 동작을 알게 — 이름 규칙</h4>
+
+    <table>
+      <tr><th>이름</th><th>돌려주는 것</th><th>없으면</th></tr>
+      <tr><td><code>get_memo</code></td><td><code>Memo</code> (반드시)</td><td><code>NotFound</code> 예외</td></tr>
+      <tr><td><code>find_memo</code></td><td><code>Memo | None</code></td><td><code>None</code></td></tr>
+      <tr><td><code>find_memos_by_owner</code></td><td><code>list[Memo]</code></td><td>빈 리스트. <code>by_</code> 뒤가 WHERE 조건</td></tr>
+    </table>
+
+    <p>
+      이 규칙을 모든 저장소에 똑같이 쓰면, 처음 보는 모듈도 함수 이름만 보고 "이건 없으면 예외구나"를 안다. 이렇게 모양을 통일하는 원칙은 <a href="/learn/arch-code-principles/">코드 작성 원칙</a>에 이어서 적었다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>3단계 — 비즈니스: 서비스</h3>
+
+    <p>
+      <strong>서비스</strong>는 "사용자가 하려는 일" 하나를 메서드 하나로 만든다. 일의 순서만 쓰고, 규칙은 도메인에, 저장은 저장소에 맡긴다.
+    </p>
+
+<pre><code># src/memo/service.py
+class MemoService:
+    def __init__(self, repository: MemoRepository) -&gt; None:
+        self.repository = repository             # 직접 만들지 않고 받는다
+
+    def get_memo(self, user: str, memo_id: int) -&gt; Memo:
+        memo = self.repository.get_memo(memo_id)
+        memo.ensure_owner(user)
+        return memo
+
+    def rename_memo(self, user: str, memo_id: int, title: str) -&gt; Memo:
+        memo = self.get_memo(user, memo_id)      # 주인 확인까지 재사용
+        memo.rename(title)                       # 제목 규칙은 도메인이
+        return self.repository.update(memo)      # 저장은 저장소가</code></pre>
+
+    <p>
+      한 파일짜리에서 세 번 복사돼 있던 "없으면 404, 남의 것이면 403" 이 <code>get_memo</code> 한 곳으로 모였다.
+      저장소를 생성자로 받는 이유는 다음 글 <a href="/learn/arch-di/">의존성 주입</a>의 주제다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>4단계 — 표현: 라우터와 DTO</h3>
+
+    <p>
+      <strong>DTO(Data Transfer Object)</strong>는 바깥과 주고받는 모양이다. 도메인을 그대로 JSON 으로 내보내지 않고 응답용 모양을 따로 둔다.
+      그래야 도메인에 필드를 더해도 응답이 저절로 바뀌지 않는다. 여기서는 <code>owner</code> 를 응답에 안 내보낸다.
+    </p>
+
+<pre><code># webapp/routers/memo.py
+class MemoCreateRequest(BaseModel):     # 들어오는 모양
+    title: str
+    body: str = ""
+
+class MemoResponse(BaseModel):          # 나가는 모양
+    id: int
+    title: str
+    body: str
+    created_at: datetime
+
+    @classmethod
+    def from_domain(cls, memo: Memo) -&gt; "MemoResponse":
+        return cls(id=memo.id, title=memo.title, body=memo.body, created_at=memo.created_at)
+
+
+@router.post("", status_code=201, response_model=MemoResponse)
+def create_memo(req: MemoCreateRequest, x_user: str = Header(),
+                service: MemoService = Depends(memo_service)):
+    return MemoResponse.from_domain(service.create_memo(x_user, req.title, req.body))</code></pre>
+
+    <p>라우트 함수에는 이제 SQL 도, 규칙도 없다. 받아서 넘기고, 돌려받은 걸 응답 모양으로 바꿀 뿐이다.</p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 210" role="img" aria-label="요청 JSON 이 MemoCreateRequest DTO 가 되고, 서비스에서 Memo 도메인이 되고, 저장소에서 MemoRow 엔티티가 되어 테이블에 들어간다. 돌아올 때는 반대로 MemoRow 에서 Memo, Memo 에서 MemoResponse, 그리고 JSON 이 된다.">
+          <rect class="d-box" x="16" y="40" width="112" height="56" rx="4"/>
+          <text class="d-t" x="72" y="64" text-anchor="middle">요청 JSON</text>
+          <text class="d-t-m" x="72" y="82" text-anchor="middle">{"title": …}</text>
+
+          <rect class="d-box" x="148" y="40" width="112" height="56" rx="4"/>
+          <text class="d-t" x="204" y="64" text-anchor="middle">DTO</text>
+          <text class="d-t-m" x="204" y="82" text-anchor="middle">MemoCreateRequest</text>
+
+          <rect class="d-box-m" x="280" y="40" width="112" height="56" rx="4"/>
+          <text class="d-t" x="336" y="64" text-anchor="middle">도메인</text>
+          <text class="d-t-m" x="336" y="82" text-anchor="middle">Memo</text>
+
+          <rect class="d-box" x="412" y="40" width="112" height="56" rx="4"/>
+          <text class="d-t" x="468" y="64" text-anchor="middle">엔티티</text>
+          <text class="d-t-m" x="468" y="82" text-anchor="middle">MemoRow</text>
+
+          <rect class="d-box" x="544" y="40" width="80" height="56" rx="10"/>
+          <text class="d-t" x="584" y="64" text-anchor="middle">memo</text>
+          <text class="d-t" x="584" y="82" text-anchor="middle">테이블</text>
+
+          <path class="d-line" d="M128,60 H141"/><polygon points="148,60 141,56 141,64" fill="#1A1D18"/>
+          <path class="d-line" d="M260,60 H273"/><polygon points="280,60 273,56 273,64" fill="#1A1D18"/>
+          <path class="d-line" d="M392,60 H405"/><polygon points="412,60 405,56 405,64" fill="#1A1D18"/>
+          <path class="d-line" d="M524,60 H537"/><polygon points="544,60 537,56 537,64" fill="#1A1D18"/>
+
+          <path class="d-dash" d="M141,80 H128 M273,80 H260 M405,80 H392 M537,80 H524"/>
+
+          <text class="d-t-s" x="138" y="124" text-anchor="middle">라우터가 받음</text>
+          <text class="d-t-s" x="270" y="124" text-anchor="middle">Memo(…) 로 만들며 검사</text>
+          <text class="d-t-s" x="402" y="124" text-anchor="middle">from_domain</text>
+          <text class="d-t-s" x="534" y="124" text-anchor="middle">INSERT</text>
+
+          <text class="d-t" x="16" y="164">돌아올 때는 반대로 (점선)</text>
+          <text class="d-t-m" x="16" y="186">테이블 행 → MemoRow.to_domain() → Memo → MemoResponse.from_domain() → JSON</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        같은 "메모"가 층을 지날 때마다 그 층에 맞는 모양으로 바뀐다. 변환은 바꾸는 쪽(DTO 는 라우터, 엔티티는 저장소)이 책임진다.
+      </figcaption>
+    </figure>
+
+    <p class="gloss">
+      <b>DTO</b> — 층과 층 사이, 또는 바깥과 데이터를 주고받을 때 쓰는 모양. 규칙 없이 값만 담는다.<br>
+      <b>엔티티</b> — 이 글에서는 DB 테이블 한 줄과 1:1 로 대응하는 객체. (책마다 뜻이 조금 다르다. JPA 에서는 DB 와 연결된 도메인 객체를 엔티티라 부르기도 한다.)
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>돌려 보기</h3>
+
+    <p>앱을 조립하는 <code>webapp/main.py</code> 까지 만든 뒤(조립은 다음 글에서 자세히), 요청을 몇 개 보내 봤다. 아래는 실제로 나온 출력이다.</p>
+
+<pre><code>$ python demo_requests.py
+{"level": "INFO", "logger": "memo_api.memo", "msg": "메모를 만들었다", "memo_id": 1, "user": "kim"}
+201 {'id': 1, 'title': '장보기', 'body': '우유, 계란', 'created_at': '2026-10-28T08:03:23.400166Z'}
+403 {'detail': '내 메모가 아닙니다'}
+{'detail': '제목이 비었습니다'}
+{'user': 'kim', 'memo_count': 1}</code></pre>
+
+    <p>
+      응답에 <code>owner</code> 가 없는 것(DTO 덕분), 남의 메모는 403, 빈 제목은 도메인 규칙에 걸려 400 이 나오는 걸 볼 수 있다.
+      첫 줄의 JSON 로그는 아래 "참조는 한 방향" 에서 다시 본다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>데이터 주권 — 내 테이블은 나만 만진다</h3>
+
+    <p>
+      user 모듈에 "내 프로필(메모 몇 개 썼는지)"을 만들 때, 가장 쉬운 길은 user 쪽에서 <code>SELECT COUNT(*) FROM memo</code> 를 직접 날리는 것이다.
+      한 파일짜리 버전이 실제로 그랬다. 그런데 이러면 memo 테이블 모양을 바꿀 때 user 모듈까지 깨진다. memo 가 자기 데이터를 통제하지 못하게 된다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 220" role="img" aria-label="user 모듈의 ProfileService 가 memo 모듈의 MemoService.count_memos 를 부르는 것은 허용, memo 테이블이나 MemoRepository 를 직접 부르는 것은 금지">
+          <rect class="d-box" x="16" y="30" width="174" height="160" rx="4"/>
+          <text class="d-t" x="103" y="54" text-anchor="middle">user 모듈</text>
+          <rect class="d-box" x="32" y="90" width="138" height="44" rx="4"/>
+          <text class="d-t-m" x="101" y="116" text-anchor="middle">ProfileService</text>
+
+          <rect class="d-box-m" x="314" y="30" width="310" height="160" rx="4"/>
+          <text class="d-t" x="469" y="54" text-anchor="middle">memo 모듈</text>
+          <rect class="d-box" x="334" y="70" width="140" height="40" rx="4"/>
+          <text class="d-t-m" x="404" y="94" text-anchor="middle">MemoService</text>
+          <rect class="d-box" x="334" y="134" width="140" height="40" rx="4"/>
+          <text class="d-t-m" x="404" y="158" text-anchor="middle">MemoRepository</text>
+          <rect class="d-box" x="500" y="134" width="108" height="40" rx="10"/>
+          <text class="d-t" x="554" y="158" text-anchor="middle">memo 테이블</text>
+          <path class="d-line" d="M404,110 V127"/><polygon points="404,134 400,127 408,127" fill="#1A1D18"/>
+          <path class="d-line" d="M474,154 H493"/><polygon points="500,154 493,150 493,158" fill="#1A1D18"/>
+
+          <path class="d-line" d="M170,100 H327"/><polygon points="334,100 327,96 327,104" fill="#1A1D18"/>
+          <text class="d-t-s" x="250" y="92" text-anchor="middle">count_memos() ✓</text>
+
+          <path class="d-dash" d="M170,124 H327" style="stroke:var(--mark)"/>
+          <text class="d-t" style="fill:var(--mark)" x="250" y="142" text-anchor="middle">✕ 직접 접근</text>
+          <text class="d-t-s" x="250" y="160" text-anchor="middle">SELECT … FROM memo</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        memo 테이블을 만지는 코드는 memo 모듈의 저장소 하나뿐이다. 다른 모듈은 MemoService 가 열어 준 문(count_memos)으로만 들어온다.
+      </figcaption>
+    </figure>
+
+<pre><code># src/memo/service.py
+def count_memos(self, user: str) -&gt; int:
+    """다른 모듈이 메모 수를 알고 싶을 때 여는 문. 테이블을 직접 읽게 하지 않는다."""
+    return len(self.repository.find_memos_by_owner(user))
+
+# src/user/service.py
+class ProfileService:
+    def __init__(self, memo_service: MemoService) -&gt; None:
+        self.memo_service = memo_service
+
+    def profile(self, user: str) -&gt; dict:
+        return {"user": user, "memo_count": self.memo_service.count_memos(user)}</code></pre>
+
+    <p>
+      "데이터와 그 데이터를 다루는 로직은 가까이 둔다"는 원칙과 같은 이야기다. 메모 데이터를 어떻게 세는지는 메모 모듈이 정하고, 바깥은 결과만 받는다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>바꿔 끼우기 — 확장에는 열려 있고 수정에는 닫혀 있게</h3>
+
+    <p>
+      저장소를 약속(<code>MemoRepository</code>)으로 정해 둔 덕분에, 구현을 하나 더 만들어 끼울 수 있다. DB 없이 dict 에 담는 <code>InMemoryMemoRepository</code> 다.
+      <strong>서비스 코드는 한 글자도 안 고치고</strong> 저장소만 바꿔 봤다.
+    </p>
+
+<pre><code># swap_demo.py
+for repo in [SqliteMemoRepository(sqlite3.connect(":memory:")), InMemoryMemoRepository()]:
+    service = MemoService(repository=repo)          # 서비스 코드는 그대로
+    memo = service.create_memo("kim", "장보기")
+    print(type(repo).__name__, "-&gt;", service.get_memo("kim", memo.id).title, service.count_memos("kim"))
+
+$ python swap_demo.py
+SqliteMemoRepository -&gt; 장보기 1
+InMemoryMemoRepository -&gt; 장보기 1</code></pre>
+
+    <p>
+      이게 <strong>개방-폐쇄 원칙(OCP)</strong>이다. 새 기능(새 저장소)을 더하는 건 열려 있고, 이미 잘 돌아가는 코드(서비스)를 고치는 건 닫혀 있다.
+      나중에 PostgreSQL 이나 검색 엔진으로 옮길 때도 저장소 구현 하나만 새로 쓰면 된다. 표현 계층도 마찬가지다. REST 대신 gRPC 를 붙여도 서비스는 그대로다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>참조는 한 방향 — 로거로 보는 예</h3>
+
+    <p>
+      <code>webapp</code> 이 <code>src</code> 를 부르는 건 당연하다. 반대로 <code>src</code> 가 <code>webapp</code> 안의 무언가를 import 하면 순환 참조가 생긴다.
+      흔한 함정이 로거다. 서비스에서 로그를 남기려고 <code>webapp</code> 에 만든 JSON 로거를 import 하는 순간, 비즈니스 계층이 표현 계층에 묶인다.
+    </p>
+    <p>그래서 둘로 쪼갰다.</p>
+
+    <table>
+      <tr><th>어디서</th><th>정하는 것</th><th>코드</th></tr>
+      <tr><td><code>src/</code></td><td><strong>무엇을</strong> 남길지 (내용)</td><td><code>log.info("메모를 만들었다", extra={"memo_id": …})</code></td></tr>
+      <tr><td><code>webapp/</code></td><td><strong>어떻게</strong> 남길지 (형식)</td><td>서비스로 돌 때는 JSON 한 줄 — 로그 수집기가 필드별로 읽기 좋다</td></tr>
+      <tr><td><code>tests/</code></td><td><strong>어떻게</strong> 남길지 (형식)</td><td>테스트할 때는 사람이 읽는 한 줄 — 터미널에서 보기 좋다</td></tr>
+    </table>
+
+<pre><code># src/common/logger.py — 내용만. 형식은 모른다
+def get_logger(name: str) -&gt; logging.Logger:
+    return logging.getLogger(f"memo_api.{name}")
+
+# webapp/log_format.py — 형식만
+class JsonFormatter(logging.Formatter):
+    def format(self, record): return json.dumps({"level": …, "msg": …, **extra}, ensure_ascii=False)</code></pre>
+
+    <p>
+      같은 <code>log.info(...)</code> 한 줄이 서비스에서는 위 "돌려 보기" 첫 줄처럼 JSON 으로, 테스트에서는 <code>INFO memo_api.memo: 메모를 만들었다</code> 로 찍힌다.
+      맥락에 따라 형식을 바꿀 수 있는 건 형식을 바깥(위층)이 쥐고 있어서다.
+    </p>
+
+    <p class="gloss">
+      <b>순환 참조</b> — A 가 B 를 import 하고 B 도 A 를 import 하는 것. 파이썬에서는 실행 순서에 따라 import 오류가 나고, 그렇지 않더라도 둘을 따로 떼어 낼 수 없게 된다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>정리</h3>
+
+    <table>
+      <tr><th>원칙</th><th>memo-api 에서</th></tr>
+      <tr><td>층을 나눈다</td><td>router(HTTP) · service + domain(규칙) · repository + entity(저장)</td></tr>
+      <tr><td>참조는 아래로만</td><td><code>webapp → src</code>. src 는 webapp 을 import 하지 않는다. 로거는 내용/형식으로 쪼갠다</td></tr>
+      <tr><td>데이터와 로직을 가까이</td><td>제목 규칙은 <code>Memo</code> 에 한 번만</td></tr>
+      <tr><td>데이터 주권</td><td>memo 테이블은 memo 저장소만. user 는 <code>MemoService.count_memos</code> 로</td></tr>
+      <tr><td>개방-폐쇄</td><td>저장소를 바꿔 끼워도 서비스는 그대로</td></tr>
+      <tr><td>모양을 통일</td><td><code>get_</code>(없으면 예외) · <code>find_</code>(없을 수 있음) · <code>_by_</code>(조건)</td></tr>
+    </table>
+
+    <p>
+      파일 수는 1개에서 20개 남짓으로 늘었다. 처음엔 과해 보였다. 그런데 테스트를 쓰려는 순간 차이가 났다. 서비스를 DB 없이 바로 시험할 수 있었고,
+      "제목 규칙을 바꿔 달라"는 요청이 오면 어디를 고칠지 바로 안다. 작은 앱에서는 과할 수 있다. 자료에서도 "가능한 가장 간단한 구조로, 나눌 이유가 분명할 때 나눠라(KISS)"를 첫 원칙으로 뒀다.
+      층을 나누는 건 그 이유가 생겼을 때 꺼내 쓰는 도구다.
+    </p>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 읽기</p>
+      <ul>
+        <li><a href="/learn/arch-overview/">코드 구조와 설계 — 전체 지도</a></li>
+        <li><a href="/learn/arch-modules/">모듈 나누기 — 기능이 아니라 도메인으로</a></li>
+        <li><a href="/learn/arch-di/">의존성 주입(DI) — 직접 넣기부터 컨테이너까지</a> — 다음 글. 서비스가 저장소를 "받는" 이유</li>
+        <li><a href="/learn/arch-code-principles/">코드 작성 원칙</a> — 추상화 수준 맞추기, 이름 모양 통일</li>
+        <li><a href="/learn/arch-test-cicd/">테스트와 CI/CD</a></li>
+        <li><a href="/learn/arch-refactor-practice/">실습: 한 파일짜리 API 를 계층 + DI 로 정리하기</a> — 이 구조로 가는 과정을 커밋 단위로</li>
+        <li><a href="/learn/rag-vector-search/">벡터 검색 기초</a></li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>
