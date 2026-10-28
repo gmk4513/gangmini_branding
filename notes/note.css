@@ -192,7 +192,11 @@
   vertical-align: top;
 }
 .doc th { font-weight: 700; font-size: 13px; }
-.doc td:first-child { white-space: nowrap; }
+/* 첫 칸에 줄바꿈 금지(nowrap)를 걸어 두었더니, 긴 문장이 들어간 표에서 둘째 칸이
+   한 글자 폭으로 찌그러졌다 (2026-10-28, learn/team-ai-ownership). 이제 두 칸 모두
+   단어 단위로만 줄을 바꾼다. 짧은 이름 칸은 자리가 있으면 그대로 한 줄이다. */
+.doc th, .doc td { word-break: keep-all; overflow-wrap: break-word; }
+.doc td:first-child { min-width: 5.5em; }
 
 /* ---------- 다이어그램 ---------- */
 
@@ -281,4 +285,77 @@
 
 @media (min-width: 620px) {
   .note-list { gap: 14px; }
+}
+
+/* ---------- 이론/용어 목록: 주제별 목차 (learn/learn-app.js) ----------
+   카드를 한 줄로 쌓으면 글이 늘수록 찾기 어려워서, 큰 주제 → 소주제 → 읽는 순서로 묶는다.
+   칩은 주제 몇 개만. 세부 키워드는 검색창이 맡는다. */
+.lsearch {
+  display: block;
+  width: 100%;
+  margin-top: 18px;
+  padding: 11px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+}
+.lsearch:focus { outline: 2px solid var(--ink); outline-offset: 1px; }
+
+.topic { margin-top: 30px; }
+.topic__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--ink);
+}
+.topic__title { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -0.02em; }
+.topic__count { flex: none; font-family: var(--mono); font-size: 11px; color: var(--ink-soft); }
+.topic__note { margin: 8px 0 0; font-size: 13.5px; color: var(--ink-soft); }
+
+.group__head {
+  margin: 18px 0 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  letter-spacing: 0.02em;
+}
+.rows { display: grid; gap: 6px; }
+
+.row {
+  display: grid;
+  grid-template-columns: 2.1em 1fr auto;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 11px 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+}
+.row:hover, .row:focus-visible { border-color: var(--ink); box-shadow: 0 4px 12px rgba(26, 29, 24, 0.09); }
+.row:focus-visible { outline: 2px solid var(--mark); outline-offset: 2px; }
+.row__no { font-family: var(--mono); font-size: 12px; color: var(--ink-soft); }
+.row__title { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+.row__kind { font-family: var(--mono); font-size: 10.5px; color: var(--ink-soft); white-space: nowrap; }
+.row__desc {
+  grid-column: 2 / 4;
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+@media (max-width: 480px) {
+  .row { grid-template-columns: 1.8em 1fr; padding: 10px 12px; }
+  .row__kind { display: none; }
+  .row__desc { grid-column: 2; }
 }

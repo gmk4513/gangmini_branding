@@ -14,6 +14,7 @@
    slug  주소가 된다. 영문 소문자·숫자·하이픈만.  → gangmini.com/learn/es-modules/
    cat   카테고리. 하나만. 아래 CATS 에 없는 값을 쓰면 칩이 안 생긴다.
    mine  내가 만든 것에서 직접 겪은 내용이 들어 있으면 true.
+   topic/group/order  어느 큰 주제·소주제에 몇 번째로 놓을지 (아래 TOPICS)
    ========================================================================= */
 
 const NOTE_BASE = "/learn/";
@@ -26,11 +27,36 @@ const CATS = [
   { id: "practice", label: "실습",  note: "직접 따라 해 보는 튜토리얼" },
 ];
 
+/* 큰 주제 → 소주제. 목록 화면은 이 순서대로 묶어서 보여 준다 (learn-app.js).
+   글마다 topic(큰 주제 id), group(소주제 id), order(주제 안에서 읽는 순서)를 단다.
+   order 는 "처음 읽는 사람이 이 순서로 읽으면 된다"는 뜻이다. 주제 안에서 1 부터.
+   어느 주제에도 안 맞으면 topic 을 비워 둔다 → 맨 아래 "그 밖의 글"로 간다. */
+const TOPICS = [
+  { id: "web",  label: "웹 기초",
+    note: "브라우저와 자바스크립트가 실제로 어떻게 도는지",
+    groups: [ { id: "js", label: "자바스크립트와 브라우저" } ] },
+  { id: "team", label: "팀에서 일하기",
+    note: "AI 로 만들어도 사람끼리 이어받을 수 있게. 1 번이 전체 지도다",
+    groups: [
+      { id: "start",  label: "먼저 읽기" },
+      { id: "code",   label: "코드를 다루는 습관" },
+      { id: "people", label: "사람과 맞추기" },
+    ] },
+  { id: "git",  label: "Git · GitHub 실습",
+    note: "직접 따라 치는 튜토리얼. 위에서부터 순서대로 하면 된다",
+    groups: [
+      { id: "solo",     label: "혼자 쓰기" },
+      { id: "together", label: "같이 쓰기 — 브랜치·충돌·최신 따라가기" },
+      { id: "github",   label: "GitHub 기능" },
+    ] },
+];
+
 const NOTES = [
 
   // ── 팀에서 일하기 (2026-10-28) ──
   {
     slug: "team-ai-ownership",
+    topic: "team", group: "start", order: 1,
     title: "AI 로 만든 코드의 주인 되기 — 팀에서 문제가 되는 순간",
     desc: "AI 로 만든 코드가 팀에서 문제가 되는 건 품질보다 아무도 설명하지 못할 때다. 내 프로젝트에서 본 위험 신호 넷과, 기르려는 여섯 가지 역량의 지도.",
     date: "2026-10-28", cat: "role",
@@ -39,6 +65,7 @@ const NOTES = [
   },
   {
     slug: "team-explain-diff",
+    topic: "team", group: "code", order: 2,
     title: "내가 올린 코드를 설명하는 능력 — diff 를 한 줄씩 읽기",
     desc: "모든 줄에 '이게 없으면?'을 답할 수 있게. diff 읽는 법, 리뷰 요청 전 점검표, AI 에게 던질 질문, R8 설정 변경을 한 줄씩 풀어 본 예와 PR 본문.",
     date: "2026-10-28", cat: "role",
@@ -47,6 +74,7 @@ const NOTES = [
   },
   {
     slug: "team-git-habits",
+    topic: "team", group: "code", order: 3,
     title: "커밋 습관 — 리뷰어가 읽을 수 있는 변경",
     desc: "3,316줄이 바뀐 줄 알았는데 진짜는 86줄이었다. 변경 하나에 커밋 하나, 메시지에 '왜', .gitattributes 로 줄바꿈 고정, 비밀 값과 큰 파일 빼기, 브랜치 이름.",
     date: "2026-10-28", cat: "role",
@@ -55,6 +83,7 @@ const NOTES = [
   },
   {
     slug: "team-system-map",
+    topic: "team", group: "code", order: 4,
     title: "시스템의 큰 그림 — 버그가 어느 층에 있나",
     desc: "소스 · 빌드 · 실행 · 네트워크 · 배포. 릴리스에서만 죽는 앱(R8), 아이폰에서만 안 나는 소리, 첫 요청만 느린 서버, 고쳤는데 그대로인 화면(캐시)으로 층을 좁히는 법.",
     date: "2026-10-28", cat: "role",
@@ -63,6 +92,7 @@ const NOTES = [
   },
   {
     slug: "team-verification",
+    topic: "team", group: "code", order: 5,
     title: "검증을 남기는 능력 — \"고쳤다\"를 다음 사람도 확인할 수 있게",
     desc: "손으로 눌러 본 확인은 나만 안다. 체크리스트, 테스트 피라미드, 무엇부터 자동화하나, 헤드리스 브라우저로 숫자 남기기.",
     date: "2026-10-28", cat: "role",
@@ -71,6 +101,7 @@ const NOTES = [
   },
   {
     slug: "team-conventions",
+    topic: "team", group: "people", order: 6,
     title: "팀 규칙에 맞추는 능력 — 사람도 AI 도 같은 규칙을 따르게",
     desc: "린터·포매터·EditorConfig, 이름과 폴더 규칙, README·CONTRIBUTING·CLAUDE.md, PR 템플릿. 규칙을 기억이 아니라 도구와 문서에.",
     date: "2026-10-28", cat: "role",
@@ -79,6 +110,7 @@ const NOTES = [
   },
   {
     slug: "team-communication",
+    topic: "team", group: "people", order: 7,
     title: "일을 나누고 말로 맞추는 능력 — 이슈, PR 설명, 결정 기록",
     desc: "큰 일을 하루 크기로 나누기, 범위로 추정하기, 재현되는 이슈와 PR 설명 쓰기, 선택지를 장단점으로, 결정을 ADR 로 남기기.",
     date: "2026-10-28", cat: "role",
@@ -89,6 +121,7 @@ const NOTES = [
   // ── Git · GitHub 실습 (2026-10-28) ──
   {
     slug: "git-basics",
+    topic: "git", group: "solo", order: 1,
     title: "Git 첫걸음 — 저장소 만들고 커밋하기",
     desc: "git init 부터 첫 push 까지 직접 따라 해 보는 실습. 작업 폴더·스테이징·저장소 세 칸, status·add·commit·diff·log, .gitignore 까지.",
     date: "2026-10-28", cat: "practice",
@@ -97,6 +130,7 @@ const NOTES = [
   },
   {
     slug: "git-branch-pr",
+    topic: "git", group: "together", order: 3,
     title: "브랜치와 Pull Request — 회사에서 매일 하는 흐름",
     desc: "브랜치 따기 → 커밋 → push → PR → 리뷰 → 합치기(merge·squash·rebase) → 뒷정리. 회사에서 하루에도 몇 번씩 도는 한 바퀴를 따라 해 본다.",
     date: "2026-10-28", cat: "practice",
@@ -105,6 +139,7 @@ const NOTES = [
   },
   {
     slug: "git-conflict",
+    topic: "git", group: "together", order: 4,
     title: "충돌 일부러 만들고 풀기 — merge conflict 실습",
     desc: "두 브랜치가 같은 줄을 고치면 Git 은 사람에게 묻는다. 충돌을 일부러 만들고, 표시를 읽고, 풀고, 취소하는 법. PR 이 conflicts 로 막혔을 때까지.",
     date: "2026-10-28", cat: "practice",
@@ -113,6 +148,7 @@ const NOTES = [
   },
   {
     slug: "git-undo",
+    topic: "git", group: "solo", order: 2,
     title: "되돌리기 — 실수했을 때 쓰는 명령 6개",
     desc: "파일을 망쳤을 때, 잘못 add 했을 때, 커밋 메시지 오타, 이미 올린 커밋, 최근 커밋 몇 개, 하던 일 치우기. restore·amend·revert·reset·stash 를 따라 치고, 날린 커밋은 reflog 로 살린다.",
     date: "2026-10-28", cat: "practice",
@@ -121,6 +157,7 @@ const NOTES = [
   },
   {
     slug: "git-sync-rebase",
+    topic: "git", group: "together", order: 5,
     title: "최신 main 따라가기 — fetch, pull, rebase",
     desc: "동료가 main 을 바꾸는 동안 내 브랜치를 최신으로 맞추기. fetch 와 pull 의 차이, rebase, rebase -i 로 커밋 합치기, --force-with-lease 가 동료 커밋을 지켜 주는 장면까지.",
     date: "2026-10-28", cat: "practice",
@@ -129,6 +166,7 @@ const NOTES = [
   },
   {
     slug: "github-collab",
+    topic: "git", group: "github", order: 6,
     title: "GitHub 협업 기능 실습 — 이슈 · 리뷰 · 보호 규칙",
     desc: "연습 저장소 하나로 따라 하기: 이슈와 라벨, Closes #1, 리뷰와 suggestion, Squash merge, Ruleset, CODEOWNERS, 템플릿, gh 명령.",
     date: "2026-10-28", cat: "practice",
@@ -137,6 +175,7 @@ const NOTES = [
   },
   {
     slug: "github-actions",
+    topic: "git", group: "github", order: 7,
     title: "GitHub Actions 첫걸음 — PR 마다 자동 검사",
     desc: "워크플로 파일 하나로 PR 마다 lint·test 를 자동으로. 일부러 실패시켜 로그 읽기, 통과해야만 합치게 막기, 비밀값 넘기기, 정적 사이트의 깨진 링크 검사까지.",
     date: "2026-10-28", cat: "practice",
@@ -146,6 +185,7 @@ const NOTES = [
 
   {
     slug: "es-modules",
+    topic: "web", group: "js", order: 1,
     title: "ES 모듈과 클래식 스크립트 — type=\"module\" 한 줄의 차이",
     desc: "자바스크립트가 무엇인지부터, 파일을 불러오는 두 방식까지. 왜 모듈은 더블클릭으로 안 열리고 서버가 있어야 하는지.",
     date: "2026-10-15",

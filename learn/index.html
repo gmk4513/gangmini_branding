@@ -19,7 +19,7 @@
 <!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
      붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
 <link rel="stylesheet" href="../style.css?v=20261002b">
-<link rel="stylesheet" href="../notes/note.css?v=20261009b">
+<link rel="stylesheet" href="../notes/note.css?v=20261028">
 </head>
 <body>
 
@@ -53,9 +53,11 @@
       <h3 class="section__head" id="h-learn">이론/용어</h3>
 
       <div id="filters" class="filters"></div>
+      <input id="q" class="lsearch" type="search" placeholder="찾아보기 — 예: rebase, 충돌, 캐시, 테스트" aria-label="글 찾아보기" autocomplete="off">
       <p id="count" class="filters__count"></p>
 
-      <div id="list" class="note-list"></div>
+      <!-- 주제별 목차: learn-app.js 가 TOPICS 순서대로 그린다 -->
+      <div id="list"></div>
     </section>
   </main>
 
@@ -65,7 +67,7 @@
 
 </div>
 
-<script src="learn.js?v=20261028"></script>
-<script src="../notes/notes-app.js?v=20261015"></script>
+<script src="learn.js?v=20261028b"></script>
+<script src="learn-app.js?v=20261028"></script>
 </body>
 </html>

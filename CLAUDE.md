@@ -216,11 +216,11 @@ gangmini.com/learn/ → 이론/용어 목록
 
 - 목록 데이터: `learn/learn.js` (`NOTE_BASE = "/learn/"`, `CATS`, `NOTES`)
 - 카테고리: 이론·용어·직무·쓰임새·**실습**(2026-10-28 추가, 따라 해 보는 Git·GitHub 튜토리얼). "팀에서 일하기" 시리즈는 직무(role), slug 는 `team-*`, 실습은 `git-*`·`github-*`
-- 렌더러는 기록과 같은 `notes/notes-app.js` 를 쓴다 (`NOTE_BASE` 로 글 주소 앞부분만 바뀜)
+- 렌더러는 `learn/learn-app.js` (2026-10-28 부터, 기록의 notes-app.js 와 따로). 날짜순 카드가 아니라 **주제별 목차**: `TOPICS`(큰 주제 → groups 소주제) 순서로 묶고, 글마다 `topic`·`group`·`order`(주제 안 읽는 순서)를 단다. 칩은 주제만, 세부 키워드는 검색창. `#team` 처럼 주소로 주제를 바로 연다
 - 스타일도 `notes/note.css` 를 같이 쓴다. 글 본문 규칙(그림+글, `.fig__scroll`, `.d-*`)은 4-2 와 같다
 - 글: `learn/<slug>/index.html`, 맨 위 되돌아가기는 `← 이론/용어` (`/learn/`)
 
-절차: 글 파일 생성 → `learn.js` 의 `NOTES` 맨 위에 추가 → `learn/index.html` 의
+절차: 글 파일 생성 → `learn.js` 의 `NOTES` 에 추가(topic·group·order 포함, 새 큰 주제면 `TOPICS` 에도) → `learn/index.html` 의
 `learn.js?v=` 숫자 올리기 → commit & push.
 
 상단 탭(만든 것 / 기록 / 이론/용어)은 `index.html`, `notes/index.html`,
