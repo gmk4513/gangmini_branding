@@ -45,6 +45,7 @@ const TOPICS = [
   { id: "git",  label: "Git · GitHub 실습",
     note: "직접 따라 치는 튜토리얼. 위에서부터 순서대로 하면 된다",
     groups: [
+      { id: "setup",    label: "시작 전에" },
       { id: "solo",     label: "혼자 쓰기" },
       { id: "together", label: "같이 쓰기 — 브랜치·충돌·최신 따라가기" },
       { id: "github",   label: "GitHub 기능" },
@@ -63,6 +64,16 @@ const TOPICS = [
 ];
 
 const NOTES = [
+
+  {
+    slug: "dev-setup",
+    topic: "git", group: "setup", order: 0,
+    title: "실습 환경 준비 — VS Code, 터미널, Git, Python",
+    desc: "실습은 어디서 하나. 내 컴퓨터에 VS Code·Git·Python 을 깔고, VS Code 안의 터미널(윈도는 Git Bash)에서 명령을 친다. 설치 확인, 이름 설정, 실습 폴더 위치, 셸마다 다른 가상환경 켜기까지.",
+    date: "2026-10-28", cat: "practice",
+    tags: ["VS Code", "터미널", "Git Bash", "Python", "가상환경", "PATH"],
+    mine: false,
+  },
 
   // ── 코드 구조와 설계 · AI 기술 기초 · main/dev (2026-10-28) ──
   {
