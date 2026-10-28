@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>AI 로 만든 코드의 주인 되기 — 팀에서 문제가 되는 순간 · gangmin</title>
+<meta name="description" content="AI 로 만든 코드가 팀에서 문제가 되는 건 품질보다 아무도 설명하지 못할 때다. 내 프로젝트에서 본 위험 신호와, 기르려는 여섯 가지 역량.">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="AI 로 만든 코드의 주인 되기 — 팀에서 문제가 되는 순간">
+<meta property="og:description" content="내 프로젝트에서 본 위험 신호와, 기르려는 여섯 가지 역량.">
+<meta property="og:url" content="https://gangmini.com/learn/team-ai-ownership/">
+<meta property="og:image" content="https://gangmini.com/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../../notes/note.css?v=20261009b">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/learn/">← 이론/용어</a>
+    <p class="eyebrow">ROLE</p>
+    <h2 class="masthead__title">AI 로 만든 코드의 주인 되기<br>— 팀에서 문제가 되는 순간</h2>
+    <div class="doc__meta">
+      <span class="tag">직무</span>
+      <span class="tag">팀에서 일하기</span>
+      <span class="tag">AI 코딩</span>
+      <span class="tag">Git</span>
+      <span class="tag">코드 리뷰</span>
+      <time class="note__date">2026.10.28</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      나는 지금까지 만든 것 대부분을 AI 와 같이 만들었다. 앱 스토어에 올린 다이어리 앱도, 릴스 100만 조회를 넘긴 스쿠터 게임도 그렇다.
+      혼자일 때는 이게 아무 문제가 없었다. 돌아가면 됐고, 이상하면 다시 고치면 됐다.
+    </p>
+    <p>
+      그런데 회사에서 사람들과 같이 일한다고 생각하니 걱정이 생겼다. 이 글은 그 걱정을 정리하고, 앞으로 기르려는 역량을 여섯 갈래로 나눈 <strong>"팀에서 일하기" 시리즈의 첫 글</strong>이다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>문제는 품질이 아니라 "설명할 사람이 없는 것"</h3>
+
+    <p>
+      AI 가 쓴 코드가 사람이 쓴 코드보다 꼭 나쁜 건 아니다. 팀에서 문제가 되는 순간은 따로 있다. 리뷰어가 "이 줄은 왜 이렇게 했어요?"라고 물었을 때 <strong>올린 사람도 모를 때</strong>다.
+    </p>
+    <p>
+      팀의 코드는 한 사람이 쓰고 끝나지 않는다. 다른 사람이 읽고, 고치고, 버그가 나면 이어받는다. 그 사이를 잇는 게 "왜"다.
+      왜 이 라이브러리를 골랐는지, 왜 이 설정이 필요한지가 남아 있지 않으면, 다음 사람은 건드리기가 무서워진다. 무서운 코드는 아무도 안 고치고, 결국 그 위에 덧대기만 쌓인다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 190" role="img" aria-label="혼자일 때는 AI 가 고친 코드가 바로 내 앱에 들어간다. 팀에서는 그 사이에 리뷰어와 다음 사람이 있고, 둘 다 '왜'를 알아야 움직일 수 있다.">
+          <text class="d-t" x="16" y="22">혼자일 때</text>
+          <rect class="d-box" x="16" y="34" width="130" height="44" rx="4"/>
+          <text class="d-t" x="81" y="61" text-anchor="middle">AI 가 고침</text>
+          <rect class="d-box-m" x="190" y="34" width="130" height="44" rx="4"/>
+          <text class="d-t" x="255" y="61" text-anchor="middle">돌아가면 끝</text>
+          <path class="d-line" d="M146,56 H183"/><polygon points="190,56 183,52 183,60" fill="#1A1D18"/>
+
+          <text class="d-t" x="16" y="114">팀일 때</text>
+          <rect class="d-box" x="16" y="126" width="130" height="44" rx="4"/>
+          <text class="d-t" x="81" y="153" text-anchor="middle">AI 가 고침</text>
+          <rect class="d-box" x="174" y="126" width="130" height="44" rx="4"/>
+          <text class="d-t" x="239" y="146" text-anchor="middle">내가 설명</text>
+          <text class="d-t-s" x="239" y="162" text-anchor="middle">무엇을 · 왜</text>
+          <rect class="d-box" x="332" y="126" width="130" height="44" rx="4"/>
+          <text class="d-t" x="397" y="146" text-anchor="middle">리뷰어</text>
+          <text class="d-t-s" x="397" y="162" text-anchor="middle">읽고 승인</text>
+          <rect class="d-box-m" x="490" y="126" width="134" height="44" rx="4"/>
+          <text class="d-t" x="557" y="146" text-anchor="middle">다음 사람</text>
+          <text class="d-t-s" x="557" y="162" text-anchor="middle">몇 달 뒤 이어받음</text>
+          <path class="d-line" d="M146,148 H167"/><polygon points="174,148 167,144 167,152" fill="#1A1D18"/>
+          <path class="d-line" d="M304,148 H325"/><polygon points="332,148 325,144 325,152" fill="#1A1D18"/>
+          <path class="d-line" d="M462,148 H483"/><polygon points="490,148 483,144 483,152" fill="#1A1D18"/>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        팀에서는 코드와 사람 사이에 "설명"이라는 칸이 하나 더 생긴다. 그 칸을 AI 가 대신 채워 주지 않는다.
+      </figcaption>
+    </figure>
+
+    <!-- ============================================================ -->
+    <h3>내 프로젝트에서 실제로 본 위험 신호</h3>
+
+    <p>
+      막연한 걱정이 아니라, 2026년 10월 28일 하루 동안 내 프로젝트를 만지며 본 것들이다.
+    </p>
+
+    <table>
+      <tr><th>본 것</th><th>팀이었다면</th></tr>
+      <tr><td>다이어리 저장소에 커밋 안 된 변경 14개 파일 · 3,316줄. 그런데 공백·줄바꿈을 빼고 보니 진짜 바뀐 건 86줄</td><td>리뷰어가 진짜 변경을 찾을 수 없다. 누가 언제 왜 바꿨는지도 안 남는다</td></tr>
+      <tr><td>스쿠터 게임은 다 만들어 배포할 때까지 git 저장소가 아니었다 (10월 28일에야 올림)</td><td>되돌리기, 변경 이력, 동시에 작업하기가 전부 안 된다</td></tr>
+      <tr><td>고친 내용이 일회성 패치 스크립트로 들어갔다 (<code>patch8.py</code> 같은 것)</td><td>코드에 "언제 무엇이 왜 바뀌었나"가 안 남는다. 스크립트는 지우면 끝이다</td></tr>
+      <tr><td>확인을 매번 손으로 했다 (에뮬레이터에서 눌러 보기)</td><td>동료가 고친 뒤 같은 확인을 반복할 방법이 없다</td></tr>
+    </table>
+
+    <p>
+      넷 다 코드가 틀린 게 아니다. 앱은 잘 돌아갔다. 다만 <strong>나 말고 다른 사람이 이어받을 수 없는 형태</strong>였다.
+      혼자 만들 때 몸에 붙은 습관이 팀에서는 그대로 비용이 된다.
+    </p>
+
+    <h4>이미 하고 있던 것도 있다</h4>
+    <ul>
+      <li><strong>인수인계 문서.</strong> 다이어리 앱의 <code>HANDOFF.md</code> 에는 폴더 구조, 바꾸면 안 되는 규칙, 실기기에서 고친 것들이 날짜별로 남아 있다.</li>
+      <li><strong>프로젝트 설명서.</strong> 프로젝트마다 <code>CLAUDE.md</code> 를 두고 정해진 것과 그 이유를 적는다. AI 에게 주는 문서지만 사람이 읽어도 그대로 인수인계 문서다.</li>
+      <li><strong>선택의 기록.</strong> <a href="/notes/">기록</a>에 프로젝트마다 "무엇을 왜 골랐고 무엇을 포기했나"를 쓴다.</li>
+    </ul>
+    <p>
+      셋 다 "왜"를 남기는 일이다. 팀에서 가장 귀한 습관인데, 이건 이미 하고 있었다. 부족한 건 그 "왜"를 <strong>코드 변경 하나하나에</strong> 붙이는 쪽이다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>기르려는 역량 여섯 가지</h3>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 300" role="img" aria-label="여섯 가지 역량. 1 내가 올린 코드를 설명하기, 2 커밋 습관, 3 시스템의 큰 그림, 4 검증을 남기기, 5 팀 규칙에 맞추기, 6 말로 나누고 맞추기. 아래에 Git 따라 하기 실습 시리즈가 받친다.">
+          <rect class="d-box-m" x="16" y="16" width="190" height="72" rx="4"/>
+          <text class="d-t-m" x="30" y="36">1</text>
+          <text class="d-t" x="30" y="56">설명하기</text>
+          <text class="d-t-s" x="30" y="74">내가 올린 diff 를 한 줄씩</text>
+
+          <rect class="d-box" x="225" y="16" width="190" height="72" rx="4"/>
+          <text class="d-t-m" x="239" y="36">2</text>
+          <text class="d-t" x="239" y="56">커밋 습관</text>
+          <text class="d-t-s" x="239" y="74">리뷰어가 읽을 수 있는 변경</text>
+
+          <rect class="d-box" x="434" y="16" width="190" height="72" rx="4"/>
+          <text class="d-t-m" x="448" y="36">3</text>
+          <text class="d-t" x="448" y="56">시스템의 큰 그림</text>
+          <text class="d-t-s" x="448" y="74">버그가 어느 층에 있나</text>
+
+          <rect class="d-box" x="16" y="104" width="190" height="72" rx="4"/>
+          <text class="d-t-m" x="30" y="124">4</text>
+          <text class="d-t" x="30" y="144">검증을 남기기</text>
+          <text class="d-t-s" x="30" y="162">남도 다시 돌릴 수 있게</text>
+
+          <rect class="d-box" x="225" y="104" width="190" height="72" rx="4"/>
+          <text class="d-t-m" x="239" y="124">5</text>
+          <text class="d-t" x="239" y="144">팀 규칙에 맞추기</text>
+          <text class="d-t-s" x="239" y="162">린터 · 포매터 · 컨벤션</text>
+
+          <rect class="d-box" x="434" y="104" width="190" height="72" rx="4"/>
+          <text class="d-t-m" x="448" y="124">6</text>
+          <text class="d-t" x="448" y="144">말로 나누고 맞추기</text>
+          <text class="d-t-s" x="448" y="162">쪼개기 · 추정 · 장단점</text>
+
+          <rect class="d-box" x="16" y="200" width="608" height="80" rx="4"/>
+          <text class="d-t" x="30" y="224">받침: Git · GitHub 따라 하기 (실습 시리즈)</text>
+          <text class="d-t-m" x="30" y="248">기본 → 브랜치와 PR → 충돌 → 되돌리기 → 최신 따라가기 → 협업 기능 → Actions</text>
+          <text class="d-t-s" x="30" y="268">명령어를 손에 익혀 두면, 위 여섯 가지를 실제로 할 수 있다</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        위 여섯은 태도와 판단, 아래는 손에 익히는 도구다. 1번이 가장 앞에 있는 이유는, 나머지가 전부 "설명할 수 있는 코드"를 전제로 하기 때문이다.
+      </figcaption>
+    </figure>
+
+    <table>
+      <tr><th>역량</th><th>한 줄</th><th>글</th></tr>
+      <tr><td>1 설명하기</td><td>AI 가 쓴 줄도 내가 쓴 것처럼 설명한다</td><td><a href="/learn/team-explain-diff/">내가 올린 코드를 설명하는 능력</a></td></tr>
+      <tr><td>2 커밋 습관</td><td>변경 하나에 커밋 하나, 메시지에 "왜"</td><td><a href="/learn/team-git-habits/">커밋 습관</a></td></tr>
+      <tr><td>3 큰 그림</td><td>소스 · 빌드 · 실행 · 네트워크 · 배포, 어느 층의 문제인가</td><td><a href="/learn/team-system-map/">시스템의 큰 그림</a></td></tr>
+      <tr><td>4 검증</td><td>"눌러 봤더니 됐다"를 남이 다시 돌릴 수 있게</td><td><a href="/learn/team-verification/">검증을 남기기</a></td></tr>
+      <tr><td>5 팀 규칙</td><td>내 스타일이 아니라 팀의 모양으로</td><td><a href="/learn/team-conventions/">팀 규칙에 맞추기</a></td></tr>
+      <tr><td>6 말로 맞추기</td><td>일을 쪼개고, 얼마나 걸릴지, 무엇을 포기할지 말한다</td><td><a href="/learn/team-communication/">말로 나누고 맞추기</a></td></tr>
+    </table>
+
+    <!-- ============================================================ -->
+    <h3>AI 를 쓰면서 주인이 되는 법</h3>
+
+    <p>
+      AI 를 덜 쓰자는 게 아니다. 앞으로 대부분의 팀이 AI 와 같이 일할 거고, 혼자 앱을 스토어까지 올려 본 경험은 오히려 강점이다.
+      차이는 <strong>결과의 주인이 누구냐</strong>다. 내가 정한 기준은 세 가지다.
+    </p>
+    <ol>
+      <li><strong>설명할 수 있다.</strong> 올리는 변경의 모든 줄에 대해 "이게 없으면 어떻게 되나"에 답할 수 있다.</li>
+      <li><strong>검증할 수 있다.</strong> 됐다는 걸 내 눈이 아니라 다시 돌릴 수 있는 방법으로 보인다.</li>
+      <li><strong>남이 이어받을 수 있다.</strong> 커밋 이력, 문서, 규칙만 보고 다음 사람이 이어서 고칠 수 있다.</li>
+    </ol>
+
+    <p class="gloss">
+      <b>diff</b> — 두 버전 사이에서 바뀐 줄만 모아 보여 주는 것. 지운 줄은 <code>-</code>, 더한 줄은 <code>+</code> 로 표시한다.<br>
+      <b>코드 리뷰</b> — 변경을 합치기 전에 동료가 읽고 질문하거나 고칠 점을 남기는 과정. GitHub 에서는 PR(Pull Request) 위에서 한다.<br>
+      <b>인수인계</b> — 내가 하던 일을 다른 사람이 이어받을 수 있게 넘기는 것. 코드에서는 문서, 커밋 이력, 테스트가 그 역할을 한다.
+    </p>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 읽기</p>
+      <ul>
+        <li><a href="/learn/team-explain-diff/">내가 올린 코드를 설명하는 능력</a> — 시리즈 1번</li>
+        <li><a href="/learn/team-git-habits/">커밋 습관</a> — 다이어리 저장소의 3,316줄이 왜 생겼나</li>
+        <li><a href="/learn/git-basics/">Git 기본 따라 하기</a> — 실습 시리즈 첫 글</li>
+        <li><a href="/notes/gamst-scooter/">감스트의 전동 스쿠터 라이딩</a> — git 없이 다 만들었던 프로젝트</li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>검증을 남기는 능력 — "고쳤다"를 다음 사람도 확인할 수 있게 · gangmin</title>
+<meta name="description" content="손으로 눌러 본 확인은 나만 안다. 체크리스트, 테스트 피라미드, 무엇부터 자동화하나. 고쳤다를 느낌이 아니라 숫자로.">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="검증을 남기는 능력 — &quot;고쳤다&quot;를 다음 사람도 확인할 수 있게">
+<meta property="og:description" content="손으로 눌러 본 확인을 체크리스트와 자동 테스트로 남기는 법.">
+<meta property="og:url" content="https://gangmini.com/learn/team-verification/">
+<meta property="og:image" content="https://gangmini.com/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../../notes/note.css?v=20261009b">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/learn/">← 이론/용어</a>
+    <p class="eyebrow">ROLE</p>
+    <h2 class="masthead__title">검증을 남기는 능력<br>— "고쳤다"를 다음 사람도 확인할 수 있게</h2>
+    <div class="doc__meta">
+      <span class="tag">직무</span>
+      <span class="tag">테스트</span>
+      <span class="tag">체크리스트</span>
+      <span class="tag">E2E</span>
+      <span class="tag">헤드리스 브라우저</span>
+      <time class="note__date">2026.10.28</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      <a href="/notes/school-diary-stack/">학창시절 다이어리</a> 안드로이드 빌드에 R8(코드 줄이기·난독화)을 켰다. R8 은 가끔 라이브러리를 조용히 깨뜨린다.
+      그래서 에뮬레이터에 설치해 크레파스로 그어 보고, 일기를 저장해 보고, 결제 화면 가격이 뜨는지 하나씩 눌러 봤다. 다 정상이었다.
+    </p>
+    <p>
+      문제는 그 확인이 <strong>내 머릿속에만 있다</strong>는 것이다. 다음 달에 라이브러리를 올리는 사람(나일 수도 있다)은 무엇을 눌러 봐야 하는지 모른다.
+      팀에서 "검증"은 확인하는 일이 아니라 <strong>확인하는 방법을 남기는 일</strong>이다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>손으로 한 확인 vs 남긴 확인</h3>
+
+    <table>
+      <tr><th></th><th>손으로 눌러 봄</th><th>체크리스트</th><th>자동 테스트</th></tr>
+      <tr><td>누가 다시 할 수 있나</td><td>나만</td><td>누구나 (사람 손으로)</td><td>누구나 (명령 한 줄)</td></tr>
+      <tr><td>얼마나 걸리나</td><td>매번 몇 분~몇십 분</td><td>매번 같음</td><td>처음 만들 때만 오래</td></tr>
+      <tr><td>빠뜨림</td><td>자주</td><td>적다</td><td>없다 (적힌 것만은)</td></tr>
+      <tr><td>언제 돌리나</td><td>생각날 때</td><td>릴리스 전</td><td>PR 마다 자동 (CI)</td></tr>
+    </table>
+
+    <p>
+      셋 중 하나만 고르는 게 아니다. 처음엔 손으로 해 보고, 두 번째부터는 체크리스트로 적고, 세 번째쯤 "또 이걸 하네" 싶으면 자동화한다.
+      손으로 한 확인을 <strong>버리지 않고 다음 단계로 올리는 것</strong>이 요점이다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>테스트 피라미드</h3>
+
+    <p>
+      자동 테스트는 크기에 따라 세 층으로 나눈다. 아래로 갈수록 빠르고 싸고 많이 쓰고, 위로 갈수록 실제 사용자에 가깝지만 느리고 잘 깨진다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 270" role="img" aria-label="테스트 피라미드. 아래 단위 테스트는 많고 빠르며, 가운데 통합 테스트, 맨 위 E2E 테스트는 적고 느리다.">
+          <polygon class="d-box-m" points="200,30 260,30 300,100 160,100"/>
+          <text class="d-t" x="230" y="72" text-anchor="middle">E2E</text>
+          <polygon class="d-box" points="160,108 300,108 340,178 120,178"/>
+          <text class="d-t" x="230" y="148" text-anchor="middle">통합</text>
+          <polygon class="d-box" points="120,186 340,186 380,256 80,256"/>
+          <text class="d-t" x="230" y="226" text-anchor="middle">단위</text>
+
+          <text class="d-t-s" x="400" y="58">앱을 실제처럼 켜고 화면을 누른다</text>
+          <text class="d-t-m" x="400" y="76">느림 · 몇 개 · 깨지기 쉬움</text>
+          <text class="d-t-s" x="400" y="136">모듈 여럿을 이어서 (DB + 저장 함수)</text>
+          <text class="d-t-m" x="400" y="154">중간</text>
+          <text class="d-t-s" x="400" y="214">함수 하나를 입력 → 출력으로</text>
+          <text class="d-t-m" x="400" y="232">빠름 · 수백 개 · 잘 안 깨짐</text>
+
+          <path class="d-line" d="M40,250 V40"/><polygon points="40,32 36,40 44,40" fill="#1A1D18"/>
+          <text class="d-t-s" x="48" y="44">사용자에</text>
+          <text class="d-t-s" x="48" y="58">가깝다</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        아래를 넓게, 위를 좁게. E2E 만 많으면 테스트가 느리고 이유 없이 실패해서 아무도 안 믿게 된다.
+      </figcaption>
+    </figure>
+
+    <table>
+      <tr><th>층</th><th>다이어리에서 예를 들면</th><th>도구 (React Native 기준)</th></tr>
+      <tr><td>단위</td><td>"설치 8일째면 체험 끝" 같은 날짜 계산 함수</td><td>Jest</td></tr>
+      <tr><td>통합</td><td>일기를 저장하면 DB 에 들어가고, 다시 열면 같은 내용이 나온다</td><td>Jest + 테스트용 DB</td></tr>
+      <tr><td>E2E</td><td>앱을 켜서 그림일기 → 크레파스로 긋기 → 저장 → 도장이 보인다</td><td>Maestro, Detox</td></tr>
+    </table>
+
+    <p class="gloss">
+      <b>E2E (End-to-End)</b> — 처음부터 끝까지. 실제 앱을 켜고 사람이 하듯 누르고 화면을 확인하는 테스트.<br>
+      <b>Maestro · Detox</b> — 모바일 앱 E2E 도구. Maestro 는 "이 글자를 눌러라, 이 글자가 보여야 한다"를 YAML 로 적고, Detox 는 자바스크립트 테스트 코드로 쓴다.<br>
+      <b>CI (지속적 통합)</b> — 코드를 올릴 때마다 서버가 자동으로 빌드하고 테스트를 돌리는 것. GitHub 에서는 Actions 로 한다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>오늘의 확인을 남기면 이렇게 된다</h3>
+
+    <h4>1단계 — 체크리스트로 적는다</h4>
+    <p>
+      손으로 한 걸 그대로 적기만 해도 절반은 된다. 핵심은 <strong>"왜 이걸 보나"</strong>를 같이 적는 것이다. 이유가 없으면 다음 사람이 "이건 빼도 되겠지" 하고 지운다.
+    </p>
+
+<pre><code>## 릴리스 전 확인 (R8 을 켠 안드로이드 빌드)
+- [ ] 앱이 켜지고 7일 체험 안내가 뜬다        ← DB·글꼴 모듈이 살아 있나
+- [ ] 크레파스로 그으면 결이 보인다             ← Skia (네이티브 그리기)
+- [ ] 일기 저장 → "참잘했어요" 도장              ← SQLite 저장
+- [ ] 선생님 한마디가 달린다                    ← 네트워크 (서버 호출)
+- [ ] 결제 화면에 가격 3개가 뜬다               ← RevenueCat + Play 결제 라이브러리
+- [ ] logcat 에 FATAL / ClassNotFound 가 없다  ← R8 이 지운 클래스</code></pre>
+
+    <p>
+      이 목록은 저장소의 <code>docs/RELEASE_CHECKLIST.md</code> 나 PR 템플릿에 둔다. 사람 머릿속이 아니라 <strong>저장소 안</strong>에 있어야 남는다.
+    </p>
+
+    <h4>2단계 — 가장 자주 하는 것부터 자동화</h4>
+    <p>
+      전부 자동화할 필요는 없다. 고르는 기준은 셋이다.
+    </p>
+    <ol>
+      <li><strong>자주 하는 것</strong> — 릴리스마다 하는 확인</li>
+      <li><strong>깨지면 비싼 것</strong> — 결제, 데이터 저장. 사용자 돈과 기록이 걸린다</li>
+      <li><strong>사람이 잘 빠뜨리는 것</strong> — 로그에 오류가 있는지 같은, 눈으로 안 보이는 것</li>
+    </ol>
+    <p>
+      다이어리라면 "켜기 → 저장 → 도장 확인"이 첫 E2E 후보다. Maestro 로 쓰면 대략 이런 모양이 된다(예시다. 다이어리에 아직 넣지 않았다).
+    </p>
+
+<pre><code># .maestro/save-diary.yaml
+appId: com.looth.schooldiary
+---
+- launchApp
+- tapOn: "시작하기"
+- tapOn: "그림일기장"
+- tapOn: "크레파스 꺼내기"
+- swipe: { start: "30%,40%", end: "70%,55%" }
+- tapOn: "저장"
+- assertVisible: "선생님의 한마디"</code></pre>
+
+    <!-- ============================================================ -->
+    <h3>헤드리스 브라우저도 검증이다</h3>
+
+    <p>
+      웹 게임에서는 이미 비슷한 걸 했다. <a href="/notes/bumpercar-2026/">범퍼카 2026</a> 에서 "판이 너무 길다"를 고칠 때,
+      게임에 <code>window.__game.sim(초)</code> 라는 손잡이를 남겨 두고 화면 없는 크롬에서 봇끼리 30판을 돌려 평균 경기 시간을 쟀다.
+      숫자를 바꿀 때마다 다시 쟀다. 이게 바로 "고쳤다"를 느낌이 아니라 숫자로 남기는 방식이다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 150" role="img" aria-label="값을 바꾸고, 같은 스크립트로 측정하고, 숫자를 비교하는 반복 고리">
+          <rect class="d-box" x="16" y="40" width="160" height="64" rx="4"/>
+          <text class="d-t" x="96" y="66" text-anchor="middle">값을 바꾼다</text>
+          <text class="d-t-s" x="96" y="86" text-anchor="middle">밀려나는 힘 55 → 80</text>
+
+          <rect class="d-box-m" x="240" y="40" width="160" height="64" rx="4"/>
+          <text class="d-t" x="320" y="66" text-anchor="middle">같은 스크립트로 잰다</text>
+          <text class="d-t-s" x="320" y="86" text-anchor="middle">헤드리스 크롬 · 30판</text>
+
+          <rect class="d-box" x="464" y="40" width="160" height="64" rx="4"/>
+          <text class="d-t" x="544" y="66" text-anchor="middle">숫자를 비교한다</text>
+          <text class="d-t-s" x="544" y="86" text-anchor="middle">평균 경기 시간 · 부스터 수</text>
+
+          <path class="d-line" d="M176,72 H233"/><polygon points="240,72 233,68 233,76" fill="#1A1D18"/>
+          <path class="d-line" d="M400,72 H457"/><polygon points="464,72 457,68 457,76" fill="#1A1D18"/>
+          <path class="d-dash" d="M544,104 V128 H96 V111"/><polygon points="96,104 92,111 100,111" fill="#6E7469"/>
+          <text class="d-t-s" x="320" y="142" text-anchor="middle">스크립트가 저장소에 있으면 누구든 같은 숫자를 다시 낼 수 있다</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        측정 스크립트를 남기는 것 자체가 검증을 남기는 것이다. 숫자 하나가 "고쳤어요" 열 마디보다 리뷰어를 빨리 설득한다.
+      </figcaption>
+    </figure>
+
+    <!-- ============================================================ -->
+    <h3>AI 와 일할 때 특히 중요한 이유</h3>
+
+    <ul>
+      <li><strong>AI 는 "다 됐다"고 말한다.</strong> 정말 됐는지는 돌려 봐야 안다. 테스트가 있으면 AI 의 말 대신 결과를 본다.</li>
+      <li><strong>AI 에게 테스트부터 쓰게 할 수 있다.</strong> "이 함수의 테스트를 먼저 쓰고, 통과하게 고쳐"라고 하면 고친 범위가 테스트로 남는다.</li>
+      <li><strong>큰 변경을 겁 없이 맡길 수 있다.</strong> 라이브러리 업그레이드, R8 같은 빌드 설정은 테스트가 있어야 "깨진 곳이 없다"를 말할 수 있다.</li>
+    </ul>
+
+    <!-- ============================================================ -->
+    <h3>정리</h3>
+
+    <table>
+      <tr><th>할 일</th><th>한 줄</th></tr>
+      <tr><td>확인을 적는다</td><td>무엇을 + 왜 보는지. 저장소 안에</td></tr>
+      <tr><td>피라미드 모양으로</td><td>단위 많이, E2E 조금</td></tr>
+      <tr><td>자동화 순서</td><td>자주 하는 것 · 깨지면 비싼 것 · 잘 빠뜨리는 것</td></tr>
+      <tr><td>숫자로 남긴다</td><td>측정 스크립트가 있으면 누구든 다시 잰다</td></tr>
+      <tr><td>CI 에 건다</td><td>PR 마다 자동으로. 사람이 기억할 필요가 없게</td></tr>
+    </table>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 읽기</p>
+      <ul>
+        <li><a href="/learn/team-ai-ownership/">AI 로 만든 코드의 주인 되기</a> — 이 시리즈의 첫 글</li>
+        <li><a href="/learn/team-system-map/">시스템의 큰 그림</a> — 어디가 깨질지 알아야 무엇을 확인할지 안다</li>
+        <li><a href="/learn/github-actions/">GitHub Actions 실습</a> — 테스트를 PR 마다 자동으로</li>
+        <li><a href="/learn/team-conventions/">팀 규칙에 맞추는 능력</a></li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

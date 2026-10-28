@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>GitHub 협업 기능 실습 — 이슈 · 리뷰 · 보호 규칙 · gangmin</title>
+<meta name="description" content="연습 저장소 하나로 따라 하는 GitHub 협업: 이슈와 라벨, Closes #1 로 PR 과 잇기, 리뷰와 suggestion, 브랜치 보호 규칙, CODEOWNERS, 이슈·PR 템플릿, 그리고 gh 명령.">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="GitHub 협업 기능 실습 — 이슈 · 리뷰 · 보호 규칙">
+<meta property="og:description" content="연습 저장소 하나로 회사에서 쓰는 GitHub 협업 기능을 따라 해 본다.">
+<meta property="og:url" content="https://gangmini.com/learn/github-collab/">
+<meta property="og:image" content="https://gangmini.com/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../../notes/note.css?v=20261009b">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/learn/">← 이론/용어</a>
+    <p class="eyebrow">PRACTICE</p>
+    <h2 class="masthead__title">GitHub 협업 기능 실습<br>— 이슈 · 리뷰 · 보호 규칙</h2>
+    <div class="doc__meta">
+      <span class="tag">실습</span>
+      <span class="tag">GitHub</span>
+      <span class="tag">gh CLI</span>
+      <span class="tag">코드 리뷰</span>
+      <span class="tag">브랜치 보호</span>
+      <time class="note__date">2026.10.28</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      git 명령은 내 컴퓨터 안의 일이고, 이 글은 <strong>GitHub 위에서 사람끼리 일하는 방법</strong>이다. 이슈로 할 일을 정하고, PR 로 고치고, 리뷰를 받고,
+      실수로 main 이 망가지지 않게 규칙을 건다. 연습 저장소 하나를 만들어 처음부터 끝까지 따라 한다. 웹 화면과 <code>gh</code> 명령을 같이 적었다. 편한 쪽으로 하면 된다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 200" role="img" aria-label="이슈 1번을 만들고, 브랜치에서 고쳐 PR 을 열고 본문에 Closes #1 을 적고, 리뷰와 체크를 통과하면 main 에 합쳐지고 이슈 1번이 자동으로 닫힌다">
+          <rect class="d-box" x="16" y="40" width="112" height="64" rx="4"/>
+          <text class="d-t" x="72" y="66" text-anchor="middle">이슈 #1</text>
+          <text class="d-t-s" x="72" y="86" text-anchor="middle">라벨 · 담당자</text>
+
+          <rect class="d-box" x="144" y="40" width="112" height="64" rx="4"/>
+          <text class="d-t" x="200" y="66" text-anchor="middle">브랜치 · 커밋</text>
+          <text class="d-t-s" x="200" y="86" text-anchor="middle">docs/readme-run</text>
+
+          <rect class="d-box" x="272" y="40" width="112" height="64" rx="4"/>
+          <text class="d-t" x="328" y="66" text-anchor="middle">PR #2</text>
+          <text class="d-t-s" x="328" y="86" text-anchor="middle">본문에 Closes #1</text>
+
+          <rect class="d-box-m" x="400" y="40" width="112" height="64" rx="4"/>
+          <text class="d-t" x="456" y="66" text-anchor="middle">리뷰 · 체크</text>
+          <text class="d-t-s" x="456" y="86" text-anchor="middle">보호 규칙이 지킴</text>
+
+          <rect class="d-box" x="528" y="40" width="96" height="64" rx="4"/>
+          <text class="d-t" x="576" y="66" text-anchor="middle">main</text>
+          <text class="d-t-s" x="576" y="86" text-anchor="middle">합치기</text>
+
+          <path class="d-line" d="M128,72 H137"/><polygon points="144,72 137,68 137,76" fill="#1A1D18"/>
+          <path class="d-line" d="M256,72 H265"/><polygon points="272,72 265,68 265,76" fill="#1A1D18"/>
+          <path class="d-line" d="M384,72 H393"/><polygon points="400,72 393,68 393,76" fill="#1A1D18"/>
+          <path class="d-line" d="M512,72 H521"/><polygon points="528,72 521,68 521,76" fill="#1A1D18"/>
+
+          <path class="d-dash" d="M576,104 V150 H72 V111"/><polygon points="72,104 68,111 76,111" fill="#6E7469"/>
+          <text class="d-t-s" x="324" y="168" text-anchor="middle">합쳐지는 순간 이슈 #1 이 저절로 닫힌다 (Closes #1)</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        이 글에서 한 바퀴 돌 길. 회사에서 하루에 몇 번씩 도는 고리다.
+      </figcaption>
+    </figure>
+
+    <!-- ============================================================ -->
+    <h3>0. 준비 — 연습 저장소</h3>
+
+    <p>
+      <a href="/learn/git-basics/">git 기본 실습</a>에서 만든 <code>git-practice</code> 가 있으면 그걸 쓴다. 없으면 새로 만든다.
+      <strong>공개(public)로</strong> 만든다. 무료 계정에서 브랜치 보호 규칙은 공개 저장소에서만 걸 수 있다.
+    </p>
+
+<pre><code>gh auth status                      # 로그인 확인. 안 돼 있으면 gh auth login
+gh repo create git-practice --public --add-readme --clone
+cd git-practice</code></pre>
+
+    <p>
+      <strong>보이는 것:</strong> <code>Created repository &lt;내아이디&gt;/git-practice on GitHub</code> 가 나오고, 같은 이름의 폴더가 생긴다. 안에 <code>README.md</code> 하나.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>1. 이슈 만들기 — 라벨, 담당자</h3>
+
+    <p>할 일을 이슈로 먼저 적는다. 라벨은 종류(버그·기능·문서), 담당자는 누가 할지다.</p>
+
+<pre><code>gh label create docs --color 0E8A16 --description "문서 수정"
+gh issue create --title "README 에 실행 방법이 없다" \
+  --body "처음 온 사람이 무엇을 해야 하는지 모른다. 실행 방법 한 줄을 넣자." \
+  --label docs --assignee @me</code></pre>
+
+    <p>
+      <strong>보이는 것:</strong> 이슈 주소(<code>…/git-practice/issues/1</code>)가 출력된다. 웹에서 열면 오른쪽에 라벨 <code>docs</code> 와 담당자(나)가 붙어 있다.
+      <code>gh issue list</code> 로 목록을 보면 <code>#1</code> 이 보인다.
+    </p>
+    <p>
+      웹으로 하려면: 저장소 → <b>Issues</b> 탭 → <b>New issue</b> → 제목·본문 → 오른쪽 <b>Labels</b>, <b>Assignees</b>.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>2. 고치고 PR 열기 — Closes #1</h3>
+
+<pre><code>git switch -c docs/readme-run
+echo "" &gt;&gt; README.md
+echo "## 실행" &gt;&gt; README.md
+echo "index.html 을 브라우저로 연다." &gt;&gt; README.md
+git add README.md
+git commit -m "README 에 실행 방법 추가"
+git push -u origin docs/readme-run
+
+gh pr create --title "README 에 실행 방법 추가" \
+  --body "Closes #1
+
+## 확인 방법
+- README 를 열어 '실행' 칸이 보이는지"</code></pre>
+
+    <p>
+      <strong>보이는 것:</strong> PR 주소(<code>…/pull/2</code>)가 나온다. 이슈와 PR 은 번호를 같이 쓰기 때문에 2번이 된다.
+      웹에서 PR 을 열면 오른쪽 <b>Development</b> 칸에 이슈 #1 이 이어져 있다.
+    </p>
+
+    <p class="gloss">
+      <b>Closes #1</b> — PR 본문(또는 커밋 메시지)에 이렇게 적으면, 그 PR 이 기본 브랜치에 합쳐질 때 이슈 #1 이 자동으로 닫힌다. <code>Fixes #1</code>, <code>Resolves #1</code> 도 같다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>3. 리뷰하기 — 댓글, suggestion, 승인</h3>
+
+    <p>
+      PR 의 <b>Files changed</b> 탭에서 줄 번호 옆 <b>+</b> 를 누르면 그 줄에 댓글을 단다. 이때 아래처럼 쓰면 <strong>"이렇게 바꾸세요"를 코드로 제안</strong>할 수 있다.
+    </p>
+
+<pre><code>```suggestion
+`index.html` 을 브라우저로 연다. (더블클릭)
+```</code></pre>
+
+    <p>
+      <strong>보이는 것:</strong> 댓글에 바뀐 줄이 초록·빨강으로 보이고 <b>Commit suggestion</b> 버튼이 생긴다. PR 작성자가 누르면 그대로 커밋된다.
+    </p>
+
+    <p>
+      줄 댓글을 다 달았으면 오른쪽 위 <b>Review changes</b> 에서 셋 중 하나를 고른다.
+    </p>
+    <table>
+      <tr><th>선택</th><th>뜻</th><th>gh 명령</th></tr>
+      <tr><td>Comment</td><td>의견만. 합치기를 막지도 허락하지도 않음</td><td><code>gh pr review 2 --comment -b "…"</code></td></tr>
+      <tr><td>Approve</td><td>합쳐도 된다</td><td><code>gh pr review 2 --approve</code></td></tr>
+      <tr><td>Request changes</td><td>고치기 전엔 안 된다</td><td><code>gh pr review 2 --request-changes -b "…"</code></td></tr>
+    </table>
+
+    <p>
+      <strong>혼자 연습할 때 주의:</strong> GitHub 은 <strong>자기 PR 을 승인할 수 없다.</strong> Comment 는 되지만 Approve 와 Request changes 는 거절된다.
+      승인까지 해 보려면 친구 계정을 <b>Settings → Collaborators</b> 로 초대해 서로 리뷰하면 된다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>4. 합치기 — 세 가지 방법</h3>
+
+<pre><code>gh pr merge 2 --squash --delete-branch</code></pre>
+
+    <table>
+      <tr><th>방법</th><th>main 에 남는 것</th><th>언제</th></tr>
+      <tr><td>Merge commit (<code>--merge</code>)</td><td>브랜치 커밋 전부 + 합침 커밋 하나</td><td>브랜치의 커밋 이력을 그대로 남기고 싶을 때</td></tr>
+      <tr><td>Squash (<code>--squash</code>)</td><td>커밋 하나로 뭉쳐서</td><td>PR 하나 = 커밋 하나. 회사에서 가장 흔하다</td></tr>
+      <tr><td>Rebase (<code>--rebase</code>)</td><td>브랜치 커밋을 main 위에 하나씩 다시</td><td>합침 커밋 없이 일자 이력을 원할 때</td></tr>
+    </table>
+
+    <p>
+      <strong>보이는 것:</strong> PR 이 보라색 <b>Merged</b> 가 되고, 이슈 #1 이 <b>Closed</b> 가 된다(Closes #1 덕분). 원격 브랜치도 지워진다. 내 컴퓨터는
+      <code>git switch main &amp;&amp; git pull</code> 로 맞춘다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>5. 브랜치 보호 규칙 — main 을 지키기</h3>
+
+    <p>
+      회사 저장소의 main 에는 거의 항상 규칙이 걸려 있다. "PR 없이 바로 push 금지", "승인 1명 이상", "테스트 통과해야 합치기".
+    </p>
+    <ol>
+      <li>저장소 → <b>Settings</b> → <b>Rules</b> → <b>Rulesets</b> → <b>New ruleset</b> → <b>New branch ruleset</b></li>
+      <li>이름 <code>protect-main</code>, <b>Enforcement status</b> 를 <b>Active</b></li>
+      <li><b>Target branches</b> → <b>Add target</b> → <b>Include default branch</b></li>
+      <li>규칙 체크:
+        <ul>
+          <li><b>Require a pull request before merging</b> → Required approvals <b>1</b></li>
+          <li><b>Require status checks to pass</b> (<a href="/learn/github-actions/">Actions</a> 를 만든 뒤에 그 검사 이름을 고른다)</li>
+          <li><b>Block force pushes</b></li>
+        </ul>
+      </li>
+      <li><b>Create</b></li>
+    </ol>
+
+<pre><code>git switch main
+echo "직접 push 해 보기" &gt;&gt; README.md
+git commit -am "main 에 바로"
+git push</code></pre>
+
+    <p>
+      <strong>보이는 것:</strong> push 가 거절되고 <code>GH013: Repository rule violations found</code> 와 함께 "변경은 PR 로 해야 한다"는 내용이 나온다. 규칙이 동작한다.
+      (확인했으면 <code>git reset --hard origin/main</code> 으로 그 커밋을 지운다.)
+    </p>
+
+    <p>
+      <strong>혼자 쓰는 저장소의 함정:</strong> 승인 1명을 걸면, 자기 PR 은 승인할 수 없으니 영영 못 합친다. 혼자라면 Required approvals 를 <b>0</b> 으로 두거나,
+      ruleset 의 <b>Bypass list</b> 에 <b>Repository admin</b> 을 넣는다. 회사에서는 이 목록이 아주 짧게 관리된다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>6. CODEOWNERS — 리뷰어 자동 지정</h3>
+
+    <p>
+      파일 경로마다 "이 부분은 이 사람이 봐야 한다"를 적어 두면, 그 경로를 건드린 PR 에 리뷰 요청이 자동으로 간다.
+    </p>
+
+<pre><code># .github/CODEOWNERS
+# 기본: 전부 내가 본다
+*            @내아이디
+# docs 폴더는 문서 담당, .sql 파일은 DB 담당 (뒤에 적은 줄이 이긴다)
+/docs/       @문서담당
+*.sql        @db담당</code></pre>
+
+    <p>
+      <strong>보이는 것:</strong> 이 파일이 main 에 들어간 뒤 PR 을 열면, 오른쪽 <b>Reviewers</b> 에 해당 사람이 자동으로 들어간다(PR 작성자 본인은 빠진다).
+      ruleset 에서 <b>Require review from Code Owners</b> 를 켜면 그 사람의 승인이 있어야 합쳐진다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>7. 이슈 · PR 템플릿</h3>
+
+    <p>매번 같은 칸을 채우게 하는 파일 두 개. 둘 다 기본 브랜치에 있어야 동작한다.</p>
+
+<pre><code># .github/ISSUE_TEMPLATE/bug.md
+---
+name: 버그 신고
+about: 재현할 수 있게 적어 주세요
+labels: bug
+---
+## 재현 단계
+1.
+## 기대한 것
+## 실제로 일어난 것
+## 환경 (기기 · 브라우저)</code></pre>
+
+<pre><code># .github/pull_request_template.md
+## 무엇을
+## 왜 (Closes #)
+## 확인 방법
+- [ ]
+## 스크린샷</code></pre>
+
+    <p>
+      <strong>보이는 것:</strong> <b>New issue</b> 를 누르면 "버그 신고"를 고르는 화면이 나오고, 고르면 본문에 칸이 채워져 있다. 새 PR 본문에도 템플릿이 들어 있다.
+      명령으로는 <code>gh issue create --template "버그 신고"</code>.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>자주 쓰는 gh 명령 모음</h3>
+
+    <table>
+      <tr><th>하고 싶은 것</th><th>명령</th></tr>
+      <tr><td>내게 걸린 이슈 · PR 한눈에</td><td><code>gh issue status</code> · <code>gh pr status</code></td></tr>
+      <tr><td>이슈 보기 (댓글까지)</td><td><code>gh issue view 1 --comments</code></td></tr>
+      <tr><td>남의 PR 을 내 컴퓨터로 받아 실행</td><td><code>gh pr checkout 7</code></td></tr>
+      <tr><td>PR 변경 보기</td><td><code>gh pr diff 7</code></td></tr>
+      <tr><td>PR 의 검사(CI) 결과</td><td><code>gh pr checks 7</code></td></tr>
+      <tr><td>PR 에 댓글</td><td><code>gh pr comment 7 -b "확인했어요"</code></td></tr>
+      <tr><td>브라우저로 열기</td><td><code>gh pr view 7 --web</code></td></tr>
+      <tr><td>조건이 채워지면 자동 합치기</td><td><code>gh pr merge 7 --squash --auto</code></td></tr>
+    </table>
+
+    <!-- ============================================================ -->
+    <h3>정리</h3>
+
+    <table>
+      <tr><th>기능</th><th>팀에서 하는 일</th></tr>
+      <tr><td>이슈 · 라벨 · 담당자</td><td>할 일을 글로. 누가 무엇을 하는지 보인다</td></tr>
+      <tr><td>Closes #N</td><td>PR 과 이슈를 잇고, 합치면 자동으로 닫는다</td></tr>
+      <tr><td>리뷰 · suggestion</td><td>말 대신 코드로 제안. 승인이 합치기 조건</td></tr>
+      <tr><td>Squash merge</td><td>PR 하나 = main 의 커밋 하나</td></tr>
+      <tr><td>Ruleset</td><td>main 에 직접 push 금지, 승인·검사 필수</td></tr>
+      <tr><td>CODEOWNERS</td><td>경로별 담당 리뷰어 자동 지정</td></tr>
+      <tr><td>템플릿</td><td>이슈와 PR 이 늘 같은 칸을 갖게</td></tr>
+    </table>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 읽기</p>
+      <ul>
+        <li><a href="/learn/git-branch-pr/">브랜치와 PR 실습</a> — 이 글의 앞 단계</li>
+        <li><a href="/learn/github-actions/">GitHub Actions 실습</a> — 보호 규칙의 "검사 통과"를 만드는 곳</li>
+        <li><a href="/learn/team-communication/">일을 나누고 말로 맞추는 능력</a> — 이슈와 PR 설명 쓰기</li>
+        <li><a href="/learn/team-conventions/">팀 규칙에 맞추는 능력</a></li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>팀 규칙에 맞추는 능력 — 사람도 AI 도 같은 규칙을 따르게 · gangmin</title>
+<meta name="description" content="린터·포매터·editorconfig, 이름과 폴더 규칙, README·CONTRIBUTING·CLAUDE.md, PR 템플릿. 규칙을 문서와 도구로 남기면 사람도 AI 도 같은 코드를 쓴다.">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="팀 규칙에 맞추는 능력 — 사람도 AI 도 같은 규칙을 따르게">
+<meta property="og:description" content="규칙을 사람의 기억이 아니라 도구와 문서에 두는 법.">
+<meta property="og:url" content="https://gangmini.com/learn/team-conventions/">
+<meta property="og:image" content="https://gangmini.com/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../../notes/note.css?v=20261009b">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/learn/">← 이론/용어</a>
+    <p class="eyebrow">ROLE</p>
+    <h2 class="masthead__title">팀 규칙에 맞추는 능력<br>— 사람도 AI 도 같은 규칙을 따르게</h2>
+    <div class="doc__meta">
+      <span class="tag">직무</span>
+      <span class="tag">ESLint</span>
+      <span class="tag">Prettier</span>
+      <span class="tag">EditorConfig</span>
+      <span class="tag">컨벤션</span>
+      <time class="note__date">2026.10.28</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      팀 코드에서 가장 먼저 눈에 띄는 건 기능이 아니라 <strong>모양</strong>이다. 따옴표가 작은따옴표인지 큰따옴표인지, 들여쓰기가 2칸인지 4칸인지,
+      파일 이름이 <code>posterEditor.tsx</code> 인지 <code>PosterEditor.tsx</code> 인지. 하나하나는 사소한데, 섞이면 리뷰가 모양 얘기로 다 끝난다.
+    </p>
+    <p>
+      이 글의 요점은 하나다. <strong>규칙은 사람의 기억이 아니라 도구와 문서에 둔다.</strong> 그러면 사람도, AI 도, 내일의 나도 같은 규칙을 따른다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>규칙이 사는 세 곳</h3>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 230" role="img" aria-label="규칙은 도구(포매터·린터), 문서(README·CONTRIBUTING·CLAUDE.md), 템플릿(PR·이슈) 세 곳에 둔다. 셋 다 사람과 AI 가 같이 읽는다.">
+          <rect class="d-box" x="16" y="24" width="190" height="120" rx="4"/>
+          <text class="d-t" x="111" y="48" text-anchor="middle">도구 — 자동으로 막는다</text>
+          <text class="d-t-m" x="30" y="74">.editorconfig</text>
+          <text class="d-t-m" x="30" y="94">.prettierrc</text>
+          <text class="d-t-m" x="30" y="114">eslint.config.js</text>
+          <text class="d-t-s" x="30" y="134">모양 · 흔한 실수</text>
+
+          <rect class="d-box" x="225" y="24" width="190" height="120" rx="4"/>
+          <text class="d-t" x="320" y="48" text-anchor="middle">문서 — 판단을 알려 준다</text>
+          <text class="d-t-m" x="239" y="74">README.md</text>
+          <text class="d-t-m" x="239" y="94">CONTRIBUTING.md</text>
+          <text class="d-t-m" x="239" y="114">CLAUDE.md</text>
+          <text class="d-t-s" x="239" y="134">구조 · 이유 · 하지 말 것</text>
+
+          <rect class="d-box" x="434" y="24" width="190" height="120" rx="4"/>
+          <text class="d-t" x="529" y="48" text-anchor="middle">템플릿 — 빠뜨림을 막는다</text>
+          <text class="d-t-m" x="448" y="74">pull_request_template.md</text>
+          <text class="d-t-m" x="448" y="94">ISSUE_TEMPLATE/</text>
+          <text class="d-t-s" x="448" y="114">무엇 · 왜 · 확인 방법</text>
+          <text class="d-t-s" x="448" y="134">매번 같은 칸을 채우게</text>
+
+          <rect class="d-box-m" x="170" y="176" width="300" height="40" rx="4"/>
+          <text class="d-t" x="320" y="201" text-anchor="middle">사람 · AI · 내일의 나 — 모두 같은 걸 읽는다</text>
+          <path class="d-line" d="M111,144 V160 H529 V144 M320,144 V169"/>
+          <polygon points="320,176 316,169 324,169" fill="#1A1D18"/>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        기계가 판단할 수 있는 건 도구로, 사람이 판단해야 하는 건 문서로, 매번 물어야 하는 건 템플릿으로.
+      </figcaption>
+    </figure>
+
+    <!-- ============================================================ -->
+    <h3>도구 — 모양은 사람이 지키지 않는다</h3>
+
+    <table>
+      <tr><th>도구</th><th>하는 일</th><th>예</th></tr>
+      <tr><td>EditorConfig</td><td>편집기 기본값을 맞춘다</td><td>들여쓰기 2칸, 줄바꿈 LF, 파일 끝 빈 줄</td></tr>
+      <tr><td>Prettier (포매터)</td><td>코드 모양을 저장할 때 자동으로 고친다</td><td>따옴표, 줄 길이, 쉼표</td></tr>
+      <tr><td>ESLint (린터)</td><td>모양이 아닌 <strong>실수</strong>를 잡는다</td><td>안 쓰는 변수, <code>==</code> 대신 <code>===</code>, React hook 규칙 위반</td></tr>
+      <tr><td>.gitattributes</td><td>저장소 안 줄바꿈을 통일한다</td><td><code>* text=auto eol=lf</code></td></tr>
+    </table>
+
+<pre><code># .editorconfig — 저장소 맨 위에 둔다
+root = true
+
+[*]
+indent_style = space
+indent_size = 2
+end_of_line = lf
+insert_final_newline = true
+charset = utf-8</code></pre>
+
+    <p>
+      줄바꿈은 실제로 당한 적이 있다. 다이어리 저장소에서 커밋 안 된 변경이 3,316줄로 보였는데 의미 있는 변경은 86줄이었다.
+      나머지는 윈도의 줄바꿈(CRLF)과 리눅스·맥의 줄바꿈(LF)이 섞여 생긴 가짜 변경이었다. 팀이었다면 리뷰어가 진짜 변경을 찾을 수 없었을 것이다.
+      <code>.editorconfig</code> 와 <code>.gitattributes</code> 두 파일이면 처음부터 막힌다.
+    </p>
+
+    <p class="gloss">
+      <b>린터(linter)</b> — 코드를 실행하지 않고 읽어서 실수일 가능성이 높은 패턴을 찾아 주는 도구.<br>
+      <b>포매터(formatter)</b> — 코드의 뜻은 그대로 두고 모양(띄어쓰기·줄바꿈·따옴표)만 정해진 대로 바꾸는 도구. 모양 논쟁을 없앤다.<br>
+      <b>CRLF / LF</b> — 줄을 바꾸는 보이지 않는 문자. 윈도는 두 글자(CR+LF), 맥·리눅스는 한 글자(LF). 섞이면 모든 줄이 바뀐 것처럼 보인다.
+    </p>
+
+    <h4>저장할 때 · 커밋할 때 · PR 때</h4>
+    <p>
+      도구는 세 번 건다. 편집기가 저장할 때 Prettier 를 돌리고, 커밋할 때 바뀐 파일만 린트하고(husky + lint-staged), PR 이 열리면 CI 가 전체를 한 번 더 본다.
+      앞에서 놓쳐도 뒤에서 잡힌다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>이름과 폴더 — 예측할 수 있게</h3>
+
+    <p>
+      좋은 규칙의 기준은 "처음 온 사람이 파일 위치를 <strong>찾지 않고 짐작</strong>할 수 있나"다.
+    </p>
+    <table>
+      <tr><th>정할 것</th><th>흔한 규칙</th></tr>
+      <tr><td>컴포넌트 파일</td><td><code>PascalCase.tsx</code> — 다이어리의 <code>src/screens/PosterEditor.tsx</code> 처럼</td></tr>
+      <tr><td>함수 · 변수</td><td><code>camelCase</code>, 불리언은 <code>is</code>·<code>has</code>로 시작 (<code>hasPremium</code>)</td></tr>
+      <tr><td>상수</td><td><code>UPPER_SNAKE</code> — <code>TRIAL_DAYS = 7</code></td></tr>
+      <tr><td>폴더</td><td>종류별(<code>screens/</code>, <code>components/</code>) 또는 기능별(<code>diary/</code>, <code>meal/</code>). 섞지 않는다</td></tr>
+      <tr><td>브랜치 · 커밋</td><td><code>feat/…</code>, <code>fix/…</code> · 커밋 메시지 언어와 형식</td></tr>
+    </table>
+
+    <!-- ============================================================ -->
+    <h3>문서 — AI 도 읽는 규칙</h3>
+
+    <p>
+      나는 프로젝트마다 <code>CLAUDE.md</code> 를 둔다. AI 가 작업을 시작할 때 읽는 설명서다. 그런데 써 보니 이건 사람에게도 그대로 필요한 문서다.
+      예를 들어 gangmini 사이트의 <code>CLAUDE.md</code> 에는 이런 규칙이 있다.
+    </p>
+    <ul>
+      <li>"빌드 단계를 늘리지 않는다. 허브는 순수 HTML/CSS/JS다."</li>
+      <li>"note.css 를 고치면 그 파일을 불러오는 html 의 <code>?v=</code> 숫자를 함께 올린다." (이유: 4시간 캐시)</li>
+      <li>"SVG 는 반드시 <code>.fig__scroll</code> 로 감싼다." (이유: 폰에서 글씨가 6px 가 된다)</li>
+    </ul>
+    <p>
+      셋 다 <strong>규칙 + 이유</strong>다. 이유가 같이 있으면 사람은 납득하고, AI 는 비슷한 다른 상황에도 같은 판단을 한다.
+    </p>
+
+    <table>
+      <tr><th>파일</th><th>누가 읽나</th><th>담는 것</th></tr>
+      <tr><td>README.md</td><td>처음 온 사람</td><td>이게 뭔가, 어떻게 실행하나</td></tr>
+      <tr><td>CONTRIBUTING.md</td><td>코드를 고치려는 사람</td><td>브랜치·커밋 규칙, 테스트 방법, PR 절차</td></tr>
+      <tr><td>CLAUDE.md · AGENTS.md</td><td>AI 도구 (그리고 사람)</td><td>구조, 하지 말 것, 지켜야 할 규칙과 이유</td></tr>
+    </table>
+
+    <!-- ============================================================ -->
+    <h3>둘레의 코드를 따라 쓴다</h3>
+
+    <p>
+      문서에 없는 건 <strong>이미 있는 코드가 규칙</strong>이다. 새 화면을 만들 때 옆 화면이 상태를 어떻게 다루는지, 에러를 어떻게 보여 주는지 먼저 본다.
+      "내 방식이 더 낫다"고 생각해도, 한 파일 안에 두 방식이 섞이는 것보다는 기존 방식이 낫다. 바꾸고 싶으면 따로 제안해서 한 번에 바꾼다.
+    </p>
+    <p>
+      AI 에게 일을 맡길 때도 같다. "이 폴더의 다른 화면과 같은 방식으로"라고 붙이면 결과가 훨씬 팀 코드처럼 나온다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>PR 템플릿</h3>
+
+    <p>
+      <code>.github/pull_request_template.md</code> 에 두면 PR 을 열 때마다 이 칸이 미리 채워진다.
+    </p>
+
+<pre><code>## 무엇을
+&lt;!-- 한두 줄 --&gt;
+
+## 왜
+&lt;!-- 이슈 번호: Closes #12 --&gt;
+
+## 확인 방법
+- [ ]
+
+## 스크린샷 (화면이 바뀌었으면)</code></pre>
+
+    <!-- ============================================================ -->
+    <h3>정리</h3>
+
+    <table>
+      <tr><th>규칙의 종류</th><th>어디에</th></tr>
+      <tr><td>모양 (들여쓰기·따옴표·줄바꿈)</td><td>EditorConfig · Prettier · .gitattributes — 사람이 신경 쓰지 않게</td></tr>
+      <tr><td>흔한 실수</td><td>ESLint — 커밋과 CI 에서</td></tr>
+      <tr><td>구조 · 판단 · 이유</td><td>README · CONTRIBUTING · CLAUDE.md</td></tr>
+      <tr><td>매번 물어야 하는 것</td><td>PR · 이슈 템플릿</td></tr>
+      <tr><td>문서에 없는 것</td><td>둘레의 코드를 따른다</td></tr>
+    </table>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 읽기</p>
+      <ul>
+        <li><a href="/learn/team-git-habits/">Git 으로 일하는 습관</a> — 커밋 단위와 메시지</li>
+        <li><a href="/learn/team-communication/">일을 나누고 말로 맞추는 능력</a> — PR 설명 쓰기</li>
+        <li><a href="/learn/github-collab/">GitHub 협업 기능 실습</a> — 템플릿과 보호 규칙을 직접 걸어 보기</li>
+        <li><a href="/learn/github-actions/">GitHub Actions 실습</a> — 린트를 PR 마다 자동으로</li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

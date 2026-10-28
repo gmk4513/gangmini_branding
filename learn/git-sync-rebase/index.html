@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>최신 main 따라가기 — fetch, pull, rebase · gangmin</title>
+<meta name="description" content="동료가 main 을 바꾸는 동안 내 브랜치를 최신으로 맞추는 법. fetch 와 pull 의 차이, rebase, 커밋 합치기, 안전한 강제 push(--force-with-lease)를 내 컴퓨터 안에서 동료까지 흉내 내며 따라 한다.">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="최신 main 따라가기 — fetch, pull, rebase">
+<meta property="og:description" content="fetch, pull --rebase, rebase, 커밋 합치기, --force-with-lease 를 직접 따라 한다.">
+<meta property="og:url" content="https://gangmini.com/learn/git-sync-rebase/">
+<meta property="og:image" content="https://gangmini.com/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../../notes/note.css?v=20261009b">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/learn/">← 이론/용어</a>
+    <p class="eyebrow">PRACTICE</p>
+    <h2 class="masthead__title">최신 main 따라가기<br>— fetch, pull, rebase</h2>
+    <div class="doc__meta">
+      <span class="tag">실습</span>
+      <span class="tag">Git</span>
+      <span class="tag">fetch</span>
+      <span class="tag">pull</span>
+      <span class="tag">rebase</span>
+      <span class="tag">force-with-lease</span>
+      <time class="note__date">2026.10.28</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      혼자 할 때는 main 이 내 손으로만 바뀐다. 팀에서는 내가 로그인 화면을 만드는 사흘 동안 동료들이 main 에 커밋을 열 개쯤 쌓는다.
+      내 브랜치는 사흘 전 main 에서 갈라져 나왔으니, PR 을 올리기 전에 <strong>최신 main 위로 옮겨야</strong> 충돌을 내가 먼저 보고 고칠 수 있다.
+    </p>
+    <p>
+      이 글은 GitHub 없이 내 컴퓨터 안에서 따라 한다. 폴더 하나를 "원격 저장소"로 쓰고, 클론을 두 개 만들어 하나는 나, 하나는 동료 역할을 시킨다.
+      아래 출력은 Git 2.47 에서 실제로 돌린 것을 줄였다. 해시는 사람마다 다르다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>준비 — 원격 하나, 사람 둘</h3>
+
+<pre><code>mkdir sync-practice &amp;&amp; cd sync-practice
+git init --bare -b main origin.git          # GitHub 역할 (작업 폴더 없는 저장소)
+
+git clone origin.git me                      # 나
+cd me
+git config user.name "나" &amp;&amp; git config user.email me@example.com
+echo "# 앱" &gt; README.md
+git add . &amp;&amp; git commit -m "처음" &amp;&amp; git push origin main
+cd ..
+
+git clone origin.git mate                    # 동료
+cd mate
+git config user.name "동료" &amp;&amp; git config user.email mate@example.com
+cd ..</code></pre>
+
+    <p>이제 나는 기능 브랜치에서 일하고, 그동안 동료가 main 에 커밋을 올린다.</p>
+
+<pre><code># 나: 로그인 기능 브랜치
+cd me
+git switch -c feature/login
+echo "로그인" &gt; login.js &amp;&amp; git add . &amp;&amp; git commit -m "로그인 화면"
+echo "검사" &gt;&gt; login.js &amp;&amp; git commit -am "입력 검사"
+cd ..
+
+# 동료: main 에 두 커밋을 올림
+cd mate
+echo "헤더" &gt; header.js &amp;&amp; git add . &amp;&amp; git commit -m "헤더 고침"
+echo "푸터" &gt; footer.js &amp;&amp; git add . &amp;&amp; git commit -m "푸터 추가"
+git push origin main
+cd ../me</code></pre>
+
+    <!-- ============================================================ -->
+    <h3>1. fetch — 받아만 오고, 아무것도 안 바꾼다</h3>
+
+<pre><code>git fetch origin
+<span style="color:var(--ink-soft)">   2c4c9f1..2a8432b  main       -&gt; origin/main</span>
+
+git log --oneline --graph --all
+<span style="color:var(--ink-soft)">* faa986e 입력 검사
+* 3037e1b 로그인 화면
+| * 2a8432b 푸터 추가
+| * 957d913 헤더 고침
+|/
+* 2c4c9f1 처음</span></code></pre>
+
+    <p>
+      fetch 는 원격의 새 커밋을 받아 <code>origin/main</code> 이라는 "원격 main 의 사본" 이름표만 옮긴다. 내 <code>main</code> 도, 내 작업 폴더도 그대로다.
+      그래서 언제 쳐도 안전하다. 그래프를 보면 내 두 커밋과 동료의 두 커밋이 "처음"에서 갈라져 있다.
+    </p>
+
+<pre><code>git switch main
+git status -sb
+<span style="color:var(--ink-soft)">## main...origin/main [behind 2]</span></code></pre>
+
+    <p><code>behind 2</code> — 내 main 이 원격보다 커밋 두 개 뒤처졌다는 뜻이다.</p>
+
+    <!-- ============================================================ -->
+    <h3>2. pull — fetch 하고 합치기까지</h3>
+
+    <p>
+      <code>git pull</code> 은 <code>fetch</code> + 합치기다. 합치는 방법이 둘이다. 기본은 merge(합치는 커밋을 하나 새로 만듦),
+      <code>--rebase</code> 를 붙이면 내 커밋을 원격 커밋 뒤로 옮겨 붙인다.
+    </p>
+
+<pre><code>git pull --rebase origin main
+<span style="color:var(--ink-soft)">Updating 2c4c9f1..2a8432b
+Fast-forward
+ footer.js | 1 +
+ header.js | 1 +</span></code></pre>
+
+    <p>
+      지금 내 main 에는 내 커밋이 없어서 그냥 앞으로 당겨졌다(Fast-forward). 내 main 에도 내 커밋이 있었다면 어떻게 되는지 보자.
+      동료가 <code>a.txt</code> 를, 내가 <code>b.txt</code> 를 각자 main 에 커밋한 상황이다.
+      (아래는 실습을 다 마친 뒤 따로 해 본 결과다. 지금 따라 치면 뒤쪽 출력과 해시가 달라지니 읽기만 하고 넘어간다.)
+    </p>
+
+<pre><code>(동료) git commit … "동료: a" &amp;&amp; git push origin main
+(나)   git commit … "나: b"
+
+git pull --rebase origin main
+<span style="color:var(--ink-soft)">Successfully rebased and updated refs/heads/main.</span>
+git log --oneline
+<span style="color:var(--ink-soft)">5a86219 나: b
+1a9acf1 동료: a
+2a8432b 푸터 추가</span></code></pre>
+
+    <p>
+      내 커밋이 동료 커밋 뒤로 옮겨져 한 줄로 이어졌다. 그냥 pull(merge)이었다면 "Merge branch 'main' of …" 커밋이 하나 끼어들고 그래프가 갈라졌다 합쳐진다.
+      그런 커밋이 매일 쌓이면 기록 읽기가 힘들어서, 많은 팀이 pull 은 늘 rebase 로 하게 설정해 둔다.
+    </p>
+
+<pre><code>git config --global pull.rebase true</code></pre>
+
+    <!-- ============================================================ -->
+    <h3>3. rebase — 내 브랜치를 최신 main 위로</h3>
+
+    <p>이제 기능 브랜치를 최신 main 위로 옮긴다.</p>
+
+<pre><code>git switch feature/login
+git rebase main
+<span style="color:var(--ink-soft)">Successfully rebased and updated refs/heads/feature/login.</span>
+
+git log --oneline --graph
+<span style="color:var(--ink-soft)">* 53dfdfd 입력 검사
+* 2dac65e 로그인 화면
+* 2a8432b 푸터 추가
+* 957d913 헤더 고침
+* 2c4c9f1 처음</span></code></pre>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 290" role="img" aria-label="rebase 전에는 처음에서 main(헤더 고침, 푸터 추가)과 feature/login(로그인 화면, 입력 검사)이 갈라져 있다. rebase 후에는 로그인 화면과 입력 검사가 푸터 추가 뒤로 옮겨져 한 줄이 되고, 해시가 새로 바뀐다">
+          <text class="d-t" x="20" y="24">rebase 전</text>
+          <path class="d-line" d="M60,64 H340"/>
+          <path class="d-line" d="M60,64 L200,114 H340"/>
+          <circle cx="60" cy="64" r="7" fill="#FCFCFA" stroke="#1A1D18" stroke-width="1.4"/>
+          <circle cx="200" cy="64" r="7" fill="#FCFCFA" stroke="#1A1D18" stroke-width="1.4"/>
+          <circle cx="340" cy="64" r="7" fill="#FCFCFA" stroke="#1A1D18" stroke-width="1.4"/>
+          <circle cx="200" cy="114" r="7" style="fill:var(--mark)"/>
+          <circle cx="340" cy="114" r="7" style="fill:var(--mark)"/>
+          <text class="d-t-s" x="60" y="50" text-anchor="middle">처음</text>
+          <text class="d-t-s" x="200" y="50" text-anchor="middle">헤더 고침</text>
+          <text class="d-t-s" x="340" y="50" text-anchor="middle">푸터 추가</text>
+          <text class="d-t-s" x="200" y="138" text-anchor="middle">로그인 화면 3037e1b</text>
+          <text class="d-t-s" x="340" y="138" text-anchor="middle">입력 검사 faa986e</text>
+          <text class="d-t-m" x="364" y="68">main</text>
+          <text class="d-t-m" x="364" y="118">feature/login</text>
+
+          <path class="d-dash" d="M20,160 H620"/>
+
+          <text class="d-t" x="20" y="186">rebase 후</text>
+          <path class="d-line" d="M60,224 H580"/>
+          <circle cx="60" cy="224" r="7" fill="#FCFCFA" stroke="#1A1D18" stroke-width="1.4"/>
+          <circle cx="190" cy="224" r="7" fill="#FCFCFA" stroke="#1A1D18" stroke-width="1.4"/>
+          <circle cx="320" cy="224" r="7" fill="#FCFCFA" stroke="#1A1D18" stroke-width="1.4"/>
+          <circle cx="450" cy="224" r="7" style="fill:var(--mark)"/>
+          <circle cx="580" cy="224" r="7" style="fill:var(--mark)"/>
+          <text class="d-t-s" x="60" y="210" text-anchor="middle">처음</text>
+          <text class="d-t-s" x="190" y="210" text-anchor="middle">헤더 고침</text>
+          <text class="d-t-s" x="320" y="210" text-anchor="middle">푸터 추가</text>
+          <text class="d-t-m" x="320" y="250" text-anchor="middle">main</text>
+          <text class="d-t-s" x="450" y="210" text-anchor="middle">로그인 화면</text>
+          <text class="d-t-s" x="580" y="210" text-anchor="middle">입력 검사</text>
+          <text class="d-t-m" x="450" y="250" text-anchor="middle">2dac65e (새 해시)</text>
+          <text class="d-t-m" x="580" y="250" text-anchor="middle">53dfdfd (새 해시)</text>
+          <text class="d-t-m" x="580" y="272" text-anchor="middle">feature/login</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        빨간 점이 내 커밋이다. rebase 는 내 커밋을 떼어 내 최신 main 끝에 "다시 만들어" 붙인다. 내용은 같지만 부모가 바뀌었으니 해시가 새로 생긴다.
+      </figcaption>
+    </figure>
+
+    <p>
+      옮기는 도중 동료와 같은 줄을 고친 커밋이 있으면 rebase 가 멈추고 충돌을 알린다. 파일을 고친 뒤
+      <code>git add 파일</code> → <code>git rebase --continue</code> 로 이어 가고, 엉망이 됐다 싶으면 <code>git rebase --abort</code> 로 시작 전 상태로 돌아간다.
+      충돌 고치는 법은 <a href="/learn/git-conflict/">충돌 해결</a> 글에 따로 적었다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>4. 커밋 정리 — <code>rebase -i</code> 로 합치기</h3>
+
+    <p>
+      PR 을 올리기 전, "오타 고침" 같은 자잘한 커밋을 앞 커밋에 합치고 싶을 때가 있다. 브랜치를 한 번 push 해 둔 상태에서 커밋을 하나 더 만든다.
+    </p>
+
+<pre><code>git push -u origin feature/login
+echo "오타" &gt;&gt; login.js &amp;&amp; git commit -am "오타 고침"
+
+git rebase -i main</code></pre>
+
+    <p>편집기가 열리고 이런 목록이 보인다. main 이후의 내 커밋이 위에서부터 오래된 순서다.</p>
+
+<pre><code>pick 2dac65e 로그인 화면
+pick 53dfdfd 입력 검사
+pick bc31470 오타 고침
+
+# Rebase 2a8432b..bc31470 onto 2a8432b (3 commands)
+#
+# Commands:
+# p, pick &lt;commit&gt; = use commit
+# r, reword &lt;commit&gt; = use commit, but edit the commit message
+# s, squash &lt;commit&gt; = use commit, but meld into previous commit
+# f, fixup [-C | -c] &lt;commit&gt; = like "squash" but keep only the previous
+#                    commit's log message …
+# d, drop &lt;commit&gt; = remove commit</code></pre>
+
+    <p>둘째·셋째 줄의 <code>pick</code> 을 <code>fixup</code>(줄여서 <code>f</code>)으로 바꾸고 저장한 뒤 편집기를 닫는다.</p>
+
+<pre><code>pick 2dac65e 로그인 화면
+fixup 53dfdfd 입력 검사
+fixup bc31470 오타 고침</code></pre>
+
+<pre><code><span style="color:var(--ink-soft)">Successfully rebased and updated refs/heads/feature/login.</span>
+git log --oneline
+<span style="color:var(--ink-soft)">ca22425 로그인 화면
+2a8432b 푸터 추가
+957d913 헤더 고침</span></code></pre>
+
+    <p>
+      세 커밋이 "로그인 화면" 하나가 됐다. <code>squash</code> 는 메시지까지 모아서 다시 쓰게 하고, <code>fixup</code> 은 앞 커밋 메시지만 남긴다. <code>reword</code> 는 메시지만, <code>drop</code> 은 커밋을 뺀다.
+    </p>
+    <p>
+      <strong>편집기가 낯설다면:</strong> 윈도 Git Bash 의 기본 편집기는 Vim 일 수 있다. <code>i</code> 로 고치기 시작, <code>Esc</code> 후 <code>:wq</code> 로 저장하고 나간다.
+      VS Code 를 쓰려면 <code>git config --global core.editor "code --wait"</code>. 이 명령은 대화형이라 직접 터미널에서 친다.
+      GitHub 의 "Squash and merge" 버튼을 쓰는 팀이라면 이 정리를 PR 을 합칠 때 GitHub 가 대신 해 준다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>5. 다시 push — 거절당하고, 안전하게 덮어쓰기</h3>
+
+<pre><code>git push origin feature/login
+<span style="color:var(--ink-soft)"> ! [rejected]        feature/login -&gt; feature/login (non-fast-forward)
+error: failed to push some refs to '…/origin.git'
+hint: Updates were rejected because the tip of your current branch is behind
+hint: its remote counterpart.</span></code></pre>
+
+    <p>
+      rebase 로 해시가 바뀌어서, 원격의 <code>feature/login</code> 과 내 것이 다른 기록이 됐다. Git 은 원격 커밋을 잃지 않으려고 거절한다.
+      여기서 hint 대로 <code>git pull</code> 을 하면 옛 커밋과 새 커밋이 뒤섞이니 하지 않는다. 내 브랜치이고 덮어쓰는 게 맞으니 강제로 push 한다.
+      다만 <code>--force</code> 대신 <code>--force-with-lease</code> 를 쓴다.
+    </p>
+
+<pre><code>git push --force-with-lease origin feature/login
+<span style="color:var(--ink-soft)"> + 53dfdfd...ca22425 feature/login -&gt; feature/login (forced update)</span></code></pre>
+
+    <h4>lease 가 막아 주는 것</h4>
+
+    <p>
+      <code>--force-with-lease</code> 는 "내가 마지막으로 본 원격 상태 그대로일 때만 덮어써라"는 조건부 강제 push 다.
+      그 사이 동료가 같은 브랜치에 커밋을 올렸다면 거절한다. 직접 확인해 보자.
+    </p>
+
+<pre><code>(동료) git fetch &amp;&amp; git switch feature/login
+(동료) echo "동료 수정" &gt;&gt; login.js &amp;&amp; git commit -am "동료: 문구 수정" &amp;&amp; git push
+
+(나)   git commit --amend -m "로그인 화면 (입력 검사 포함)"
+(나)   git push --force-with-lease origin feature/login
+<span style="color:var(--ink-soft)"> ! [rejected]        feature/login -&gt; feature/login (stale info)
+error: failed to push some refs to '…/origin.git'</span></code></pre>
+
+    <p>
+      <code>stale info</code> — 내가 아는 원격 정보가 낡았다는 뜻이다. 그냥 <code>--force</code> 였다면 동료의 "문구 수정" 커밋이 소리 없이 사라졌다.
+      이럴 땐 <code>git fetch</code> 로 동료 커밋을 받아 내 브랜치에 합친 뒤 다시 push 한다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>황금 규칙 — 남과 같이 쓰는 커밋은 rebase 하지 않는다</h3>
+
+    <p>
+      rebase 는 커밋을 새로 만든다. 그래서 <strong>main 처럼 여러 사람이 받아 간 브랜치</strong>를 rebase 하고 강제 push 하면,
+      동료들의 기록이 원격과 통째로 어긋나고 각자 엉킨 기록을 풀어야 한다.
+    </p>
+
+    <table>
+      <tr><th>브랜치</th><th>rebase · 강제 push</th></tr>
+      <tr><td>나 혼자 쓰는 기능 브랜치</td><td>해도 된다. push 는 <code>--force-with-lease</code></td></tr>
+      <tr><td>동료와 같이 커밋하는 브랜치</td><td>미리 말하고 한다. 아니면 merge 로</td></tr>
+      <tr><td>main · develop 같은 공용 브랜치</td><td>하지 않는다. 대부분 저장소 설정으로 아예 막혀 있다</td></tr>
+    </table>
+
+    <!-- ============================================================ -->
+    <h3>정리 — 아침마다 치는 순서</h3>
+
+<pre><code>git switch main
+git pull                       # pull.rebase=true 라면 rebase 로 받아 온다
+git switch feature/login
+git rebase main                # 충돌 나면 고치고 git rebase --continue
+git push --force-with-lease    # 이미 push 해 둔 브랜치라면</code></pre>
+
+    <table>
+      <tr><th>명령</th><th>하는 일</th><th>내 파일이 바뀌나</th></tr>
+      <tr><td><code>git fetch</code></td><td>원격 커밋을 받아 <code>origin/…</code> 만 옮김</td><td>안 바뀐다</td></tr>
+      <tr><td><code>git pull</code></td><td>fetch + merge</td><td>바뀐다 (합치기 커밋이 생길 수 있음)</td></tr>
+      <tr><td><code>git pull --rebase</code></td><td>fetch + 내 커밋을 원격 뒤로</td><td>바뀐다 (기록이 한 줄)</td></tr>
+      <tr><td><code>git rebase main</code></td><td>내 브랜치를 main 끝으로 옮김</td><td>바뀐다 (내 커밋 해시가 새로)</td></tr>
+      <tr><td><code>git rebase -i</code></td><td>커밋 합치기·고치기·빼기</td><td>바뀐다</td></tr>
+      <tr><td><code>push --force-with-lease</code></td><td>원격이 내가 본 그대로일 때만 덮어씀</td><td>원격이 바뀐다</td></tr>
+    </table>
+
+    <p class="gloss">
+      <b>origin/main</b> — 마지막으로 fetch 했을 때 원격 main 이 어디 있었는지 적어 둔 이름표. 실시간이 아니라 fetch 할 때만 움직인다.<br>
+      <b>fast-forward</b> — 내 쪽에 새 커밋이 없어서, 합칠 것 없이 이름표만 앞으로 당기면 되는 경우.<br>
+      <b>bare 저장소</b> — 작업 폴더 없이 기록만 있는 저장소. GitHub 의 저장소가 이런 모양이라 실습에서 원격 대신 썼다.
+    </p>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 볼 것</p>
+      <ul>
+        <li><a href="/learn/git-branch-pr/">브랜치와 PR</a> — 기능 브랜치를 만들고 PR 로 올리기</li>
+        <li><a href="/learn/git-conflict/">충돌 해결</a> — rebase 가 멈췄을 때</li>
+        <li><a href="/learn/git-undo/">되돌리기</a> — rebase 를 잘못했으면 reflog 로</li>
+        <li><a href="/learn/github-collab/">GitHub 로 같이 일하기</a> — 리뷰, 브랜치 보호, Squash and merge</li>
+        <li><a href="/learn/team-git-habits/">팀에서 Git 쓰는 습관</a></li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

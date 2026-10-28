@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>커밋 습관 — 리뷰어가 읽을 수 있는 변경 · gangmin</title>
+<meta name="description" content="변경 하나에 커밋 하나, 메시지에 '왜'. 줄바꿈 차이로 3,316줄이 바뀐 것처럼 보였던 일, .gitattributes, 브랜치 이름, 비밀 값과 큰 파일을 저장소에 넣지 않는 법.">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="커밋 습관 — 리뷰어가 읽을 수 있는 변경">
+<meta property="og:description" content="변경 하나에 커밋 하나, 메시지에 '왜'.">
+<meta property="og:url" content="https://gangmini.com/learn/team-git-habits/">
+<meta property="og:image" content="https://gangmini.com/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../../notes/note.css?v=20261009b">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/learn/">← 이론/용어</a>
+    <p class="eyebrow">ROLE</p>
+    <h2 class="masthead__title">커밋 습관<br>— 리뷰어가 읽을 수 있는 변경</h2>
+    <div class="doc__meta">
+      <span class="tag">직무</span>
+      <span class="tag">팀에서 일하기</span>
+      <span class="tag">Git</span>
+      <span class="tag">.gitattributes</span>
+      <span class="tag">.gitignore</span>
+      <time class="note__date">2026.10.28</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      <a href="/learn/team-ai-ownership/">팀에서 일하기</a> 시리즈 2번이다. 회사에 가면 가장 먼저 티가 나는 게 커밋이라고 생각한다.
+      코드 실력은 몇 주 같이 일해 봐야 보이지만, 커밋 이력은 첫 PR 에서 바로 보인다. 그리고 가장 빨리 고칠 수 있는 습관이기도 하다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>3,316줄이 바뀐 줄 알았는데 86줄이었다</h3>
+
+    <p>
+      학창시절 다이어리 저장소에서 <code>git status</code> 를 봤더니 커밋 안 된 변경이 14개 파일, 3,316줄이었다.
+      앱을 스토어에 올리면서 여기저기 고친 것들이 커밋 없이 쌓여 있었다. 그런데 공백·줄바꿈 차이를 빼고 다시 보니 진짜 변경은 86줄이었다.
+    </p>
+
+<pre><code>git diff --stat | tail -1
+ 14 files changed, 3316 insertions(+), 3263 deletions(-)
+
+git diff -w --ignore-cr-at-eol --stat | tail -1
+ 7 files changed, 86 insertions(+), 33 deletions(-)</code></pre>
+
+    <p>
+      나머지는 줄바꿈 문자가 바뀐 것이었다. 윈도는 줄 끝에 <code>CRLF</code>(두 글자)를, 맥·리눅스는 <code>LF</code>(한 글자)를 쓴다.
+      어떤 도구가 파일을 저장하면서 줄 끝을 바꾸면, 내용은 그대로인데 git 은 <strong>모든 줄을 지웠다 다시 쓴 것</strong>으로 본다.
+      팀에서 이게 PR 에 섞이면 리뷰어는 진짜 변경 86줄을 3,000줄 사이에서 찾아야 한다. 사실상 리뷰가 불가능하다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>변경 하나에 커밋 하나</h3>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 230" role="img" aria-label="왼쪽: 한 커밋에 서버 수정, 동의 문구, R8 설정, 줄바꿈 변경이 다 섞여 있다. 오른쪽: 같은 변경을 네 커밋으로 나눠, 각각 메시지만 보고도 무엇인지 안다.">
+          <text class="d-t" x="16" y="22">한 커밋에 다</text>
+          <rect class="d-box" x="16" y="34" width="260" height="180" rx="4"/>
+          <text class="d-t-m" x="30" y="58">"수정"</text>
+          <text class="d-t-s" x="30" y="84">서버 응답 처리 고침</text>
+          <text class="d-t-s" x="30" y="104">AI 동의 문구 바꿈</text>
+          <text class="d-t-s" x="30" y="124">R8 설정 켬</text>
+          <text class="d-t-s" x="30" y="144">버전 1.0.1</text>
+          <text class="d-t-s" x="30" y="164">줄바꿈만 바뀐 파일 7개</text>
+          <text class="d-t-s" x="30" y="196">하나만 되돌리고 싶어도 못 한다</text>
+
+          <path class="d-line" d="M276,124 H317"/><polygon points="324,124 317,120 317,128" fill="#1A1D18"/>
+
+          <text class="d-t" x="324" y="22">나눈 것</text>
+          <rect class="d-box" x="324" y="34" width="300" height="38" rx="4"/>
+          <text class="d-t-m" x="336" y="57">줄바꿈 LF 로 통일 (.gitattributes)</text>
+          <rect class="d-box" x="324" y="80" width="300" height="38" rx="4"/>
+          <text class="d-t-m" x="336" y="103">선생님 한마디: 서버 오류 응답 처리</text>
+          <rect class="d-box" x="324" y="126" width="300" height="38" rx="4"/>
+          <text class="d-t-m" x="336" y="149">AI 동의: 문구 수정</text>
+          <rect class="d-box-m" x="324" y="172" width="300" height="38" rx="4"/>
+          <text class="d-t-m" x="336" y="195">Android: R8 켜기, 1.0.1</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        다이어리 저장소에 실제로 쌓여 있던 변경을 예로 그렸다. 나누면 각 커밋을 따로 리뷰하고, 따로 되돌릴 수 있다.
+      </figcaption>
+    </figure>
+
+    <p>
+      "하나"의 기준은 <strong>되돌릴 때 같이 되돌려야 하는 것</strong>이다. R8 설정과 그 때문에 필요해진 메모리 설정은 한 커밋이다. R8 과 동의 문구는 서로 상관이 없으니 두 커밋이다.
+      줄바꿈·들여쓰기 같은 모양만 바꾸는 변경은 <strong>언제나 따로</strong> 커밋한다. 그래야 리뷰어가 "이 커밋은 모양만 바꿨다"를 믿고 넘어갈 수 있다.
+    </p>
+
+<pre><code>git add -p                 # 바뀐 덩어리마다 "이번 커밋에 넣을까?" 하나씩 묻는다
+git add app.json plugins/  # 파일 단위로 골라 담기
+git commit                 # 담은 것만 커밋된다</code></pre>
+
+    <!-- ============================================================ -->
+    <h3>메시지에는 "무엇을"과 "왜"</h3>
+
+    <p>
+      코드를 보면 <strong>어떻게</strong> 바꿨는지는 나온다. 코드에 안 나오는 건 <strong>왜</strong>다. 메시지는 그걸 남기는 자리다.
+    </p>
+
+<pre><code>Android: 릴리스 빌드에서 R8 켜기 (1.0.1)
+
+Play Console 경고 "DEX 코드 최적화 기준점 미만 — 난독화 3%"
+(기한 2027년 2월). expo-build-properties 로 minify·shrinkResources 를 켰다.
+R8 단계에서 Gradle Metaspace 가 모자라 빌드가 죽어서
+plugins/withGradleMemory.js 로 4GB 로 올렸다.
+
+확인: 로컬 릴리스 빌드를 에뮬레이터에서 그림판·저장·결제 화면까지 확인.</code></pre>
+
+    <table>
+      <tr><th>자리</th><th>규칙</th></tr>
+      <tr><td>첫 줄</td><td>50자 안팎. 무엇을 했나. 앞에 영역을 붙이면 목록에서 찾기 쉽다 (<code>Android:</code>, <code>서버:</code>)</td></tr>
+      <tr><td>빈 줄</td><td>꼭 둔다. 많은 도구가 첫 줄만 제목으로 쓴다</td></tr>
+      <tr><td>본문</td><td>왜 했나, 무엇을 포기했나, 어떻게 확인했나</td></tr>
+      <tr><td>피할 것</td><td>"수정", "업데이트", "wip" — 몇 달 뒤 아무 정보도 안 준다</td></tr>
+    </table>
+    <p>
+      회사에 따라 <code>feat:</code>, <code>fix:</code>, <code>chore:</code> 를 앞에 붙이는 규칙(Conventional Commits)을 쓰기도 한다. 팀에 규칙이 있으면 그걸 따른다. <a href="/learn/team-conventions/">팀 규칙에 맞추기</a>에서 더 적었다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>줄바꿈은 .gitattributes 로 고정한다</h3>
+
+    <p>
+      줄바꿈 문제는 조심해서 해결되지 않는다. 저장소에 규칙을 넣어 git 이 알아서 맞추게 해야 한다.
+      스쿠터 게임을 GitHub 에 처음 올리면서 넣은 파일이다.
+    </p>
+
+<pre><code># .gitattributes
+# 줄바꿈을 저장소 안에서는 LF 로 통일한다 (윈도에서 받아도 diff 가 전부 바뀌지 않게)
+* text=auto eol=lf
+*.bat text eol=crlf
+
+# 바이너리
+*.png binary
+*.jpg binary
+*.glb binary
+*.mp3 binary</code></pre>
+
+    <ul>
+      <li><code>* text=auto eol=lf</code> — 글자 파일은 저장소에 LF 로 넣고, 꺼낼 때도 LF 로. 누가 어떤 OS 에서 저장해도 diff 에 줄바꿈 차이가 안 생긴다.</li>
+      <li><code>*.bat text eol=crlf</code> — 윈도 배치 파일은 CRLF 여야 제대로 돈다. 예외.</li>
+      <li><code>binary</code> — 그림·모델·소리는 글자로 보고 비교하지 말라는 표시. 줄바꿈 변환도 안 한다.</li>
+    </ul>
+    <p>
+      이 파일을 넣은 첫 커밋에서 git 이 "CRLF will be replaced by LF" 경고를 파일마다 띄웠다. 그게 정상이다. 저장소 안의 줄바꿈이 한 번 정리되는 것이고, 그 뒤로는 다시 안 생긴다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>저장소에 넣지 않는 것</h3>
+
+    <h4>비밀 값</h4>
+    <p>
+      한 번 커밋된 비밀 값은 지워도 이력에 남는다. 공개 저장소라면 그 순간 유출된 것으로 보고 키를 바꿔야 한다.
+      다이어리 앱은 Play 서비스 계정 JSON 과 App Store API 키를 <code>credentials/</code> 폴더에 두고, 그 폴더를 통째로 <code>.gitignore</code> 에 넣었다. 앱 설정 값은 <code>.env</code> 에 두고 역시 저장소에 넣지 않는다.
+    </p>
+
+<pre><code># .gitignore
+credentials/
+.env</code></pre>
+
+    <h4>큰 파일</h4>
+    <p>
+      GitHub 는 파일 하나가 100MB 를 넘으면 push 를 거절한다. 스쿠터 게임 폴더에는 릴스 원본 영상이 123MB 였다.
+      영상은 코드가 아니고, 방송 영상이라 저장소에 둘 이유도 없어서 <code>*.mp4</code> 를 통째로 뺐다. 대신 README 에 "저장소에 없는 것"을 적어 둬서, 받은 사람이 없어진 줄 알고 찾지 않게 했다.
+    </p>
+
+<pre><code># .gitignore
+*.mp4
+*.mov
+__pycache__/</code></pre>
+
+    <!-- ============================================================ -->
+    <h3>브랜치 이름</h3>
+
+    <p>
+      혼자 할 때는 <code>main</code> 하나에 바로 커밋했다. 팀에서는 일마다 브랜치를 따고, PR 로 <code>main</code> 에 합친다. 이름만 보고 무슨 일인지 알게 짓는다.
+    </p>
+
+    <table>
+      <tr><th>모양</th><th>예</th></tr>
+      <tr><td><code>종류/짧은-설명</code></td><td><code>fix/android-r8</code>, <code>feat/meal-photo</code>, <code>chore/gitattributes</code></td></tr>
+      <tr><td>이슈 번호를 붙이는 팀</td><td><code>fix/123-teacher-timeout</code></td></tr>
+    </table>
+    <p>
+      실제로 브랜치를 따고 PR 을 만드는 과정은 <a href="/learn/git-branch-pr/">브랜치와 PR 따라 하기</a>에 따라 해 볼 수 있게 적었다.
+    </p>
+
+    <p class="gloss">
+      <b>CRLF / LF</b> — 줄 끝을 나타내는 문자. CR(캐리지 리턴) + LF(줄 바꿈) 두 글자를 쓰는 게 윈도, LF 한 글자가 맥·리눅스.<br>
+      <b>.gitattributes</b> — 파일 종류마다 git 이 어떻게 다룰지(줄바꿈, 비교 방법) 정하는 파일. 저장소에 같이 들어가서 모든 팀원에게 똑같이 적용된다.<br>
+      <b>.gitignore</b> — git 이 아예 보지 않을 파일·폴더 목록. 이미 커밋된 파일에는 효과가 없다.
+    </p>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 읽기</p>
+      <ul>
+        <li><a href="/learn/team-explain-diff/">내가 올린 코드를 설명하는 능력</a> — diff 읽는 법</li>
+        <li><a href="/learn/git-basics/">Git 기본 따라 하기</a> — add · commit · log · diff 를 손으로</li>
+        <li><a href="/learn/git-undo/">되돌리기 따라 하기</a> — 잘못 담은 커밋을 고치는 법</li>
+        <li><a href="/learn/team-conventions/">팀 규칙에 맞추기</a> — 커밋 메시지 규칙도 팀 규칙이다</li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

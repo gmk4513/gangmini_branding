@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>일을 나누고 말로 맞추는 능력 — 이슈, PR 설명, 결정 기록 · gangmin</title>
+<meta name="description" content="큰 일을 잘게 나누기, 얼마나 걸릴지 말하기, 이슈와 PR 설명 쓰기, 선택지를 장단점으로 설명하기, 결정을 기록으로 남기기(ADR).">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="일을 나누고 말로 맞추는 능력 — 이슈, PR 설명, 결정 기록">
+<meta property="og:description" content="일을 나누고, 설명하고, 결정을 남기는 법.">
+<meta property="og:url" content="https://gangmini.com/learn/team-communication/">
+<meta property="og:image" content="https://gangmini.com/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../../notes/note.css?v=20261009b">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/learn/">← 이론/용어</a>
+    <p class="eyebrow">ROLE</p>
+    <h2 class="masthead__title">일을 나누고 말로 맞추는 능력<br>— 이슈, PR 설명, 결정 기록</h2>
+    <div class="doc__meta">
+      <span class="tag">직무</span>
+      <span class="tag">이슈</span>
+      <span class="tag">PR</span>
+      <span class="tag">추정</span>
+      <span class="tag">ADR</span>
+      <time class="note__date">2026.10.28</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      혼자 만들 때는 머릿속 계획이 곧 계획이다. 팀에서는 그게 <strong>글</strong>이 되어야 한다. 누가 무엇을 하는지, 언제 끝나는지, 왜 이렇게 했는지가 글로 있어야 남이 이어받는다.
+      AI 가 코드를 빨리 써 줄수록 이 차이가 커진다. 코드는 금방 생기는데, 그 코드가 무엇을 위한 것이고 왜 이 모양인지는 사람이 적어야 한다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>일이 흘러가는 길</h3>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 170" role="img" aria-label="큰 목표를 이슈 여러 개로 나누고, 이슈 하나가 브랜치 하나와 PR 하나가 되며, 리뷰를 거쳐 합쳐지고, 중요한 선택은 결정 기록으로 남는다">
+          <rect class="d-box" x="16" y="40" width="108" height="64" rx="4"/>
+          <text class="d-t" x="70" y="66" text-anchor="middle">목표</text>
+          <text class="d-t-s" x="70" y="86" text-anchor="middle">"안드로이드 출시"</text>
+
+          <rect class="d-box" x="140" y="40" width="108" height="64" rx="4"/>
+          <text class="d-t" x="194" y="66" text-anchor="middle">이슈 여러 개</text>
+          <text class="d-t-s" x="194" y="86" text-anchor="middle">반나절~이틀 크기</text>
+
+          <rect class="d-box" x="264" y="40" width="108" height="64" rx="4"/>
+          <text class="d-t" x="318" y="66" text-anchor="middle">브랜치 · PR</text>
+          <text class="d-t-s" x="318" y="86" text-anchor="middle">이슈 하나에 하나</text>
+
+          <rect class="d-box" x="388" y="40" width="108" height="64" rx="4"/>
+          <text class="d-t" x="442" y="66" text-anchor="middle">리뷰 · 합치기</text>
+          <text class="d-t-s" x="442" y="86" text-anchor="middle">Closes #12</text>
+
+          <rect class="d-box-m" x="512" y="40" width="112" height="64" rx="4"/>
+          <text class="d-t" x="568" y="66" text-anchor="middle">결정 기록</text>
+          <text class="d-t-s" x="568" y="86" text-anchor="middle">왜 이렇게 했나</text>
+
+          <path class="d-line" d="M124,72 H133"/><polygon points="140,72 133,68 133,76" fill="#1A1D18"/>
+          <path class="d-line" d="M248,72 H257"/><polygon points="264,72 257,68 257,76" fill="#1A1D18"/>
+          <path class="d-line" d="M372,72 H381"/><polygon points="388,72 381,68 381,76" fill="#1A1D18"/>
+          <path class="d-line" d="M496,72 H505"/><polygon points="512,72 505,68 505,76" fill="#1A1D18"/>
+
+          <text class="d-t-s" x="16" y="140">각 칸마다 글이 하나씩 남는다: 이슈 본문 → 커밋 메시지 → PR 설명 → 리뷰 댓글 → 결정 기록</text>
+          <text class="d-t-s" x="16" y="158">반년 뒤 "이거 왜 이래요?"에 답하는 건 이 글들이다</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        말로 정한 건 사라진다. 글로 남긴 건 검색된다.
+      </figcaption>
+    </figure>
+
+    <!-- ============================================================ -->
+    <h3>일을 나누기</h3>
+
+    <p>
+      좋은 작업 단위는 <strong>하루~이틀 안에 끝나고, 끝났는지 확인할 수 있는</strong> 크기다. "안드로이드 출시"는 너무 크다. 다이어리 안드로이드 출시를 나눠 보면 이렇다(괄호는 추정의 예).
+    </p>
+
+<pre><code>안드로이드 출시
+├─ Play Console 앱 만들고 등록 정보 채우기      (반나절)
+├─ 결제 상품 등록 + RevenueCat 안드로이드 키     (반나절)
+├─ 서비스 계정 만들어 EAS 자동 제출 연결         (반나절)
+├─ 스토어 그래픽 (아이콘 512, 그래픽 이미지)      (반나절)
+└─ 비공개 테스트 → 프로덕션                     (심사 대기 포함 며칠)</code></pre>
+
+    <p>
+      나누는 기준은 "이것만 따로 PR 로 올려 리뷰받을 수 있나"다. 나눌 수 없어 보이면 대개 아직 무엇을 할지 덜 정한 것이다.
+    </p>
+
+    <h4>얼마나 걸리나 — 추정</h4>
+    <ul>
+      <li><strong>범위로 말한다.</strong> "3일"보다 "2~4일, 결제 심사가 변수". 모르는 부분이 어디인지 같이 말하는 게 숫자보다 중요하다.</li>
+      <li><strong>모르는 건 먼저 찔러 본다.</strong> R8 을 켜면 앱이 깨질지 모를 때, 먼저 로컬 빌드를 한 번 돌려 보면(스파이크) 추정이 확 좁아진다.</li>
+      <li><strong>늦어질 것 같으면 일찍 말한다.</strong> 마감 날 "못 했어요"가 팀에서 가장 비싸다.</li>
+    </ul>
+
+    <!-- ============================================================ -->
+    <h3>이슈 쓰기</h3>
+
+    <p>
+      버그 이슈는 <strong>남이 그대로 따라 하면 똑같이 재현되게</strong> 쓴다.
+    </p>
+
+<pre><code>제목: 아이폰에서 게임 목소리가 안 나온다 (엔진 소리는 나옴)
+
+## 재현
+1. 아이폰 사파리로 게임 주소 열기
+2. 출발 → 첫 NPC 에게 다가가기
+
+## 기대: 목소리 대사가 나온다
+## 실제: 말풍선만 뜨고 소리 없음. 엔진 소리는 난다
+## 환경: iOS 사파리 / PC 크롬에서는 정상</code></pre>
+
+    <p>
+      이건 실제로 겪은 일이다(<a href="/notes/gamst-scooter/">감스트 스쿠터</a>). "엔진 소리는 난다"는 한 줄이 원인을 거의 알려 줬다.
+      엔진은 Web Audio, 목소리는 <code>&lt;audio&gt;</code> 태그였다. 이슈에 <strong>되는 것과 안 되는 것을 같이</strong> 적으면 범위가 좁혀진다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>PR 설명 쓰기</h3>
+
+    <table>
+      <tr><th>칸</th><th>쓰는 것</th><th>예 (다이어리 1.0.1)</th></tr>
+      <tr><td>무엇을</td><td>바뀐 것 한두 줄</td><td>안드로이드 릴리스 빌드에 R8(코드 줄이기·난독화)을 켠다</td></tr>
+      <tr><td>왜</td><td>이유 · 이슈 번호</td><td>Play 경고 "DEX 난독화 3%". 2027-02 까지 25% 이상 필요</td></tr>
+      <tr><td>어떻게</td><td>리뷰어가 알아야 할 판단</td><td>keep 규칙은 라이브러리 것으로 충분. Gradle 메모리를 4GB 로 (Metaspace 부족)</td></tr>
+      <tr><td>확인 방법</td><td>리뷰어가 다시 할 수 있게</td><td>릴리스 APK 설치 → 그림판·저장·선생님 한마디·결제 가격 확인</td></tr>
+      <tr><td>숫자 · 스크린샷</td><td>전후 비교</td><td>DEX 50.0MB → 18.5MB, 이름이 바뀐 클래스 94%</td></tr>
+    </table>
+
+    <p>
+      리뷰어는 코드를 읽기 전에 설명을 읽는다. 설명이 좋으면 리뷰가 "이게 뭐예요?"가 아니라 "이 판단 괜찮네요 / 여기는 이렇게 하면 어때요"로 바로 간다.
+      AI 가 쓴 코드일수록 <strong>왜</strong>와 <strong>확인 방법</strong> 칸을 사람이 직접 채워야 한다. 그게 그 코드의 주인이라는 표시다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>선택지를 장단점으로 말하기</h3>
+
+    <p>
+      "이게 좋아요"보다 "A 와 B 가 있고, A 는 이게 좋고 저게 나쁘다. 지금 상황에선 A"가 팀을 빨리 움직인다. 상대가 다른 정보를 갖고 있으면 바로 끼어들 수 있기 때문이다.
+    </p>
+
+<pre><code>대형 화면 경고 (세로 고정)
+A. 그대로 둔다      — 비용 0. 경고만 남음. 기한 없음
+B. 가로도 지원      — 그림판·줄공책 레이아웃을 다시 짜야 함. 며칠
+→ 지금은 A. 태블릿 사용자 비율이 보이면 다시 판단</code></pre>
+
+    <!-- ============================================================ -->
+    <h3>결정 기록 (ADR)</h3>
+
+    <p>
+      중요한 선택은 짧은 문서로 남긴다. 업계에서는 <strong>ADR(Architecture Decision Record)</strong>이라고 부른다. 형식은 단순하다. 감스트 스쿠터에서 한 선택을 이 형식으로 옮기면 이렇다.
+    </p>
+
+<pre><code># 0003. 게임 서버를 두지 않는다
+
+상황: 감스트 스쿠터는 혼자 하는 게임. 방문자 대부분이 폰이고 릴스로 한꺼번에 몰린다.
+결정: 정적 파일만 Cloudflare Pages 로. 게임 로직은 전부 브라우저에서.
+대가: 순위표·방문 집계가 필요하면 다른 서버(bamti-bomb)에 얹어야 한다.
+날짜: 2026-10-24</code></pre>
+
+    <p>
+      나는 이미 비슷한 걸 하고 있었다. <a href="/notes/">기록</a> 글마다 "무엇을 왜 골랐나" 표를 두고, 다이어리 저장소에는 <code>HANDOFF.md</code> 에
+      "기획과 다르게 구현한 것 (의도적)", "바꾸면 안 되는 규칙"을 적어 뒀다. 이게 ADR 의 역할이다. 팀에서는 이걸 저장소의 <code>docs/adr/</code> 에 번호를 붙여 쌓는다.
+    </p>
+
+    <p class="gloss">
+      <b>이슈(issue)</b> — 할 일·버그·제안을 하나씩 적는 GitHub 의 글. 번호가 붙고, PR 과 이어진다.<br>
+      <b>스파이크(spike)</b> — 추정을 위해 결과물이 아니라 정보를 얻으려고 짧게 해 보는 작업.<br>
+      <b>ADR</b> — 설계 결정 하나를 상황·결정·대가로 적은 짧은 문서. 결정을 바꾸면 지우지 않고 새 ADR 로 "0003 을 대체한다"고 쓴다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>정리</h3>
+
+    <table>
+      <tr><th>할 일</th><th>한 줄</th></tr>
+      <tr><td>나누기</td><td>하루~이틀, 따로 PR 로 올릴 수 있는 크기</td></tr>
+      <tr><td>추정</td><td>범위로. 모르는 건 먼저 찔러 보고, 늦으면 일찍 말한다</td></tr>
+      <tr><td>이슈</td><td>재현 단계 · 기대 · 실제 · 되는 것과 안 되는 것</td></tr>
+      <tr><td>PR 설명</td><td>무엇 · 왜 · 어떻게 · 확인 방법 · 숫자</td></tr>
+      <tr><td>선택지</td><td>A/B 와 장단점, 그리고 지금의 판단</td></tr>
+      <tr><td>결정 기록</td><td>상황 · 결정 · 대가. 지우지 않고 쌓는다</td></tr>
+    </table>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 읽기</p>
+      <ul>
+        <li><a href="/learn/team-explain-diff/">내가 올린 코드를 설명하는 능력</a></li>
+        <li><a href="/learn/team-conventions/">팀 규칙에 맞추는 능력</a> — PR 템플릿</li>
+        <li><a href="/learn/github-collab/">GitHub 협업 기능 실습</a> — 이슈를 PR 로 닫아 보기</li>
+        <li><a href="/learn/git-branch-pr/">브랜치와 PR 실습</a></li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

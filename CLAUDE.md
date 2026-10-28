@@ -215,6 +215,7 @@ gangmini.com/learn/ → 이론/용어 목록
 알아두려는 것**(이론·용어·직무·쓰임새)이다. 2026-10-15 에 나눴다.
 
 - 목록 데이터: `learn/learn.js` (`NOTE_BASE = "/learn/"`, `CATS`, `NOTES`)
+- 카테고리: 이론·용어·직무·쓰임새·**실습**(2026-10-28 추가, 따라 해 보는 Git·GitHub 튜토리얼). "팀에서 일하기" 시리즈는 직무(role), slug 는 `team-*`, 실습은 `git-*`·`github-*`
 - 렌더러는 기록과 같은 `notes/notes-app.js` 를 쓴다 (`NOTE_BASE` 로 글 주소 앞부분만 바뀜)
 - 스타일도 `notes/note.css` 를 같이 쓴다. 글 본문 규칙(그림+글, `.fig__scroll`, `.d-*`)은 4-2 와 같다
 - 글: `learn/<slug>/index.html`, 맨 위 되돌아가기는 `← 이론/용어` (`/learn/`)

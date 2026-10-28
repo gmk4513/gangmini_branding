@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>시스템의 큰 그림 — 버그가 어느 층에 있나 · gangmin</title>
+<meta name="description" content="소스 · 빌드 · 실행 · 네트워크 · 배포. 코드가 사용자에게 닿기까지 다섯 층과 층마다의 증상. 릴리스에서만 죽는 앱, 아이폰에서만 안 나는 소리, 고쳤는데 그대로인 화면.">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="시스템의 큰 그림 — 버그가 어느 층에 있나">
+<meta property="og:description" content="코드가 사용자에게 닿기까지 다섯 층과 층마다의 증상.">
+<meta property="og:url" content="https://gangmini.com/learn/team-system-map/">
+<meta property="og:image" content="https://gangmini.com/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../../notes/note.css?v=20261009b">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/learn/">← 이론/용어</a>
+    <p class="eyebrow">ROLE</p>
+    <h2 class="masthead__title">시스템의 큰 그림<br>— 버그가 어느 층에 있나</h2>
+    <div class="doc__meta">
+      <span class="tag">직무</span>
+      <span class="tag">팀에서 일하기</span>
+      <span class="tag">디버깅</span>
+      <span class="tag">빌드</span>
+      <span class="tag">캐시</span>
+      <span class="tag">R8</span>
+      <time class="note__date">2026.10.28</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      <a href="/learn/team-ai-ownership/">팀에서 일하기</a> 시리즈 3번이다.
+      AI 는 코드를 잘 쓰지만, 버그가 났을 때 "이건 코드 문제가 아니라 캐시 문제다"를 먼저 짚어 주지는 않는다. 물어보는 내가 어디를 봐야 할지 알아야 한다.
+      그게 없으면 AI 가 엉뚱한 곳을 고쳐도 그대로 믿게 된다.
+    </p>
+    <p>
+      내가 쓰는 지도는 다섯 층이다. <strong>내가 쓴 코드가 사용자 화면에 닿기까지 거치는 단계</strong>이고, 버그는 반드시 이 중 한 층에 있다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>다섯 층</h3>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 344" role="img" aria-label="코드가 사용자에게 닿는 다섯 층. 소스, 빌드, 실행, 네트워크, 배포. 층마다 대표 증상이 옆에 있다.">
+          <text class="d-t-s" x="16" y="16">층</text>
+          <text class="d-t-s" x="196" y="16">이 층의 문제는 이렇게 보인다</text>
+
+          <rect class="d-box" x="16" y="26" width="150" height="54" rx="4"/>
+          <text class="d-t" x="30" y="50">① 소스</text>
+          <text class="d-t-s" x="30" y="68">내가 쓴 코드</text>
+          <rect class="d-box" x="196" y="26" width="428" height="54" rx="4"/>
+          <text class="d-t-s" x="210" y="48">어디서 돌려도 똑같이 틀린다</text>
+          <text class="d-t-s" x="210" y="66">오타 · 로직 실수 · 같은 이름 변수 두 번 선언</text>
+
+          <rect class="d-box" x="16" y="90" width="150" height="54" rx="4"/>
+          <text class="d-t" x="30" y="114">② 빌드</text>
+          <text class="d-t-s" x="30" y="132">번들러 · Gradle · R8</text>
+          <rect class="d-box" x="196" y="90" width="428" height="54" rx="4"/>
+          <text class="d-t-s" x="210" y="112">개발 모드에선 되는데 릴리스 빌드에서만 안 된다</text>
+          <text class="d-t-s" x="210" y="130">빌드 자체가 실패한다 (메모리 · 경로 · 버전)</text>
+
+          <rect class="d-box-m" x="16" y="154" width="150" height="54" rx="4"/>
+          <text class="d-t" x="30" y="178">③ 실행</text>
+          <text class="d-t-s" x="30" y="196">브라우저 · JS 엔진 · OS</text>
+          <rect class="d-box-m" x="196" y="154" width="428" height="54" rx="4"/>
+          <text class="d-t-s" x="210" y="176">내 PC 에선 되는데 어떤 기기·브라우저에서만 안 된다</text>
+          <text class="d-t-s" x="210" y="194">권한 · 자동재생 정책 · 메모리 · 화면 크기</text>
+
+          <rect class="d-box" x="16" y="218" width="150" height="54" rx="4"/>
+          <text class="d-t" x="30" y="242">④ 네트워크</text>
+          <text class="d-t-s" x="30" y="260">API · 서버</text>
+          <rect class="d-box" x="196" y="218" width="428" height="54" rx="4"/>
+          <text class="d-t-s" x="210" y="240">가끔만 안 된다 · 첫 요청만 느리다</text>
+          <text class="d-t-s" x="210" y="258">CORS 거절 · 시간 초과 · 서버 오류 응답</text>
+
+          <rect class="d-box" x="16" y="282" width="150" height="54" rx="4"/>
+          <text class="d-t" x="30" y="306">⑤ 배포</text>
+          <text class="d-t-s" x="30" y="324">CDN · 캐시 · 스토어</text>
+          <rect class="d-box" x="196" y="282" width="428" height="54" rx="4"/>
+          <text class="d-t-s" x="210" y="304">고쳐서 올렸는데 그대로다 · 사람마다 다르게 보인다</text>
+          <text class="d-t-s" x="210" y="322">캐시 · 아직 반영 안 됨 · 스토어 심사 중</text>
+
+          <path class="d-line" d="M91,80 V83"/><polygon points="91,90 87,83 95,83" fill="#1A1D18"/>
+          <path class="d-line" d="M91,144 V147"/><polygon points="91,154 87,147 95,147" fill="#1A1D18"/>
+          <path class="d-line" d="M91,208 V211"/><polygon points="91,218 87,211 95,211" fill="#1A1D18"/>
+          <path class="d-line" d="M91,272 V275"/><polygon points="91,282 87,275 95,275" fill="#1A1D18"/>
+          <path class="d-line" d="M166,53 H189"/><polygon points="196,53 189,49 189,57" fill="#1A1D18"/>
+          <path class="d-line" d="M166,117 H189"/><polygon points="196,117 189,113 189,121" fill="#1A1D18"/>
+          <path class="d-line" d="M166,181 H189"/><polygon points="196,181 189,177 189,185" fill="#1A1D18"/>
+          <path class="d-line" d="M166,245 H189"/><polygon points="196,245 189,241 189,249" fill="#1A1D18"/>
+          <path class="d-line" d="M166,309 H189"/><polygon points="196,309 189,305 189,313" fill="#1A1D18"/>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        ① 만 "코드 문제"다. ②~⑤ 는 코드가 맞아도 생긴다. 그래서 코드부터 고치기 전에 "어디서는 되고 어디서는 안 되나"를 먼저 묻는다.
+      </figcaption>
+    </figure>
+
+    <h4>증상으로 층 좁히기</h4>
+
+    <table>
+      <tr><th>이렇게 물어서</th><th>그렇다면</th></tr>
+      <tr><td>어디서 돌려도 똑같이 틀리나?</td><td>① 소스</td></tr>
+      <tr><td>개발 빌드는 되고 릴리스 빌드만 안 되나?</td><td>② 빌드 (최적화·난독화·환경 변수)</td></tr>
+      <tr><td>특정 기기·브라우저에서만 안 되나?</td><td>③ 실행 환경</td></tr>
+      <tr><td>가끔만, 또는 처음만 안 되나?</td><td>④ 네트워크·서버</td></tr>
+      <tr><td>고쳤는데 그대로인가? 사람마다 다른가?</td><td>⑤ 배포·캐시</td></tr>
+    </table>
+
+    <!-- ============================================================ -->
+    <h3>② 빌드 — 릴리스에서만 죽는 앱</h3>
+
+    <p>
+      학창시절 다이어리에 R8(안드로이드 코드 줄이기·난독화)을 켰을 때 가장 걱정한 게 이 층이다.
+      R8 은 "어디서도 부르지 않는 코드"를 지우고 이름을 <code>a</code>, <code>b</code> 처럼 짧게 바꾼다. 그런데 React Native 는 네이티브 모듈을 <strong>문자열 이름으로</strong> 찾아 부른다. R8 눈에는 그 호출이 안 보인다.
+    </p>
+    <ul>
+      <li><strong>증상:</strong> 개발 중엔 멀쩡하다. 릴리스 빌드에서만 켜자마자 죽거나, 특정 기능만 조용히 안 된다. 개발 빌드에선 R8 이 안 돌기 때문이다.</li>
+      <li><strong>막는 법:</strong> 라이브러리가 싣고 오는 keep 규칙("이 이름은 바꾸지 마")이 있다. 그래도 빠진 게 없는지 <strong>릴리스 빌드를 직접 깔아</strong> 그림판·DB 저장·서버 호출·결제 화면을 눌러 봤다.</li>
+      <li><strong>같은 층의 다른 문제:</strong> R8 단계에서 빌드 도구의 메모리가 모자라 <code>OutOfMemoryError: Metaspace</code> 로 빌드 자체가 죽었다. 코드는 한 줄도 틀리지 않았다.</li>
+    </ul>
+
+    <!-- ============================================================ -->
+    <h3>③ 실행 — 아이폰에서만 안 나는 소리</h3>
+
+    <p>
+      스쿠터 게임을 PC 로만 확인하고 올렸는데, 폰으로 해 보니 엔진 소리는 나는데 캐릭터 목소리가 하나도 안 났다. 코드는 PC 에서 잘 돌았으니 ① 은 아니다.
+    </p>
+    <p>
+      원인은 아이폰 사파리의 정책이었다. <code>&lt;audio&gt;.play()</code> 는 <strong>사람이 화면을 누른 그 순간</strong>에만 허락된다. 대사는 NPC 에게 다가가거나 아이템을 먹을 때, 즉 아무것도 안 누른 순간에 나오니 전부 막혔다.
+      엔진 소리는 처음부터 Web Audio 였고, 출발 버튼을 누를 때 한 번 깨워 둬서 계속 났다. 목소리도 Web Audio 로 옮겨서 고쳤다.
+    </p>
+    <p>
+      같은 층의 다른 예. ES 모듈로 만든 게임은 파일을 더블클릭해 열면 브라우저가 막는다. 실행 환경(<code>file://</code>)의 규칙이다. 자세한 건 <a href="/learn/es-modules/">ES 모듈과 클래식 스크립트</a>에 적었다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>④ 네트워크 — 첫 요청만 느리다</h3>
+
+    <p>
+      이 사이트의 원칙 중 하나가 "정적으로 가능하면 정적으로"다. 이유가 이 층에 있다.
+      Fly.io 서버에 유휴 시 자동으로 멈추는 설정을 걸면, 오래 쉰 뒤 첫 요청은 서버가 깨어나는 동안 몇 초 기다린다(<strong>콜드 스타트</strong>).
+      코드는 맞고, 두 번째부터는 빠르다. "가끔 느리다"는 말을 들으면 코드보다 서버 상태부터 본다.
+    </p>
+    <ul>
+      <li><strong>보는 곳:</strong> 브라우저 개발자 도구의 Network 탭. 요청이 나갔나, 몇 초 걸렸나, 응답 코드가 뭐였나.</li>
+      <li><strong>서버 쪽:</strong> 서버 로그. 요청이 도착은 했나.</li>
+    </ul>
+
+    <!-- ============================================================ -->
+    <h3>⑤ 배포 — 고쳤는데 그대로다</h3>
+
+    <p>
+      가장 많이 헷갈리는 층이다. 코드를 고치고 올렸는데 화면이 그대로면, 고친 게 틀렸다고 생각하기 쉽다. 대부분은 <strong>옛 파일이 어딘가에 남아 있는 것</strong>이다.
+    </p>
+
+    <table>
+      <tr><th>남아 있던 곳</th><th>겪은 일과 푼 법</th></tr>
+      <tr><td>브라우저 캐시</td><td>Cloudflare Pages 가 js·css 에 4시간 캐시를 붙인다. 고친 뒤 주소에 <code>?v=</code> 숫자를 올려 새 파일로 보이게 한다</td></tr>
+      <tr><td>CDN 캐시</td><td>파일이 없을 때 접속한 주소의 응답이 엣지에 남아, 파일을 올려도 옛 응답이 나왔다. 캐시를 비워서 풀었다</td></tr>
+      <tr><td>메신저 미리보기</td><td>인스타·카톡은 링크 미리보기 그림을 오래 저장한다. 주소 끝에 <code>?s=1</code> 같은 의미 없는 꼬리를 붙여 새 주소로 보이게 했다</td></tr>
+      <tr><td>스토어</td><td>앱은 심사를 통과해야 사용자에게 간다. 고쳤어도 사용자 폰에는 옛 버전이 돈다</td></tr>
+    </table>
+
+<pre><code># 실제로 배포된 파일이 무엇인지 직접 받아 본다 (캐시 없이)
+curl -s "https://gangmini.com/notes/gamst-scooter/?z=$RANDOM" | grep "찾는 문장"
+curl -sI "https://gangmini.com/notes/note.css" | grep -i cache-control</code></pre>
+
+    <!-- ============================================================ -->
+    <h3>팀에서 이게 왜 중요한가</h3>
+
+    <p>
+      팀에서는 층마다 담당이 다른 경우가 많다. 빌드·배포는 플랫폼 팀이, 서버는 백엔드가, 화면은 프론트엔드가 맡는다.
+      버그 보고에 <strong>"어느 층 같다"와 그 근거</strong>를 붙일 수 있으면, 맞는 사람에게 바로 간다. "안 돼요"만 쓰면 모두가 처음부터 다시 좁혀야 한다.
+    </p>
+
+<pre><code>릴리스 빌드(1.0.1)에서만 결제 화면 가격이 안 뜹니다.
+- 개발 빌드: 정상   ← ① 소스는 아님
+- 에뮬레이터·실기기 둘 다 같음   ← ③ 기기 문제 아님
+- R8 켠 뒤부터 → ② 빌드 층, keep 규칙 확인 필요해 보입니다</code></pre>
+    <p>
+      위는 실제로 겪은 일이 아니라, 이 지도대로 보고하면 어떤 모양이 되는지 보인 예다. 다행히 다이어리 앱의 R8 릴리스 빌드에서는 가격이 제대로 떴다.
+    </p>
+
+    <p class="gloss">
+      <b>릴리스 빌드</b> — 사용자에게 나가는 빌드. 개발 빌드와 달리 코드를 줄이고 최적화한다. 그래서 개발 빌드에선 없던 문제가 생길 수 있다.<br>
+      <b>콜드 스타트</b> — 멈춰 있던 서버가 첫 요청을 받고 깨어나느라 늦게 응답하는 것.<br>
+      <b>CDN</b> — 전 세계 여러 곳에 파일 사본을 두고 가까운 곳에서 내주는 망. 빠르지만, 사본이 옛것이면 옛것을 내준다.
+    </p>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 읽기</p>
+      <ul>
+        <li><a href="/learn/es-modules/">ES 모듈과 클래식 스크립트</a> — ③ 실행 층의 예</li>
+        <li><a href="/notes/gamst-scooter/">감스트의 전동 스쿠터 라이딩</a> — 아이폰에서만 안 나던 목소리</li>
+        <li><a href="/learn/team-verification/">검증을 남기기</a> — 층마다 확인을 다시 돌릴 수 있게</li>
+        <li><a href="/learn/github-actions/">GitHub Actions 따라 하기</a> — ② 빌드 층을 자동으로 확인하기</li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>충돌 일부러 만들고 풀기 — merge conflict 실습 · gangmin</title>
+<meta name="description" content="두 브랜치가 같은 줄을 고치면 Git 은 고르지 않고 묻는다. 충돌을 일부러 만들고, 표시를 읽고, 풀고, 취소하는 법. PR 이 conflicts 로 막혔을 때까지.">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="충돌 일부러 만들고 풀기 — merge conflict 실습">
+<meta property="og:description" content="충돌을 일부러 만들고, 표시를 읽고, 풀고, 취소하는 법.">
+<meta property="og:url" content="https://gangmini.com/learn/git-conflict/">
+<meta property="og:image" content="https://gangmini.com/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../../notes/note.css?v=20261009b">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/learn/">← 이론/용어</a>
+    <p class="eyebrow">PRACTICE</p>
+    <h2 class="masthead__title">충돌 일부러 만들고 풀기<br>— merge conflict 실습</h2>
+    <div class="doc__meta">
+      <span class="tag">실습</span>
+      <span class="tag">Git</span>
+      <span class="tag">merge</span>
+      <span class="tag">conflict</span>
+      <span class="tag">Pull Request</span>
+      <time class="note__date">2026.10.28</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      팀에서 처음 Git 이 무서워지는 순간은 대개 충돌(conflict)이다. 화면에 <code>CONFLICT</code> 가 뜨고 파일 안에 <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code> 가 박힌다.
+      그런데 충돌은 고장이 아니다. <strong>두 사람이 같은 줄을 다르게 고쳐서, Git 이 어느 쪽이 맞는지 사람에게 묻는 것</strong>이다.
+      한 번 일부러 만들어서 풀어 보면 다음부터는 무섭지 않다.
+    </p>
+    <p>
+      <a href="/learn/git-basics/">Git 첫걸음</a>의 <code>git-practice</code> 저장소에서 이어서 한다. 출력은 실제로 돌려서 나온 것이다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>언제 충돌이 나나</h3>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 220" role="img" aria-label="같은 커밋에서 갈라진 두 브랜치가 rules.md 의 같은 줄을 각각 12시 30분, 11시 30분으로 고쳤다. 첫 번째 merge 는 그대로 되고, 두 번째 merge 에서 같은 줄이 부딪혀 충돌이 난다.">
+          <rect class="d-box" x="16" y="84" width="150" height="52" rx="4"/>
+          <text class="d-t" x="91" y="106" text-anchor="middle">main</text>
+          <text class="d-t-s" x="91" y="124" text-anchor="middle">점심은 12시에</text>
+
+          <rect class="d-box" x="236" y="20" width="170" height="52" rx="4"/>
+          <text class="d-t-m" x="321" y="42" text-anchor="middle">feat/lunch-1230</text>
+          <text class="d-t-s" x="321" y="60" text-anchor="middle">→ 12시 30분에</text>
+
+          <rect class="d-box" x="236" y="148" width="170" height="52" rx="4"/>
+          <text class="d-t-m" x="321" y="170" text-anchor="middle">feat/lunch-1130</text>
+          <text class="d-t-s" x="321" y="188" text-anchor="middle">→ 11시 30분에</text>
+
+          <path class="d-line" d="M166,98 H200 V46 H229"/><polygon points="236,46 229,42 229,50" fill="#1A1D18"/>
+          <path class="d-line" d="M166,122 H200 V174 H229"/><polygon points="236,174 229,170 229,178" fill="#1A1D18"/>
+
+          <rect class="d-box-m" x="474" y="84" width="150" height="52" rx="4"/>
+          <text class="d-t" x="549" y="106" text-anchor="middle">같은 줄!</text>
+          <text class="d-t-s" x="549" y="124" text-anchor="middle">Git 이 사람에게 묻는다</text>
+
+          <path class="d-line" d="M406,46 H440 V98 H467"/><polygon points="474,98 467,94 467,102" fill="#1A1D18"/>
+          <path class="d-line" d="M406,174 H440 V122 H467"/><polygon points="474,122 467,118 467,126" fill="#1A1D18"/>
+          <text class="d-t-s" x="444" y="30">먼저 합침 — 문제없음</text>
+          <text class="d-t-s" x="444" y="206">나중에 합침 — 충돌</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        같은 파일이어도 <strong>다른 줄</strong>을 고쳤다면 Git 이 알아서 둘 다 합친다. 충돌은 같은 줄(또는 바로 붙은 줄)을 양쪽이 다르게 고쳤을 때만 난다.
+      </figcaption>
+    </figure>
+
+    <!-- ============================================================ -->
+    <h3>1. 충돌 만들기</h3>
+
+    <p><strong>① main 에 파일 하나를 만든다.</strong></p>
+
+<pre><code>git switch main
+printf '# 우리 팀 규칙\n\n점심은 12시에 먹는다.\n' &gt; rules.md
+git add rules.md
+git commit -m "팀 규칙 추가"</code></pre>
+
+    <p><strong>② 브랜치 A 에서 그 줄을 고친다.</strong></p>
+
+<pre><code>git switch -c feat/lunch-1230
+# rules.md 의 "12시에" 를 "12시 30분에" 로 고치고
+git commit -am "점심 12시 30분으로"</code></pre>
+
+    <p>
+      <code>-a</code> 는 "이미 추적 중인 파일의 변경을 add 까지 한 번에"다. 새 파일에는 안 먹는다.
+    </p>
+
+    <p><strong>③ main 으로 돌아가 브랜치 B 를 따고, 같은 줄을 다르게 고친다.</strong></p>
+
+<pre><code>git switch main
+git switch -c feat/lunch-1130
+# 이번엔 "12시에" 를 "11시 30분에" 로
+git commit -am "점심 11시 30분으로"</code></pre>
+
+    <p><strong>④ main 에 A 를 합친다.</strong> 문제없이 된다.</p>
+
+<pre><code>git switch main
+git merge feat/lunch-1230</code></pre>
+<pre><code>Updating 01f689e..a3b53bd
+Fast-forward
+ rules.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)</code></pre>
+
+    <p><strong>⑤ 이어서 B 를 합친다.</strong> 여기서 부딪힌다.</p>
+
+<pre><code>git merge feat/lunch-1130</code></pre>
+<pre><code>Auto-merging rules.md
+CONFLICT (content): Merge conflict in rules.md
+Automatic merge failed; fix conflicts and then commit the result.</code></pre>
+
+    <!-- ============================================================ -->
+    <h3>2. 지금 무슨 상태인가 — status 와 충돌 표시</h3>
+
+<pre><code>git status</code></pre>
+<pre><code>On branch main
+You have unmerged paths.
+  (fix conflicts and run "git commit")
+  (use "git merge --abort" to abort the merge)
+
+Unmerged paths:
+  (use "git add &lt;file&gt;..." to mark resolution)
+	both modified:   rules.md</code></pre>
+
+    <p>
+      <code>both modified</code> — 양쪽이 다 고친 파일이다. Git 은 merge 를 반쯤 한 상태로 멈춰 있고, 할 수 있는 건 두 가지라고 알려 준다. <strong>풀고 commit 하거나, <code>--abort</code> 로 없던 일로 하거나.</strong> 파일을 열어 보면:
+    </p>
+
+<pre><code># 우리 팀 규칙
+
+&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD
+점심은 12시 30분에 먹는다.
+=======
+점심은 11시 30분에 먹는다.
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; feat/lunch-1130</code></pre>
+
+    <table>
+      <tr><th>표시</th><th>뜻</th></tr>
+      <tr><td><code>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD</code></td><td>여기부터 <strong>지금 내가 있는 쪽</strong>(main, 즉 A 가 합쳐진 상태)</td></tr>
+      <tr><td><code>=======</code></td><td>경계선</td></tr>
+      <tr><td><code>&gt;&gt;&gt;&gt;&gt;&gt;&gt; feat/lunch-1130</code></td><td>여기까지 <strong>들어오려는 쪽</strong>(B)</td></tr>
+    </table>
+
+    <p class="gloss">
+      <b>HEAD</b> — "지금 내가 서 있는 커밋"을 가리키는 이름. 보통은 지금 브랜치의 맨 끝이다.<br>
+      <b>current / incoming</b> — VS Code 같은 편집기는 HEAD 쪽을 Current change, 들어오는 쪽을 Incoming change 라고 부르고, 그 위에 <em>Accept Current · Accept Incoming · Accept Both</em> 버튼을 띄운다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>3. 겁나면 일단 취소 — merge --abort</h3>
+
+<pre><code>git merge --abort
+git status --short       # 아무것도 안 나온다
+cat rules.md</code></pre>
+<pre><code># 우리 팀 규칙
+
+점심은 12시 30분에 먹는다.</code></pre>
+
+    <p>
+      merge 하기 직전으로 정확히 돌아간다. 급하게 다른 일을 해야 하거나, 누구 변경이 맞는지 물어봐야 할 때 쓴다. <strong>충돌 중에 아무 파일이나 지우거나 새로 받는 것보다 훨씬 안전하다.</strong>
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>4. 풀기 — 고르고, 표시 지우고, add, commit</h3>
+
+    <p>다시 merge 해서 충돌 상태로 만든 뒤 푼다.</p>
+
+<pre><code>git merge feat/lunch-1130     # 다시 충돌</code></pre>
+
+    <p><strong>① 파일을 원하는 최종 모습으로 고친다.</strong> 한쪽을 고를 수도, 둘을 섞을 수도 있다. 여기서는 섞었다.</p>
+
+<pre><code># 우리 팀 규칙
+
+점심은 12시에 먹는다. (11시 30분·12시 30분 두 조로 나눈다)</code></pre>
+
+    <p>
+      <strong><code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code>, <code>=======</code>, <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code> 세 줄은 반드시 지운다.</strong> 남은 채로 커밋하면 그 문자가 그대로 코드에 들어가 빌드가 깨진다. 실제로 자주 나는 사고다.
+      확인은 <code>git diff --check</code> 나 <code>grep -n '&lt;&lt;&lt;&lt;&lt;&lt;&lt;' -r .</code> 로 한다.
+    </p>
+
+    <p><strong>② add 로 "다 풀었다"고 알린다.</strong></p>
+
+<pre><code>git add rules.md
+git status --short</code></pre>
+<pre><code>M  rules.md</code></pre>
+
+    <p><strong>③ commit 한다.</strong> merge 커밋 메시지는 Git 이 미리 채워 둔다.</p>
+
+<pre><code>git commit --no-edit</code></pre>
+<pre><code>[main f47d5b3] Merge branch 'feat/lunch-1130'</code></pre>
+
+<pre><code>git log --oneline --graph -5</code></pre>
+<pre><code>*   f47d5b3 Merge branch 'feat/lunch-1130'
+|\
+| * b3724b1 점심 11시 30분으로
+* | a3b53bd 점심 12시 30분으로
+|/
+* 01f689e 팀 규칙 추가</code></pre>
+
+    <p>
+      두 갈래가 다시 하나로 모인 모양이 그대로 보인다. <strong>풀고 나서 꼭 실행해 본다.</strong> 문법상 충돌은 풀렸어도, 양쪽 코드를 섞은 결과가 실제로 도는지는 Git 이 모른다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>5. 회사에서 더 흔한 경우 — PR 이 conflicts 로 막혔을 때</h3>
+
+    <p>
+      실무에서는 main 에 직접 merge 하는 일이 드물다. 대신 내 PR 아래에 이런 문구가 뜬다.
+      <em>"This branch has conflicts that must be resolved"</em>. 내가 브랜치에서 일하는 동안 누군가 같은 줄을 고쳐서 main 에 먼저 합친 것이다.
+    </p>
+
+    <h4>방법 A. GitHub 웹에서 (간단한 충돌)</h4>
+    <ol>
+      <li>PR 아래 <strong>Resolve conflicts</strong> 버튼을 누른다</li>
+      <li>웹 편집기에 위와 같은 표시가 나온다. 고치고 표시 세 줄을 지운다</li>
+      <li>오른쪽 위 <strong>Mark as resolved</strong> → <strong>Commit merge</strong></li>
+    </ol>
+    <p>충돌이 복잡하거나 파일이 많으면 이 버튼이 안 뜨고 "명령줄에서 풀라"는 안내만 나온다. 그럴 땐 B.</p>
+
+    <h4>방법 B. 내 컴퓨터에서 (권장)</h4>
+
+    <p>
+      main 의 최신 내용을 <strong>내 브랜치로</strong> 가져와 거기서 푼다. 예로 든 <code>feat/lunch-1300</code> 은 "팀 규칙 추가" 시점에서 따서 "12시"를 "1시"로 고친 브랜치다.
+      그사이 main 에는 위 4번에서 푼 결과가 올라가 있다.
+    </p>
+
+<pre><code>git switch feat/lunch-1300
+git fetch                 # GitHub 의 최신 상태를 받아만 둔다
+git merge origin/main     # 최신 main 을 내 브랜치에 합친다</code></pre>
+<pre><code>Auto-merging rules.md
+CONFLICT (content): Merge conflict in rules.md
+Automatic merge failed; fix conflicts and then commit the result.</code></pre>
+<pre><code>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD
+점심은 1시에 먹는다.
+=======
+점심은 12시에 먹는다. (11시 30분·12시 30분 두 조로 나눈다)
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; origin/main</code></pre>
+
+    <p>
+      이번엔 <strong>HEAD 가 내 브랜치</strong>, 들어오는 쪽이 main 이다. 앞의 실습과 위아래가 바뀌었다. "HEAD = 지금 내가 서 있는 곳"으로 기억하면 헷갈리지 않는다.
+      풀고, <code>git add</code>, <code>git commit</code>, 그리고 <code>git push</code> 하면 PR 의 충돌 표시가 사라진다.
+    </p>
+    <p>
+      팀에 따라 merge 대신 <code>git rebase origin/main</code> 으로 따라가기도 한다. 그 차이는 <a href="/learn/git-sync-rebase/">최신 main 따라가기</a>에서 다룬다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>충돌을 줄이는 습관</h3>
+
+    <ul>
+      <li><strong>브랜치를 오래 끌지 않는다.</strong> 며칠씩 혼자 들고 있을수록 main 과 멀어진다. 작게 나눠 자주 합친다.</li>
+      <li><strong>하루 한 번은 main 을 따라간다.</strong> <code>git fetch</code> + <code>git merge origin/main</code>(또는 rebase). 작은 충돌을 자주 푸는 게 큰 충돌 한 번보다 쉽다.</li>
+      <li><strong>상관없는 변경을 섞지 않는다.</strong> 기능 고치면서 파일 전체 들여쓰기·줄바꿈을 바꾸면, 그 파일을 만진 모든 사람과 충돌한다. 포매터 일괄 적용은 따로 PR 로.</li>
+      <li><strong>같은 파일을 크게 고칠 거면 미리 말한다.</strong> "오늘 settings 화면 구조 바꿔요" 한 마디가 충돌 해결 한 시간을 아낀다.</li>
+    </ul>
+
+    <p>
+      셋째가 내 다이어리 앱 저장소에서 실제로 본 일이다. 커밋 안 한 변경이 3,316 줄로 보였는데, 진짜로 바뀐 건 86 줄이었다. 나머지는 윈도 줄바꿈(CRLF) 차이였다.
+      혼자라 넘어갔지만, 팀이었다면 그 파일을 만진 모든 사람과 충돌했을 것이다. 저장소에 <code>.gitattributes</code> 로 줄바꿈 규칙을 박아 두는 이유다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>정리</h3>
+
+    <table>
+      <tr><th>상황</th><th>할 일</th></tr>
+      <tr><td><code>CONFLICT</code> 가 떴다</td><td><code>git status</code> 로 <code>both modified</code> 파일 확인</td></tr>
+      <tr><td>파일 안 표시</td><td><code>&lt;&lt;&lt; HEAD</code> = 지금 내 쪽, <code>&gt;&gt;&gt;</code> = 들어오는 쪽</td></tr>
+      <tr><td>풀기</td><td>최종 모습으로 고치고 표시 세 줄 삭제 → <code>git add</code> → <code>git commit</code> → 실행 확인</td></tr>
+      <tr><td>일단 멈추기</td><td><code>git merge --abort</code></td></tr>
+      <tr><td>PR 이 충돌</td><td>내 브랜치에서 <code>git fetch</code> → <code>git merge origin/main</code> → 풀고 push</td></tr>
+    </table>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 볼 것</p>
+      <ul>
+        <li><a href="/learn/git-branch-pr/">브랜치와 Pull Request</a> — 충돌이 나기 전까지의 흐름</li>
+        <li><a href="/learn/git-sync-rebase/">최신 main 따라가기</a> — merge 와 rebase 의 차이</li>
+        <li><a href="/learn/git-undo/">되돌리기</a> — 잘못 푼 merge 를 되돌리려면</li>
+        <li><a href="/learn/team-git-habits/">팀에서 Git 쓰는 습관</a> — 줄바꿈, 커밋 단위</li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>
