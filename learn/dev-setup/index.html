@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 
 <title>실습 환경 준비 — VS Code, 터미널, Git, Python · gangmin</title>
-<meta name="description" content="실습은 어디서 하나. 내 컴퓨터에 VS Code·Git·Python 을 깔고, VS Code 안의 터미널(윈도는 Git Bash)에서 명령을 친다. 설치 확인부터 가상환경 켜기까지.">
+<meta name="description" content="실습은 어디서 하나. 내 컴퓨터에 VS Code·Git·Python 을 깔고, VS Code 안의 터미널(윈도우는 Git Bash)에서 명령을 친다. 설치 확인부터 가상환경 켜기까지.">
 
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="gangmin">
@@ -44,13 +44,13 @@
 
     <p>
       Git 실습과 코드 구조 실습은 전부 <strong>내 컴퓨터</strong>에서 한다. 웹사이트나 온라인 편집기가 아니다.
-      명령을 치는 곳은 <strong>VS Code 안의 터미널</strong> 하나로 통일한다. 윈도라면 그 터미널을 <strong>Git Bash</strong> 로 바꿔 둔다.
+      명령을 치는 곳은 <strong>VS Code 안의 터미널</strong> 하나로 통일한다. 윈도우라면 그 터미널을 <strong>Git Bash</strong> 로 바꿔 둔다.
       이 글은 실습 글들을 시작하기 전에 한 번만 해 두면 되는 준비다.
     </p>
 
     <p class="gloss">
       <b>터미널</b> — 마우스 대신 글자로 컴퓨터에 명령하는 창. 실습 글의 <code>git switch dev</code> 같은 줄은 전부 여기에 친다.<br>
-      <b>셸(shell)</b> — 터미널 안에서 명령을 알아듣는 프로그램. 윈도의 PowerShell·명령 프롬프트(cmd), Git 을 깔면 같이 오는 Git Bash, 맥의 zsh 가 모두 셸이다. 셸마다 몇몇 명령의 문법이 다르다.
+      <b>셸(shell)</b> — 터미널 안에서 명령을 알아듣는 프로그램. 윈도우의 PowerShell·명령 프롬프트(cmd), Git 을 깔면 같이 오는 Git Bash, 맥의 zsh 가 모두 셸이다. 셸마다 몇몇 명령의 문법이 다르다.
     </p>
 
     <!-- ============================================================ -->
@@ -78,7 +78,7 @@
           <text class="d-t-s" x="292" y="166" text-anchor="middle">코드 읽고 고치기</text>
 
           <rect class="d-box-m" x="30" y="186" width="402" height="96" rx="3"/>
-          <text class="d-t" x="44" y="206">터미널 (Ctrl + `) — 윈도는 Git Bash</text>
+          <text class="d-t" x="44" y="206">터미널 (Ctrl + `) — 윈도우는 Git Bash</text>
           <text class="d-t-m" x="44" y="228">$ git switch -c refactor/layered-di</text>
           <text class="d-t-m" x="44" y="246">$ python smoke.py</text>
           <text class="d-t-s" x="44" y="272">git · python · pip · gh 명령은 전부 여기</text>
@@ -103,10 +103,10 @@
 
     <table>
       <tr><th>할 일</th><th>어디서</th></tr>
-      <tr><td>명령 치기 (git, python, pip, gh)</td><td>VS Code 아래 터미널. 윈도는 Git Bash, 맥은 기본(zsh)</td></tr>
+      <tr><td>명령 치기 (git, python, pip, gh)</td><td>VS Code 아래 터미널. 윈도우는 Git Bash, 맥은 기본(zsh)</td></tr>
       <tr><td>코드 읽고 고치기</td><td>VS Code 편집기</td></tr>
       <tr><td>PR 만들기·리뷰·보호 규칙</td><td>브라우저의 github.com (또는 터미널의 <code>gh</code>)</td></tr>
-      <tr><td>실습 폴더 위치</td><td><code>C:\dev\</code> (윈도) · <code>~/dev/</code> (맥). OneDrive·바탕 화면·한글 경로는 피한다 (아래)</td></tr>
+      <tr><td>실습 폴더 위치</td><td><code>C:\dev\</code> (윈도우) · <code>~/dev/</code> (맥). OneDrive·바탕 화면·한글 경로는 피한다 (아래)</td></tr>
     </table>
 
     <!-- ============================================================ -->
@@ -115,8 +115,8 @@
     <table>
       <tr><th>프로그램</th><th>어디서 받나</th><th>메모</th></tr>
       <tr><td>VS Code</td><td>code.visualstudio.com</td><td>편집기 + 터미널. 설치 중 "PATH 에 추가"를 켜 둔다</td></tr>
-      <tr><td>Git</td><td>git-scm.com</td><td>윈도용 설치 파일에 <strong>Git Bash</strong> 가 같이 들어 있다. 맥은 터미널에 <code>git</code> 을 치면 설치 안내가 뜬다</td></tr>
-      <tr><td>Python 3.11 이상</td><td>python.org</td><td>윈도 설치 첫 화면의 <strong>"Add python.exe to PATH"</strong> 를 꼭 체크한다</td></tr>
+      <tr><td>Git</td><td>git-scm.com</td><td>윈도우용 설치 파일에 <strong>Git Bash</strong> 가 같이 들어 있다. 맥은 터미널에 <code>git</code> 을 치면 설치 안내가 뜬다</td></tr>
+      <tr><td>Python 3.11 이상</td><td>python.org</td><td>윈도우 설치 첫 화면의 <strong>"Add python.exe to PATH"</strong> 를 꼭 체크한다</td></tr>
       <tr><td>GitHub CLI (선택)</td><td>cli.github.com</td><td><code>gh</code> 명령. 없어도 실습은 되고, 웹에서 같은 걸 할 수 있다</td></tr>
     </table>
 
@@ -125,7 +125,7 @@
     </p>
 
     <!-- ============================================================ -->
-    <h3>2. 터미널을 Git Bash 로 (윈도만)</h3>
+    <h3>2. 터미널을 Git Bash 로 (윈도우만)</h3>
 
     <p>
       실습 글의 명령은 <strong>bash 문법</strong>으로 썼다. 대부분은 PowerShell 에서도 똑같이 되지만, 가상환경 켜기나 몇몇 줄이 다르다.
@@ -141,7 +141,7 @@
     <!-- ============================================================ -->
     <h3>3. 설치 확인</h3>
 
-    <p>터미널에 한 줄씩 친다. 버전 숫자가 나오면 된다(숫자는 사람마다 다르다). 아래는 내 컴퓨터(윈도, Git Bash)에서 나온 것이다.</p>
+    <p>터미널에 한 줄씩 친다. 버전 숫자가 나오면 된다(숫자는 사람마다 다르다). 아래는 내 컴퓨터(윈도우, Git Bash)에서 나온 것이다.</p>
 
 <pre><code>$ git --version
 git version 2.47.0.windows.2
@@ -158,7 +158,7 @@ gh version 2.97.0 (2026-07-31)</code></pre>
     <table>
       <tr><th>이렇게 나오면</th><th>원인과 해결</th></tr>
       <tr><td><code>command not found</code> · <code>인식되지 않습니다</code></td><td>설치가 안 됐거나 PATH 에 없다. 다시 설치하면서 PATH 옵션을 켜고, <strong>VS Code 를 껐다 켠다</strong> (켜져 있던 터미널은 새 PATH 를 모른다)</td></tr>
-      <tr><td><code>python</code> 을 쳤더니 Microsoft Store 가 열린다</td><td>윈도의 "앱 실행 별칭"이 가로챈 것. python.org 판을 PATH 옵션으로 다시 깔거나, 설정 → 앱 → 고급 앱 설정 → 앱 실행 별칭에서 python 을 끈다</td></tr>
+      <tr><td><code>python</code> 을 쳤더니 Microsoft Store 가 열린다</td><td>윈도우의 "앱 실행 별칭"이 가로챈 것. python.org 판을 PATH 옵션으로 다시 깔거나, 설정 → 앱 → 고급 앱 설정 → 앱 실행 별칭에서 python 을 끈다</td></tr>
       <tr><td>맥에서 <code>python</code> 이 없다</td><td>맥은 <code>python3</code> · <code>pip3</code> 로 친다. 실습 글의 <code>python</code> 을 전부 <code>python3</code> 로 읽는다</td></tr>
     </table>
 
@@ -173,7 +173,7 @@ $ git config --global core.editor "code --wait"</code></pre>
     <ul>
       <li><strong>이름·이메일</strong>은 커밋마다 찍힌다. 공개 저장소에 진짜 이메일을 남기기 싫으면 GitHub → Settings → Emails 의 <code>…@users.noreply.github.com</code> 주소를 쓴다. 나도 공개 연습 저장소는 이 주소로 올렸다.</li>
       <li><strong>defaultBranch main</strong> 은 새 저장소의 첫 브랜치 이름을 <code>main</code> 으로 맞춘다. 실습 글이 전부 <code>main</code> 기준이다.</li>
-      <li><strong>core.editor</strong> 는 <code>git commit</code> 을 <code>-m</code> 없이 쳤거나 <code>git rebase -i</code> 를 했을 때 열리는 편집기다. 이걸 안 하면 윈도에선 Vim 이 열려서 빠져나오는 법을 모르면 갇힌다.</li>
+      <li><strong>core.editor</strong> 는 <code>git commit</code> 을 <code>-m</code> 없이 쳤거나 <code>git rebase -i</code> 를 했을 때 열리는 편집기다. 이걸 안 하면 윈도우에선 Vim 이 열려서 빠져나오는 법을 모르면 갇힌다.</li>
     </ul>
 
     <!-- ============================================================ -->
@@ -210,9 +210,9 @@ $ code memo-api-practice   # 그 폴더를 VS Code 로 연다</code></pre>
 
     <table>
       <tr><th>셸</th><th>켜기</th></tr>
-      <tr><td>Git Bash (윈도)</td><td><code>source .venv/Scripts/activate</code></td></tr>
-      <tr><td>PowerShell (윈도)</td><td><code>.venv\Scripts\Activate.ps1</code></td></tr>
-      <tr><td>명령 프롬프트 cmd (윈도)</td><td><code>.venv\Scripts\activate.bat</code></td></tr>
+      <tr><td>Git Bash (윈도우)</td><td><code>source .venv/Scripts/activate</code></td></tr>
+      <tr><td>PowerShell (윈도우)</td><td><code>.venv\Scripts\Activate.ps1</code></td></tr>
+      <tr><td>명령 프롬프트 cmd (윈도우)</td><td><code>.venv\Scripts\activate.bat</code></td></tr>
       <tr><td>macOS · Linux</td><td><code>source .venv/bin/activate</code></td></tr>
     </table>
 
@@ -243,7 +243,7 @@ C:\dev\memo-api-practice\.venv          ← 가상환경 안의 파이썬이 잡
 
     <table>
       <tr><th>확인</th><th>명령 · 모습</th></tr>
-      <tr><td>터미널이 Git Bash 다 (윈도)</td><td>줄 끝이 <code>$</code></td></tr>
+      <tr><td>터미널이 Git Bash 다 (윈도우)</td><td>줄 끝이 <code>$</code></td></tr>
       <tr><td>Git·Python 이 잡힌다</td><td><code>git --version</code> · <code>python --version</code></td></tr>
       <tr><td>내 이름이 들어가 있다</td><td><code>git config --global user.name</code></td></tr>
       <tr><td>실습 폴더가 영어 경로다</td><td><code>pwd</code> → <code>/c/dev/...</code></td></tr>

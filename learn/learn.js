@@ -69,7 +69,7 @@ const NOTES = [
     slug: "dev-setup",
     topic: "git", group: "setup", order: 0,
     title: "실습 환경 준비 — VS Code, 터미널, Git, Python",
-    desc: "실습은 어디서 하나. 내 컴퓨터에 VS Code·Git·Python 을 깔고, VS Code 안의 터미널(윈도는 Git Bash)에서 명령을 친다. 설치 확인, 이름 설정, 실습 폴더 위치, 셸마다 다른 가상환경 켜기까지.",
+    desc: "실습은 어디서 하나. 내 컴퓨터에 VS Code·Git·Python 을 깔고, VS Code 안의 터미널(윈도우는 Git Bash)에서 명령을 친다. 설치 확인, 이름 설정, 실습 폴더 위치, 셸마다 다른 가상환경 켜기까지.",
     date: "2026-10-28", cat: "practice",
     tags: ["VS Code", "터미널", "Git Bash", "Python", "가상환경", "PATH"],
     mine: false,
