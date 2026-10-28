@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>감스트의 전동 스쿠터 라이딩 — 동네 사람에게 길을 묻는 3D 웹 게임 · gangmin</title>
+<meta name="description" content="AI 로 만든 3D 주인공을 스쿠터에 앉혀 동네를 달리게 했다. 얼굴은 두고 몸만 고치기, 두 사람을 같이 잡는 대화 카메라, 귀 아프지 않은 엔진 합성음, 아이폰에서만 안 나던 목소리, DM 으로만 나눠 준 링크까지.">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="감스트의 전동 스쿠터 라이딩 — 동네 사람에게 길을 묻는 3D 웹 게임">
+<meta property="og:description" content="AI 로 만든 3D 주인공을 스쿠터에 앉혀 동네를 달리게 했다.">
+<meta property="og:url" content="https://gangmini.com/notes/gamst-scooter/">
+<meta property="og:image" content="https://gangmini.com/notes/gamst-scooter/screens.jpg">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../note.css?v=20261009b">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/notes/">← 기록</a>
+    <p class="eyebrow">STACK</p>
+    <h2 class="masthead__title">감스트의 전동 스쿠터 라이딩<br>— 동네 사람에게 길을 묻는 3D 웹 게임</h2>
+    <div class="doc__meta">
+      <span class="badge-mine">내 프로젝트</span>
+      <span class="tag">스택</span>
+      <span class="tag">Three.js</span>
+      <span class="tag">WebGL</span>
+      <span class="tag">Web Audio API</span>
+      <span class="tag">Tripo</span>
+      <span class="tag">glTF</span>
+      <span class="tag">Python</span>
+      <span class="tag">Cloudflare Pages</span>
+      <span class="tag">리틀리</span>
+      <time class="note__date">2026.10.28</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      전동 스쿠터를 탄 감스트가 파스텔색 주택가를 달린다. 상동호수공원 가는 길을 몰라서 동네 사람 셋에게 차례로 묻고,
+      들은 대로 골목을 돌고 기찻길을 건너 공원 한가운데 포탈에 닿으면 끝이다. 가는 길에는 코인 460개와 뽀또 150개가 떨어져 있다.
+      방송 밈 대사("비감입니다", "인디기 재미떠여", "나 뽀또 한번만!")가 실제 목소리로 나온다.
+    </p>
+    <p>
+      비공식 팬 게임이다. 화면 구석에 늘 그렇게 적어 두었고, 돈은 붙이지 않았으며, 내려 달라고 하면 바로 내린다.
+      링크는 목록에 올리지 않고, 릴스에 댓글을 단 사람에게만 DM 으로 보냈다. 릴스는 올린 지 하루가 안 돼 <strong>100만 조회</strong>를 넘었고 팔로워가 1,000명 넘게 늘었다.
+      나흘 동안 만들었다. 이 글은 무엇으로 어떻게 만들었는지, 걸린 것들을 어떻게 풀었는지 적는다.
+    </p>
+
+    <figure class="fig">
+      <img class="shot" src="screens.jpg" width="1944" height="360"
+           alt="세 장면. 왼쪽은 초록 티셔츠에 헬멧을 쓴 주인공이 흰 스쿠터를 타고 연보라색 골목을 달리고 오른쪽에 꽃무늬 셔츠 어머님이 서 있는 모습, 가운데는 같은 어머님 옆에 스쿠터를 세우고 아래 대화창에 길 안내가 나오는 모습, 오른쪽은 공원에 도착해 양손으로 브이를 하는 주인공을 아래에서 올려다본 모습">
+      <figcaption>
+        달리기 · 길 묻기 · 도착. 길을 물으면 카메라가 옆으로 돌아 두 사람을 같이 잡고, 도착하면 아래에서 올려다본다.
+      </figcaption>
+    </figure>
+
+    <!-- ============================================================ -->
+    <h3>한눈에 보는 구조</h3>
+
+    <p>
+      게임에는 서버가 없다. 동네, 주행, NPC, 소리까지 전부 방문자의 브라우저에서 돈다. 서버가 하는 일은 파일 8.7MB 를 한 번 건네주는 것뿐이다.
+      대신 이번엔 <strong>링크가 사람에게 가는 길</strong>이 하나 더 생겼다. 주소를 공개하지 않고 인스타 DM 자동화로만 나눠 줬다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 360" role="img" aria-label="위 줄: 인스타 릴스에 댓글로 키워드를 달면 리틀리 DM 자동화가 버튼이 달린 DM 을 보내고, 버튼을 누르면 브라우저가 열린다. 가운데: 브라우저는 Cloudflare Pages 에서 게임 파일 8.7MB 를 받는다. 아래 줄: 내 PC 의 game 폴더를 export_site.py 가 사이트 저장소로 복사하고 git push 하면 Pages 가 자동 배포한다.">
+          <!-- 위 줄: 링크가 가는 길 -->
+          <rect class="d-box" x="16" y="20" width="120" height="64" rx="4"/>
+          <text class="d-t" x="76" y="46" text-anchor="middle">인스타 릴스</text>
+          <text class="d-t-s" x="76" y="66" text-anchor="middle">100만 조회</text>
+
+          <rect class="d-box" x="160" y="20" width="120" height="64" rx="4"/>
+          <text class="d-t" x="220" y="46" text-anchor="middle">댓글에 키워드</text>
+          <text class="d-t-s" x="220" y="66" text-anchor="middle">보는 사람이 직접</text>
+
+          <rect class="d-box" x="304" y="20" width="144" height="64" rx="4"/>
+          <text class="d-t" x="376" y="46" text-anchor="middle">리틀리 DM 자동화</text>
+          <text class="d-t-s" x="376" y="66" text-anchor="middle">버튼 DM · 팔로우 요청</text>
+
+          <rect class="d-box-m" x="480" y="20" width="144" height="230" rx="4"/>
+          <text class="d-t" x="552" y="46" text-anchor="middle">폰 · PC 브라우저</text>
+          <text class="d-t-s" x="552" y="66" text-anchor="middle">화면 버튼 · 키보드</text>
+          <text class="d-t-m" x="552" y="102" text-anchor="middle">Three.js · WebGL</text>
+          <text class="d-t-s" x="552" y="120" text-anchor="middle">동네 · 주행 · 카메라</text>
+          <text class="d-t-m" x="552" y="150" text-anchor="middle">Web Audio</text>
+          <text class="d-t-s" x="552" y="168" text-anchor="middle">목소리 · 엔진 합성음</text>
+          <text class="d-t-s" x="552" y="204" text-anchor="middle">전부 여기서 돈다</text>
+          <text class="d-t-s" x="552" y="222" text-anchor="middle">(게임 서버 없음)</text>
+
+          <path class="d-line" d="M136,52 H153"/><polygon points="160,52 153,48 153,56" fill="#1A1D18"/>
+          <path class="d-line" d="M280,52 H297"/><polygon points="304,52 297,48 297,56" fill="#1A1D18"/>
+          <path class="d-line" d="M448,52 H473"/><polygon points="480,52 473,48 473,56" fill="#1A1D18"/>
+
+          <!-- Pages -->
+          <rect class="d-box" x="16" y="110" width="412" height="140" rx="4"/>
+          <text class="d-t" x="30" y="132">Cloudflare Pages · gangmini.com/p/&lt;무작위&gt;/</text>
+          <text class="d-t-m" x="30" y="156">index.html</text>
+          <text class="d-t-s" x="176" y="156">noindex · 목록에 없음 · 링크 미리보기 그림</text>
+          <text class="d-t-m" x="30" y="176">js 5개 · css</text>
+          <text class="d-t-s" x="176" y="176">4시간 캐시 → 고칠 때마다 주소에 ?v=</text>
+          <text class="d-t-m" x="30" y="196">vendor/three</text>
+          <text class="d-t-s" x="176" y="196">Three.js r170 (받아 둔 사본)</text>
+          <text class="d-t-m" x="30" y="216">assets/models</text>
+          <text class="d-t-s" x="176" y="216">사람 2.8MB · 스쿠터 2.6MB</text>
+          <text class="d-t-m" x="30" y="236">audio · npc</text>
+          <text class="d-t-s" x="176" y="236">목소리 12개 0.5MB · 사람 그림 3장 1.7MB</text>
+
+          <path class="d-line" d="M428,180 H473"/><polygon points="480,180 473,176 473,184" fill="#1A1D18"/>
+          <text class="d-t-s" x="434" y="172">8.7MB</text>
+
+          <!-- 아래 줄: 배포 -->
+          <rect class="d-box" x="16" y="290" width="168" height="56" rx="4"/>
+          <text class="d-t" x="100" y="314" text-anchor="middle">내 PC · game/</text>
+          <text class="d-t-s" x="100" y="332" text-anchor="middle">원본 모델까지 47MB</text>
+
+          <rect class="d-box" x="208" y="290" width="168" height="56" rx="4"/>
+          <text class="d-t-m" x="292" y="314" text-anchor="middle">export_site.py</text>
+          <text class="d-t-s" x="292" y="332" text-anchor="middle">게임이 부르는 파일만 복사</text>
+
+          <rect class="d-box" x="400" y="290" width="224" height="56" rx="4"/>
+          <text class="d-t" x="512" y="314" text-anchor="middle">사이트 저장소 · git push</text>
+          <text class="d-t-s" x="512" y="332" text-anchor="middle">빌드 없음</text>
+
+          <path class="d-line" d="M184,318 H201"/><polygon points="208,318 201,314 201,322" fill="#1A1D18"/>
+          <path class="d-line" d="M376,318 H393"/><polygon points="400,318 393,314 393,322" fill="#1A1D18"/>
+          <path class="d-dash" d="M410,290 V257"/><polygon points="410,250 406,257 414,257" fill="#6E7469"/>
+          <text class="d-t-s" x="418" y="276">자동 배포 1~2분</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        위 줄이 "링크가 사람에게 가는 길", 가운데가 "게임이 도는 곳", 아래 줄이 "내가 고친 게 올라가는 길"이다. 셋 중 돈이 드는 칸은 없다.
+      </figcaption>
+    </figure>
+
+    <h4>무엇을 왜 골랐나</h4>
+
+    <table>
+      <tr><th>자리</th><th>고른 것</th><th>이유</th></tr>
+      <tr><td>그리기</td><td>Three.js + 순수 JS, 빌드 없음</td><td><a href="/notes/bumpercar-2026/">범퍼카 2026</a> 에서 쓰던 구조 그대로. 고치고 새로고침하면 끝</td></tr>
+      <tr><td>동네</td><td>코드로 쌓은 집 + 캔버스로 그린 무늬</td><td>참고 그림 세 장과 거의 똑같은 동네가 필요했다. 모델 파일로 받으면 수십 MB, 코드로 쌓으면 0</td></tr>
+      <tr><td>주인공 · 스쿠터</td><td>Tripo (AI 3D 생성), 따로따로</td><td>탄 채로 한 덩어리로 만들면 뼈를 못 넣어 손을 못 움직인다. 따로 만들어 코드로 앉혔다</td></tr>
+      <tr><td>동네 사람 셋</td><td>그림 판</td><td>서서 말만 한다. 3D 로 만드는 것보다 그림 그대로가 원본에 가깝다</td></tr>
+      <tr><td>목소리</td><td>방송 영상에서 자른 mp3 12개</td><td>밈은 그 목소리여야 웃기다</td></tr>
+      <tr><td>엔진 · 끼익 · 코인 소리</td><td>Web Audio 로 그 자리에서 합성</td><td>엔진 소리는 속도에 따라 계속 변해야 한다. 녹음 파일로는 어렵고, 합성하면 속도를 음높이에 바로 이을 수 있다</td></tr>
+      <tr><td>배포</td><td>Cloudflare Pages, 목록에 없는 주소</td><td>이 사이트가 이미 거기 있다. 먼저 팔로워에게만 보여 주고 싶었다</td></tr>
+      <tr><td>링크 전달</td><td>리틀리 DM 자동화</td><td>댓글 단 사람에게 버튼 달린 DM 을 자동으로. 릴스를 본 사람이 팔로우까지 하게</td></tr>
+    </table>
+
+    <p class="gloss">
+      <b>Three.js</b> — 브라우저의 3D 기능(WebGL)을 쓰기 쉽게 감싼 자바스크립트 라이브러리. 장면·카메라·조명·모델을 객체로 다룬다.<br>
+      <b>Web Audio API</b> — 브라우저에서 소리를 "회로"처럼 다루는 기능. 소리를 만드는 칸(발진기), 거르는 칸(필터), 크기 칸을 선으로 이어서 소리를 만들거나 파일을 튼다.<br>
+      <b>noindex</b> — 검색엔진에게 "이 페이지는 검색 결과에 넣지 마"라고 알리는 표시. 주소를 아는 사람만 들어온다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>코드는 다섯 파일</h3>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 260" role="img" aria-label="index.html 이 main.js 를 부르고, main.js 가 world.js, textures.js, game.js, rider.js 네 파일을 쓴다">
+          <rect class="d-box" x="250" y="14" width="140" height="40" rx="4"/>
+          <text class="d-t-m" x="320" y="39" text-anchor="middle">index.html</text>
+          <path class="d-line" d="M320,54 V69"/><polygon points="320,76 316,69 324,69" fill="#1A1D18"/>
+
+          <rect class="d-box-m" x="200" y="76" width="240" height="68" rx="4"/>
+          <text class="d-t-m" x="320" y="98" text-anchor="middle">main.js · 535줄</text>
+          <text class="d-t-s" x="320" y="116" text-anchor="middle">주행 · 드리프트 · 부딪힘</text>
+          <text class="d-t-s" x="320" y="134" text-anchor="middle">카메라 3가지 · 버튼 · 멈춤 · 결과</text>
+
+          <path class="d-line" d="M320,144 V160 M86,160 H554 M86,160 V177 M242,160 V177 M398,160 V177 M554,160 V177"/>
+          <polygon points="86,184 82,177 90,177" fill="#1A1D18"/>
+          <polygon points="242,184 238,177 246,177" fill="#1A1D18"/>
+          <polygon points="398,184 394,177 402,177" fill="#1A1D18"/>
+          <polygon points="554,184 550,177 558,177" fill="#1A1D18"/>
+
+          <rect class="d-box" x="16" y="184" width="140" height="66" rx="4"/>
+          <text class="d-t-m" x="86" y="205" text-anchor="middle">world.js · 862줄</text>
+          <text class="d-t-s" x="86" y="223" text-anchor="middle">길 · 집 · 지붕 · 나무</text>
+          <text class="d-t-s" x="86" y="240" text-anchor="middle">기찻길 · 공원 · 충돌</text>
+
+          <rect class="d-box" x="172" y="184" width="140" height="66" rx="4"/>
+          <text class="d-t-m" x="242" y="205" text-anchor="middle">textures.js · 213줄</text>
+          <text class="d-t-s" x="242" y="223" text-anchor="middle">아스팔트 · 담장 · 창문</text>
+          <text class="d-t-s" x="242" y="240" text-anchor="middle">캔버스로 그린 무늬</text>
+
+          <rect class="d-box" x="328" y="184" width="140" height="66" rx="4"/>
+          <text class="d-t-m" x="398" y="205" text-anchor="middle">game.js · 636줄</text>
+          <text class="d-t-s" x="398" y="223" text-anchor="middle">NPC · 대사 · 코인 · 뽀또</text>
+          <text class="d-t-s" x="398" y="240" text-anchor="middle">목소리 · 합성음 · 도착</text>
+
+          <rect class="d-box" x="484" y="184" width="140" height="66" rx="4"/>
+          <text class="d-t-m" x="554" y="205" text-anchor="middle">rider.js · 255줄</text>
+          <text class="d-t-s" x="554" y="223" text-anchor="middle">모델 읽기 · 앉히기</text>
+          <text class="d-t-s" x="554" y="240" text-anchor="middle">브이 · 손 흔들기</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        게임 코드 2,500줄 남짓. 이 밖에 그림·모델·소리를 다듬는 파이썬 도구가 7개(800줄) 있는데, 사이트에는 올라가지 않는다.
+      </figcaption>
+    </figure>
+
+    <!-- ============================================================ -->
+    <h3>동네는 전부 코드로 쌓았다</h3>
+
+    <figure class="fig">
+      <img class="shot" src="town.jpg" width="1200" height="591"
+           alt="하늘에서 비스듬히 내려다본 동네 전체. 바둑판처럼 난 연보라색 골목 사이로 빨강·파랑·초록·보라 지붕의 하얀 집들이 빽빽하고, 왼쪽 아래에서 오른쪽 위로 기찻길이 대각선처럼 지나간다">
+      <figcaption>
+        하늘에서 본 동네. 모델 파일은 하나도 없다. 집·담·나무·기찻길·놀이터가 전부 상자와 원기둥을 코드로 쌓은 것이다.
+      </figcaption>
+    </figure>
+
+    <p>
+      맵은 내가 준 참고 그림 세 장(골목길·놀이터·철도 건널목, 1점 투시 파스텔 주택가)과 거의 똑같아야 했다.
+      바둑판으로 길을 깔고(블록 간격 34m, 길 폭 8m, 가로·세로 7줄씩), 블록마다 집을 세웠다.
+      아스팔트의 연보라 결, 베이지 담장 블록, 창문과 덧창 같은 무늬는 이미지 파일 대신 <code>&lt;canvas&gt;</code>에 코드로 그려 텍스처로 썼다. 받을 파일이 없으니 동네는 다운로드가 0 이다.
+    </p>
+    <ul>
+      <li><strong>지붕을 섞었다.</strong> 처음엔 같은 모양 지붕이 줄지어 있어서 복사한 티가 났다. 모임지붕, 박공지붕, 물탱크 얹은 평지붕을 섞고 색을 돌렸다. 박공지붕 양 끝 삼각형이 지붕 끝에서 살짝 안쪽에 붙어 있어서 지붕마다 틈이 뚫려 보였는데, 지붕 끝에 딱 맞게 옮겨 막았다.</li>
+      <li><strong>막는 건 맵 끝뿐.</strong> 처음엔 기찻길·공원·놀이터에 울타리를 쳤더니 길을 가로막아 답답했다. 맵 끝 사각형만 막고 나머지는 다 들어갈 수 있게 했다. 호수에 들어가면 느려진다.</li>
+      <li><strong>벽에 박히지 않게.</strong> 담에 부딪히면 그 자리에 멈추지 않고 벽을 따라 미끄러진다. 정면으로 들이받았을 때만 속도를 줄인다. 골목이 좁아서 멈추게 하면 계속 끼었다.</li>
+    </ul>
+
+    <h4>길 안내는 일부러 멀리 돌게</h4>
+
+    <p>
+      처음 경로는 너무 짧아서 금방 끝났다. 세 사람이 알려 주는 길을 이어 붙이면 기찻길을 세 번 건너 동네를 크게 한 바퀴 돌도록 바꿨다.
+      NPC 의 안내 문장과 실제 길이 어긋나면 게임이 망가지니, 칸(교차로 하나) 단위로 경로를 먼저 정하고 대사를 거기에 맞춰 썼다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 380" role="img" aria-label="7 곱하기 7 바둑판 골목 지도. 아래쪽 출발점에서 북쪽으로 2칸, 서쪽 1칸, 북쪽으로 기찻길을 건너 두 번째 사람, 동쪽 3칸, 남쪽으로 기찻길을 건너 1칸, 동쪽 2칸에 세 번째 사람, 북쪽으로 기찻길을 건너 2칸, 동쪽 1칸, 북쪽 끝 호수공원">
+          <!-- 공원 -->
+          <rect class="d-box-m" x="306" y="10" width="238" height="44" rx="4"/>
+          <text class="d-t" x="425" y="30" text-anchor="middle">상동호수공원</text>
+          <!-- 길 -->
+          <g style="stroke:#CFD4C7; stroke-width:9; stroke-linecap:round">
+            <path d="M110,70 V334 M174,70 V334 M238,70 V334 M302,70 V334 M366,70 V334 M430,70 V334 M494,54 V334"/>
+            <path d="M110,70 H494 M110,114 H494 M110,158 H494 M110,202 H494 M110,246 H494 M110,290 H494 M110,334 H494"/>
+          </g>
+          <!-- 기찻길 -->
+          <path d="M92,180 H512" style="stroke:#6E7469; stroke-width:7; stroke-dasharray:2 5"/>
+          <text class="d-t-s" x="518" y="184">기찻길</text>
+          <!-- 놀이터 -->
+          <rect class="d-box" x="374" y="216" width="48" height="24" rx="2"/>
+          <text class="d-t-s" x="398" y="232" text-anchor="middle">놀이터</text>
+          <!-- 경로 -->
+          <polyline points="174,346 174,246 110,246 110,158 302,158 302,202 430,202 430,114 494,114 494,36" style="fill:none; stroke:var(--mark); stroke-width:3; stroke-linejoin:round"/>
+          <polygon points="494,28 489,38 499,38" style="fill:var(--mark)"/>
+          <!-- 사람 -->
+          <circle cx="174" cy="350" r="6" fill="#1A1D18"/>
+          <text class="d-t" x="186" y="366">출발</text>
+          <circle cx="188" cy="318" r="9" fill="#FCFCFA" stroke="#1A1D18"/><text class="d-t-m" x="188" y="322" text-anchor="middle">1</text>
+          <circle cx="94" cy="166" r="9" fill="#FCFCFA" stroke="#1A1D18"/><text class="d-t-m" x="94" y="170" text-anchor="middle">2</text>
+          <circle cx="404" cy="202" r="9" fill="#FCFCFA" stroke="#1A1D18"/><text class="d-t-m" x="404" y="206" text-anchor="middle">3</text>
+          <!-- 범례 -->
+          <text class="d-t-m" x="526" y="240">1</text><text class="d-t-s" x="540" y="240">파마머리 어머님</text>
+          <text class="d-t-m" x="526" y="262">2</text><text class="d-t-s" x="540" y="262">요구르트 아주머니</text>
+          <text class="d-t-m" x="526" y="284">3</text><text class="d-t-s" x="540" y="284">젊은 여성</text>
+          <text class="d-t-s" x="526" y="316">기찻길 3번 건넘</text>
+          <text class="d-t-s" x="526" y="334">교차로 15칸</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        위에서 본 경로. "2칸 직진 → 좌회전 1칸 → 우회전 → 기찻길 건너 2칸" 같은 안내가 칸 하나도 어긋나지 않게 맞췄다. 안내를 놓쳐도 화면 위 띠에 남아 있다.
+      </figcaption>
+    </figure>
+
+    <p>
+      뽀또는 처음에 기찻길·놀이터·공원 잔디에 몰아서 뿌렸다. 그랬더니 붙어 있는 뽀또를 연달아 먹을 때 대사가 앞 대사를 끊고 시작해서 아무 말도 끝까지 안 들렸다.
+      맵 전체에 약 22m 간격으로 고르게 다시 뿌렸다. 이 문제는 아래 "소리" 에서 대사 순서로도 한 번 더 막았다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>주인공 — 그림 한 장으로 3D 사람 만들기</h3>
+
+    <p>
+      주인공과 스쿠터는 Tripo 로 따로 만들었다. 팔을 살짝 벌린 A 자 자세의 정면·옆·뒤 그림을 한 장에 뽑고, 셋으로 나눠 넣는다.
+      스쿠터도 같은 식으로 앞·옆·뒤 그림을 넣었다. Tripo 작업은 내 유료 계정으로, 브라우저에서 클릭해 진행했다.
+    </p>
+
+    <figure class="fig">
+      <img class="shot" src="tripo.jpg" width="1367" height="600"
+           alt="왼쪽은 초록 티셔츠와 반바지, 검은 헬멧 차림의 남자를 정면·옆·뒤에서 그린 A 자 자세 그림, 오른쪽 두 장은 그 모델이 게임 안에서 흰 스쿠터에 앉아 핸들을 잡은 모습과 양손으로 브이를 하는 모습">
+      <figcaption>
+        왼쪽이 넣은 그림, 오른쪽이 게임 안. 서 있는 모델을 코드로 앉히고 손을 핸들에 붙였다.
+      </figcaption>
+    </figure>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 200" role="img" aria-label="A 자 3면 그림을 Tripo HD 로 20만 면 모델로 만들고, 리토폴로지로 2만 면으로 줄인 뒤, 자동 리깅으로 Mixamo 뼈대를 넣고, 2K 로 내보내 slim_glb.py 로 손질해 게임에 넣는다">
+          <rect class="d-box" x="16" y="30" width="108" height="80" rx="4"/>
+          <text class="d-t" x="70" y="54" text-anchor="middle">A 자 3면 그림</text>
+          <text class="d-t-s" x="70" y="74" text-anchor="middle">정면 · 옆 · 뒤</text>
+          <text class="d-t-s" x="70" y="92" text-anchor="middle">한 장에</text>
+
+          <rect class="d-box" x="140" y="30" width="108" height="80" rx="4"/>
+          <text class="d-t" x="194" y="54" text-anchor="middle">Tripo HD</text>
+          <text class="d-t-s" x="194" y="74" text-anchor="middle">멀티뷰 · 20만 면</text>
+          <text class="d-t-s" x="194" y="92" text-anchor="middle">옆모습은 '왼쪽' 칸</text>
+
+          <rect class="d-box" x="264" y="30" width="108" height="80" rx="4"/>
+          <text class="d-t" x="318" y="54" text-anchor="middle">리토폴로지</text>
+          <text class="d-t-s" x="318" y="74" text-anchor="middle">2만 면으로</text>
+          <text class="d-t-m" x="318" y="92" text-anchor="middle">35 크레딧</text>
+
+          <rect class="d-box" x="388" y="30" width="108" height="80" rx="4"/>
+          <text class="d-t" x="442" y="54" text-anchor="middle">자동 리깅</text>
+          <text class="d-t-s" x="442" y="74" text-anchor="middle">Mixamo 뼈대</text>
+          <text class="d-t-m" x="442" y="92" text-anchor="middle">20 크레딧</text>
+
+          <rect class="d-box-m" x="512" y="30" width="112" height="80" rx="4"/>
+          <text class="d-t-m" x="568" y="54" text-anchor="middle">slim_glb.py</text>
+          <text class="d-t-s" x="568" y="74" text-anchor="middle">2K 로 받아</text>
+          <text class="d-t-s" x="568" y="92" text-anchor="middle">뼈 · 살 · 텍스처 손질</text>
+
+          <path class="d-line" d="M124,70 H133"/><polygon points="140,70 133,66 133,74" fill="#1A1D18"/>
+          <path class="d-line" d="M248,70 H257"/><polygon points="264,70 257,66 257,74" fill="#1A1D18"/>
+          <path class="d-line" d="M372,70 H381"/><polygon points="388,70 381,66 381,74" fill="#1A1D18"/>
+          <path class="d-line" d="M496,70 H505"/><polygon points="512,70 505,66 505,74" fill="#1A1D18"/>
+
+          <path class="d-dash" d="M140,134 H496"/>
+          <text class="d-t-s" x="318" y="154" text-anchor="middle">자동 리깅은 19만 면 모델을 거절했다. 6만 · 2만 면은 받았다</text>
+          <text class="d-t-s" x="318" y="174" text-anchor="middle">그래서 마음에 든 HD 모델을 그대로 두고, 면 수만 줄여 뼈를 넣었다</text>
+          <text class="d-t-m" x="568" y="154" text-anchor="middle">2.8MB</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        주인공은 세 번 만들었다. 마지막(세 번째)은 "최대한 정밀하게"가 목표라 가장 비싼 HD 로 뽑고, 그 모양을 지키며 줄였다.
+      </figcaption>
+    </figure>
+
+    <h4>Tripo 가 준 것과 내가 원한 것 사이</h4>
+
+    <table>
+      <tr><th>증상</th><th>원인과 고친 것</th></tr>
+      <tr><td>얼굴이 뒤통수에 달림</td><td>옆모습 그림을 엉뚱한 칸에 넣어서 Tripo 가 앞뒤를 거꾸로 읽었다.<br>→ 옆모습을 '왼쪽' 칸에 넣고 다시 만들었다</td></tr>
+      <tr><td>4K 로 받은 파일이 깨짐</td><td>뼈의 쉬는 자세를 적은 행렬(inverse bind matrix)이 망가져 나왔다.<br>→ 2K 로 다시 받았다. 폰 화면에서 얼굴은 손바닥만 해서 2K 로 충분하다</td></tr>
+      <tr><td>허리가 얇고 어깨가 튀어나옴</td><td>살을 뼈에 붙이는 방식이 체형을 깎았다.<br>→ 붙이는 규칙을 손보고, 게임에서 옆구리 살을 몸 폭의 20% 만큼 바깥으로 밀었다</td></tr>
+      <tr><td>등(광배)이 패여 보임</td><td>겨드랑이 뒤쪽 살을 몸통에 붙이는 규칙을 더했더니 팔이 이상하게 접혔다.<br>→ 되돌렸다. 팔이 더 중요했다</td></tr>
+      <tr><td>얼굴이 Tripo 와 달라 보임</td><td>아래 세 번</td></tr>
+    </table>
+
+    <p>
+      얼굴은 이 게임의 전부라 가장 오래 붙잡았다. 같은 문제가 세 가지 다른 이유로 세 번 나왔다.
+    </p>
+    <ul>
+      <li><strong>자세를 잡으면서 머리를 돌렸다.</strong> 앉힐 때 목·머리 뼈도 앞을 보게 돌렸더니, 얼굴 살이 늘어나 다른 사람처럼 보였다. 머리는 손대지 않고 통째로 따라오게만 했다.</li>
+      <li><strong>사진 얼굴을 덧칠했다.</strong> 정면 그림의 얼굴을 모델 텍스처에 투영해 덮는 스크립트(<code>face_bake.py</code>)를 만들었다. 정면에선 비슷한데 비스듬히 보면 그림이 미끄러져 어색했다. 버렸다.</li>
+      <li><strong>조명이 얼굴색을 바꿨다.</strong> 동네의 보랏빛 그늘과 강한 해가 얼굴을 어둡고 붉게 물들였다. 사람에게만 빛 받는 몫을 줄이고 텍스처 원래 색을 스스로 내게(emissive) 해서, Tripo 미리보기 밝기에 맞췄다.</li>
+    </ul>
+    <p>
+      세 번 겪고 정한 규칙은 하나다. <strong>얼굴은 건드리지 않는다.</strong> 몸은 고쳐도 되지만 얼굴 근처는 뼈도, 살도, 텍스처도 손대지 않는다.
+    </p>
+
+    <p class="gloss">
+      <b>리토폴로지</b> — 모델의 삼각형을 다시 짜서 개수를 줄이는 것. 모양은 거의 그대로 두고 가볍게 만든다.<br>
+      <b>리깅 · 스키닝</b> — 모델 안에 뼈대를 넣고, 살(꼭짓점)마다 어느 뼈를 얼마나 따라갈지 적는 것. 이게 잘못되면 뼈를 돌려도 살이 엉뚱하게 늘어난다.<br>
+      <b>emissive</b> — 재질이 빛을 받지 않아도 스스로 내는 색. 조명이 어두워도 그만큼은 밝게 보인다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>스쿠터에 앉히고, 브이 하기</h3>
+
+    <p>
+      스쿠터 모델에서 안장 윗면, 핸들 손잡이, 발판 자리를 코드로 찾는다. 사람의 엉덩이를 안장에 놓고,
+      팔과 다리는 <strong>두 마디 IK</strong> 로 손끝이 손잡이에, 발이 발판에 정확히 닿게 했다. 모델 크기가 바뀌어도 다시 찾으니 손이 허공을 잡지 않는다.
+    </p>
+    <ul>
+      <li><strong>브이 손은 코드로 만들었다.</strong> Tripo 의 손은 손가락이 붙은 벙어리장갑 한 덩어리라, 손가락 뼈를 굽혀도 V 가 안 된다. 브이 할 때만 원래 손을 크기 0 으로 접어 숨기고, 검지·중지만 편 살색 손(캡슐 몇 개)을 손목에 붙였다.</li>
+      <li><strong>양손을 반대로 흔든다.</strong> 처음엔 두 손이 같은 쪽으로 흔들려 어색했다. 한 손이 바깥으로 갈 때 다른 손은 안으로 가게 거울처럼 뒤집고, 빠르게(초당 3.5번) 흔들었다.</li>
+      <li><strong>도착해도 안 끝난다.</strong> 포탈에 닿으면 1.6초 세워 브이 장면을 보여 주고, 그 뒤엔 다시 달릴 수 있다. 남은 코인·뽀또를 모으다 멈추면 또 브이 하고 손을 흔든다.</li>
+    </ul>
+
+    <p class="gloss">
+      <b>IK (역운동학)</b> — "손이 여기 닿아야 한다"는 끝 위치를 주면, 어깨·팔꿈치를 얼마나 굽힐지 거꾸로 계산하는 것. 각도를 하나하나 맞추는 대신 목표 지점만 준다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>동네 사람 셋은 그림 판</h3>
+
+    <figure class="fig">
+      <img class="shot" src="npcs.jpg" width="916" height="540"
+           alt="연보라 배경에 선 세 사람. 꽃무늬 셔츠에 파마머리를 한 중년 여성, 노란 조끼와 모자 차림의 요구르트 배달 아주머니, 흰 티셔츠와 청바지를 입은 젊은 여성">
+      <figcaption>
+        3면 그림 시트에서 정면만 오린 것. 흰 티셔츠는 흰 배경과 같이 지워져서, 윤곽을 먼저 닫고 안쪽을 살렸다.
+      </figcaption>
+    </figure>
+
+    <p>
+      NPC 는 서서 말만 한다. 그래서 3D 로 만들지 않고 늘 카메라를 향하는 그림 판으로 세웠다. 3D 모델은 얼굴이 원본과 조금씩 달라지지만, 그림은 원본 그대로다.
+      주인공이 스쿠터와 함께 1.8배로 커졌기 때문에, NPC 키도 3.4m 로 맞춰 나란히 섰을 때 어색하지 않게 했다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>카메라 세 가지</h3>
+
+    <table>
+      <tr><th>언제</th><th>어디서</th></tr>
+      <tr><td>달릴 때</td><td>스쿠터 뒤 위에서 따라간다. 끌어서 돌리고 휠·두 손가락으로 확대. 2.5초 안 만지고 달리면 뒤로 돌아온다</td></tr>
+      <tr><td>길 물을 때</td><td>두 사람을 옆에서 같이 잡는다 (아래)</td></tr>
+      <tr><td>도착했을 때</td><td>바닥 가까이에서 올려다본다. 브이 하는 사람이 하늘을 등지고 크게 선다</td></tr>
+    </table>
+
+    <p>
+      어려웠던 건 대화 카메라다. 처음엔 "스쿠터 앞쪽 옆"에 고정해 뒀는데, NPC 가 담 옆에 서 있으면 카메라가 담 너머로 가서 벽만 찍었고, 피하려고 당기면 얼굴에 너무 붙었다.
+      그래서 자리를 하나로 정하지 않고, <strong>후보 24곳 중 점수가 가장 높은 곳</strong>을 고르게 바꿨다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 260" role="img" aria-label="주인공과 NPC 의 가운데를 중심으로 원 위에 후보 24곳을 놓는다. 오른쪽 담 너머 후보는 탈락하고, 스쿠터 앞쪽이면서 두 사람을 옆에서 나란히 보는 위쪽 한 곳이 뽑힌다">
+          <!-- 담 -->
+          <rect x="203" y="20" width="10" height="226" fill="#D4D8CE" stroke="#6E7469"/>
+          <text class="d-t-s" x="208" y="14" text-anchor="middle">담</text>
+          <!-- 후보 -->
+          <circle cx="234" cy="132" r="3.5" fill="none" stroke="#6E7469"/>
+          <circle cx="231" cy="154" r="3.5" fill="none" stroke="#6E7469"/>
+          <circle cx="223" cy="174" r="3.5" fill="none" stroke="#6E7469"/>
+          <circle cx="209" cy="191" r="3.5" fill="none" stroke="#6E7469"/>
+          <circle cx="192" cy="205" r="3" fill="#1A1D18"/>
+          <circle cx="172" cy="213" r="3" fill="#1A1D18"/>
+          <circle cx="150" cy="216" r="3" fill="#1A1D18"/>
+          <circle cx="128" cy="213" r="3" fill="#1A1D18"/>
+          <circle cx="108" cy="205" r="3" fill="#1A1D18"/>
+          <circle cx="91" cy="191" r="3" fill="#1A1D18"/>
+          <circle cx="77" cy="174" r="3" fill="#1A1D18"/>
+          <circle cx="69" cy="154" r="3" fill="#1A1D18"/>
+          <circle cx="66" cy="132" r="3" fill="#1A1D18"/>
+          <circle cx="69" cy="110" r="3" fill="#1A1D18"/>
+          <circle cx="77" cy="90" r="3" fill="#1A1D18"/>
+          <circle cx="91" cy="73" r="3" fill="#1A1D18"/>
+          <circle cx="108" cy="59" r="3" fill="#1A1D18"/>
+          <circle cx="128" cy="51" r="3" fill="#1A1D18"/>
+          <circle cx="172" cy="51" r="3" fill="#1A1D18"/>
+          <circle cx="192" cy="59" r="3" fill="#1A1D18"/>
+          <circle cx="209" cy="73" r="3.5" fill="none" stroke="#6E7469"/>
+          <circle cx="223" cy="90" r="3.5" fill="none" stroke="#6E7469"/>
+          <circle cx="231" cy="110" r="3.5" fill="none" stroke="#6E7469"/>
+          <!-- 뽑힌 자리 -->
+          <path class="d-dash" d="M150,54 V126"/>
+          <circle cx="150" cy="48" r="6" style="fill:var(--mark)"/>
+          <text class="d-t" style="fill:var(--mark)" x="140" y="36" text-anchor="end">뽑힌 자리</text>
+          <!-- 두 사람 -->
+          <rect class="d-box-m" x="112" y="124" width="24" height="16" rx="3"/>
+          <path class="d-line" d="M124,124 V104"/><polygon points="124,98 120,105 128,105" fill="#1A1D18"/>
+          <text class="d-t-s" x="124" y="156" text-anchor="middle">주인공</text>
+          <text class="d-t-s" x="96" y="108" text-anchor="end">앞</text>
+          <circle cx="176" cy="132" r="8" class="d-box"/>
+          <text class="d-t-s" x="176" y="156" text-anchor="middle">NPC</text>
+
+          <!-- 설명 -->
+          <text class="d-t" x="262" y="40">점수 = 앞쪽 × 2.2 + 옆으로 나란히 × 1.0 − 거리 × 0.03</text>
+          <text class="d-t-s" x="262" y="70">앞쪽 — 스쿠터가 보는 쪽일수록 높다 (주인공 얼굴이 보인다)</text>
+          <text class="d-t-s" x="262" y="90">옆으로 나란히 — 두 사람을 잇는 선과 직각일수록 높다 (둘 다 보인다)</text>
+          <text class="d-t-s" x="262" y="122">탈락: 카메라와 두 사람 사이에 담·집이 끼면</text>
+          <text class="d-t-s" x="262" y="142">탈락: 어느 한 사람과 3.8m 안이면 (너무 붙음)</text>
+          <text class="d-t-s" x="262" y="174">다 탈락하면 원을 0.8배 · 0.62배로 줄여 다시</text>
+          <text class="d-t-s" x="262" y="206">한 번 고르면 스쿠터가 3m 움직이기 전까지 그대로</text>
+          <text class="d-t-s" x="262" y="226">(안 그러면 매 프레임 자리가 바뀌어 화면이 튄다)</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        위에서 본 그림. 빈 동그라미는 담에 막혀 탈락한 후보다. 사람마다 서 있는 자리가 달라도, 같은 규칙이 매번 괜찮은 자리를 찾는다.
+      </figcaption>
+    </figure>
+
+    <!-- ============================================================ -->
+    <h3>드리프트는 관성이 남아야 한다</h3>
+
+    <p>
+      범퍼카 2026 의 규칙을 가져왔다. Shift(폰은 D 버튼)를 누른 채 꺾으면 미끄러지고, 끝나고 ↑ 를 다시 누르면 부스터다.
+      그런데 그대로 옮기니 "드리프트 체감이 이상하다"는 말을 들었다. 미끄러지다 손을 떼는 순간 차가 딱 바로 서 버렸다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 170" role="img" aria-label="Shift 와 방향키로 드리프트를 0.12초 넘게 하면 부스터 자격이 생기고, 손을 뗀 뒤 2초 안에 위 방향키를 다시 누르면 0.9초 동안 최고 속도의 1.5배가 된다. 드리프트 중엔 옆 그립이 10 에서 0.8 로 떨어진다">
+          <path class="d-line" d="M30,76 H60 M600,76 H610"/>
+          <rect class="d-box" x="60" y="60" width="220" height="32" rx="3"/>
+          <text class="d-t" x="170" y="81" text-anchor="middle">Shift + 방향 = 드리프트</text>
+          <path class="d-dash" d="M90,52 V100"/>
+          <text class="d-t-m" x="90" y="44" text-anchor="middle">0.12초</text>
+          <text class="d-t-s" x="90" y="118" text-anchor="middle">여기부터 자격</text>
+          <text class="d-t-s" x="170" y="140" text-anchor="middle">옆 그립 10 → 0.8</text>
+          <text class="d-t-s" x="170" y="158" text-anchor="middle">가던 방향으로 계속 밀린다</text>
+
+          <rect class="d-box-m" x="280" y="60" width="160" height="32" rx="3"/>
+          <text class="d-t" x="360" y="81" text-anchor="middle">떼고 2초 안에 ↑</text>
+          <text class="d-t-s" x="360" y="118" text-anchor="middle">그립은 천천히 돌아온다</text>
+
+          <rect class="d-box" x="440" y="60" width="160" height="32" rx="3" style="fill:#FFD23F"/>
+          <text class="d-t" x="520" y="81" text-anchor="middle">부스터 0.9초</text>
+          <text class="d-t-s" x="520" y="118" text-anchor="middle">최고 속도 1.5배</text>
+          <text class="d-t-s" x="520" y="140" text-anchor="middle">하얀 연기 · "푸슈슈"</text>
+          <text class="d-t-s" x="520" y="158" text-anchor="middle">화면이 살짝 넓어짐</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        범퍼카보다 부스터 창을 길게(0.45초 → 2초) 줬다. 골목에서 꺾고 나서 곧게 펴질 때까지 시간이 걸리기 때문이다.
+      </figcaption>
+    </figure>
+
+    <p>
+      고친 건 그립이 돌아오는 속도다. 드리프트에 들어갈 땐 옆 그립이 0.1초 만에 0.8 까지 빠지고, 손을 떼면 그보다 세 배 넘게 느리게 10 으로 돌아온다.
+      그래서 손을 뗀 뒤에도 잠깐 가던 방향으로 밀리며 펴진다. 부스터도 범퍼카의 빨간 불꽃 대신 전동 스쿠터에 어울리게 하얀 연기와 바람 소리로 바꿨다.
+    </p>
+
+    <p class="gloss">
+      <b>그립</b> — 여기서는 "옆으로 미끄러지는 속도를 1초에 얼마나 죽이나". 크면 바퀴가 길을 꽉 물고, 작으면 얼음판처럼 옆으로 흘러간다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>소리 — 목소리는 자르고, 엔진은 만들고</h3>
+
+    <h4>목소리: 내가 자른 그대로</h4>
+    <p>
+      방송 장면을 모은 영상 하나를 받아서, 대사마다 시작·끝 초를 적어 <code>ffmpeg</code> 로 12개를 잘랐다(<code>cut_voices.py</code>).
+      처음엔 이어지는 대사를 다시 잘라 붙이고 끝을 서서히 줄였는데, "내가 자른 대사 그대로, 페이드도 없이, 원래 섞여 있던 소리도 빼지 말라"는 말을 듣고 전부 원본 그대로 바꿨다. 밈은 다듬으면 맛이 빠진다.
+    </p>
+
+<pre><code>대사 순서 (game.js)
+달리는 동안   "인디기 재미떠여!"  5초마다
+              "달달달달달~"       7초마다      (도착한 뒤에도 계속)
+뽀또를 먹으면  ppotto1 → 2 → 3 차례로
+              다른 대사 중이면 줄(ppWait)에 세웠다가 그 말이 끝난 뒤에</code></pre>
+
+    <p>
+      처음엔 뽀또 대사가 하던 말을 끊고 바로 나왔다. 뽀또를 연달아 먹으면 대사가 앞머리만 나오다 끊겼다. 줄을 하나 두어 하던 말이 끝난 뒤에 차례로 나오게 했다.
+    </p>
+
+    <h4>엔진: 파일 없이 합성, 그리고 "귀 찢어지겠어"</h4>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 220" role="img" aria-label="삼각파 f, 사인파 2f, 사인파 3f 세 발진기가 저역 필터로 들어가고, 느린 떨림이 크기를 흔든 뒤, 엔진 크기 칸을 거쳐 스피커로 나간다. f 는 서 있을 때 70Hz, 최고 속도에서 150Hz">
+          <rect class="d-box" x="16" y="24" width="120" height="34" rx="3"/>
+          <text class="d-t" x="76" y="46" text-anchor="middle">삼각파 f</text>
+          <rect class="d-box" x="16" y="76" width="120" height="34" rx="3"/>
+          <text class="d-t" x="76" y="98" text-anchor="middle">사인파 2f</text>
+          <rect class="d-box" x="16" y="128" width="120" height="34" rx="3"/>
+          <text class="d-t" x="76" y="150" text-anchor="middle">사인파 3f</text>
+
+          <rect class="d-box" x="176" y="24" width="124" height="138" rx="4"/>
+          <text class="d-t" x="238" y="82" text-anchor="middle">저역 필터</text>
+          <text class="d-t-s" x="238" y="102" text-anchor="middle">500 → 1000Hz</text>
+          <text class="d-t-s" x="238" y="120" text-anchor="middle">위쪽을 깎아 둥글게</text>
+
+          <rect class="d-box" x="336" y="24" width="124" height="138" rx="4"/>
+          <text class="d-t" x="398" y="82" text-anchor="middle">얕은 떨림</text>
+          <text class="d-t-s" x="398" y="102" text-anchor="middle">6 → 14Hz · 깊이 0.18</text>
+          <text class="d-t-s" x="398" y="120" text-anchor="middle">"달달달" 하는 결</text>
+
+          <rect class="d-box-m" x="496" y="24" width="128" height="138" rx="4"/>
+          <text class="d-t" x="560" y="82" text-anchor="middle">크기 → 스피커</text>
+          <text class="d-t-s" x="560" y="102" text-anchor="middle">빠를수록 크게</text>
+          <text class="d-t-s" x="560" y="120" text-anchor="middle">대사 중엔 40% 로</text>
+
+          <path class="d-line" d="M136,41 H169 M136,93 H169 M136,145 H169"/>
+          <polygon points="176,41 169,37 169,45" fill="#1A1D18"/>
+          <polygon points="176,93 169,89 169,97" fill="#1A1D18"/>
+          <polygon points="176,145 169,141 169,149" fill="#1A1D18"/>
+          <path class="d-line" d="M300,93 H329"/><polygon points="336,93 329,89 329,97" fill="#1A1D18"/>
+          <path class="d-line" d="M460,93 H489"/><polygon points="496,93 489,89 489,97" fill="#1A1D18"/>
+
+          <text class="d-t-m" x="16" y="190">f = 70Hz (서 있음) → 150Hz (최고 속도)</text>
+          <text class="d-t-s" x="16" y="210">속도가 바뀌면 0.15초에 걸쳐 따라간다. 음이 계단처럼 뛰지 않게</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        엔진 소리 회로. 소리 파일이 없다. 속도 숫자가 그대로 음높이·떨림·밝기·크기 네 군데로 들어간다.
+      </figcaption>
+    </figure>
+
+    <p>
+      첫 엔진 소리는 너무 작다는 말을 들었다. "과격한 오토바이 소리도 괜찮다"고 해서 거친 파형에 디스토션(일부러 찌그러뜨리기), 잡음, 각진 떨림을 얹었더니
+      이번엔 <strong>"귀에서 지지직하는 소리가 너무 난다, 귀 찢어지겠어"</strong>. 거친 소리를 내는 재료는 전부 높은 주파수를 많이 만든다. 이어폰으로 들으면 그게 바로 귀에 꽂힌다.
+      찌그러뜨리기·잡음·각진 떨림을 다 빼고, 둥근 파형(삼각파·사인파)과 저역 필터로 다시 만들었다. 대신 크기를 키우고, 떨림을 얕게 해서 존재감을 냈다.
+    </p>
+    <p>
+      드리프트 "끼익"도 같은 원칙이다. 잡음을 좁은 띠로 걸러 높은 음처럼 만들고, 띠를 초당 9번 살짝 흔들어 긁히는 느낌만 냈다. 위쪽은 깎고 크기는 작게.
+    </p>
+
+    <p class="gloss">
+      <b>발진기(oscillator)</b> — 일정한 모양의 파형을 계속 내는 소리 재료. 사인파는 가장 둥글고, 삼각파는 조금 더 또렷하고, 톱니파·네모파는 높은 소리가 많아 거칠다.<br>
+      <b>저역 필터(low-pass)</b> — 정한 주파수보다 높은 소리를 깎는 칸. 엔진처럼 낮게 웅웅거리는 소리를 만들 때 쓴다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>폰에서만 생긴 일</h3>
+
+    <figure class="fig">
+      <img class="shot" src="mobile.jpg" width="1192" height="585"
+           alt="폰 화면 네 장. 시작 카드의 출발 버튼에 '불러오는 중 30%' 가 뜬 모습, 다 받아서 '출발!' 버튼이 켜진 모습, 게임 중 아래에 방향·브레이크·가속·드리프트 버튼이 깔린 모습, 도착 후 위쪽에 납작한 결과 카드가 뜬 모습">
+      <figcaption>
+        폰. 받는 중 · 출발 · 달리기 · 도착. 버튼은 왼손에 좌우, 오른손에 가속과 그 바로 위 드리프트.
+      </figcaption>
+    </figure>
+
+    <p>
+      PC 로만 확인하고 올렸는데, 폰으로 해 본 첫 마디가 "스쿠터 소리는 나는데 캐릭터 목소리가 하나도 안 난다, 캐릭터도 처음에 바로 안 나타난다"였다.
+    </p>
+
+    <h4>아이폰은 저절로 나는 소리를 막는다</h4>
+    <p>
+      목소리는 <code>&lt;audio&gt;</code> 태그로 틀고 있었다. 아이폰 사파리는 <code>&lt;audio&gt;.play()</code> 를 <strong>사람이 화면을 누른 그 순간</strong>에만 허락한다.
+      그런데 대사는 NPC 에게 다가가거나 뽀또를 먹을 때, 즉 아무것도 누르지 않은 순간에 나온다. 전부 막혔다.
+      엔진 소리만 났던 건 그게 처음부터 Web Audio 였기 때문이다. Web Audio 는 "출발" 버튼을 누를 때 한 번 깨워 두면 그 뒤로는 계속 소리를 낼 수 있다.
+    </p>
+
+<pre><code>// 출발 버튼을 누른 순간 — 무음을 한 번 틀어 소리 회로를 깨운다 (아이폰)
+const c = ctx(); c.resume();
+const src = c.createBufferSource();
+src.buffer = c.createBuffer(1, 1, 22050); src.connect(c.destination); src.start(0);
+
+// 목소리 파일은 미리 받아서 풀어 둔다 → 대사 때는 바로 튼다
+fetch(`assets/audio/${id}.mp3`).then(r =&gt; r.arrayBuffer())
+  .then(ab =&gt; ctx().decodeAudioData(ab))</code></pre>
+
+    <p>
+      목소리도 전부 Web Audio 로 옮겼다. 덤으로 멈추기 버튼이 쉬워졌다. 소리 회로 전체를 한 번에 얼렸다 풀면(<code>suspend</code> / <code>resume</code>) 대사와 엔진이 그 자리에서 멈췄다 이어진다.
+    </p>
+
+    <h4>출발을 늦게 켜기</h4>
+    <p>
+      폰에선 모델 5MB 를 받는 데 몇 초가 걸린다. 그동안 대신 세워 둔 임시 모형(상자 사람)이 달리다가 갑자기 감스트로 바뀌었다.
+      모델과 목소리를 다 받기 전엔 출발 버튼을 잠그고 "불러오는 중… n%" 를 띄웠다. 모델이 70%, 목소리가 30% 몫이다. 처음 보이는 사람이 처음부터 감스트다.
+    </p>
+
+    <h4>화면 버튼과 결과 카드</h4>
+    <ul>
+      <li><strong>드리프트 버튼은 가속 바로 위.</strong> 드리프트는 가속을 누른 채 해야 하니 오른손 엄지가 미끄러져 닿는 자리에 뒀다. 브레이크는 가운데 네모.</li>
+      <li><strong>결과 카드는 위쪽에 납작하게.</strong> 도착 뒤에도 계속 달릴 수 있는데, 카드가 화면 위를 덮어 맵이 안 보였다. 가로 폭은 두고 높이만 230px → 155px 로 줄였다.</li>
+      <li><strong>시작 화면에 폰 조작법.</strong> PC 용 키 설명만 있어서, 폰에서는 버튼 설명으로 바꿔 보여 준다.</li>
+    </ul>
+
+    <!-- ============================================================ -->
+    <h3>링크를 나눠 주는 법</h3>
+
+    <p>
+      이번엔 게임을 사이트 목록에 올리지 않았다. 짐작하기 어려운 주소(<code>gangmini.com/p/&lt;무작위&gt;/</code>)에 두고 검색에도 안 걸리게 했다.
+      릴스에 "댓글에 키워드를 남기면 링크를 보내 준다"고 적고, 리틀리의 인스타 DM 자동화가 댓글 단 사람에게 버튼 달린 DM 을 보낸다.
+    </p>
+    <ul>
+      <li><strong>자동화는 "다음에 올릴 게시물"에 건다.</strong> 릴스를 올리기 전에 켜 둬야 첫 댓글부터 받는다. 예전 게임의 자동화는 꺼서 키워드가 섞이지 않게 했다.</li>
+      <li><strong>링크 미리보기 그림.</strong> 브이 장면을 미리보기 그림으로 달았다. 인스타·카톡은 한 번 본 주소의 미리보기를 오래 저장해서, 그림을 바꾸면 주소 끝에 <code>?s=1</code> 같은 의미 없는 꼬리를 붙여 새 주소로 보이게 했다.</li>
+      <li><strong>보내는 중에 고쳐도 되나.</strong> DM 이 계속 나가는 와중에 폰 화면을 고쳐야 했다. 정적 사이트라 배포는 파일을 통째로 한 번에 갈아 끼운다. 이미 게임 중인 사람은 받은 파일로 계속하고, 새로 들어오는 사람부터 새 화면을 본다. DM 자동화 쪽은 건드리지 않았다. 손대는 순간 중간에 DM 을 못 받는 사람이 생길 수 있어서다.</li>
+    </ul>
+
+    <p>
+      확인했을 때 자동화 통계는 DM 1,574번 발송, 1,345번 읽음, 버튼 클릭 1,431번이었다. 읽은 수보다 클릭이 많은 건 한 사람이 여러 번 누르기도 해서일 것이다.
+      다만 게임에 실제로 몇 명이 들어왔는지는 모른다. 이 게임엔 방문 집계를 아직 안 달았다.
+    </p>
+
+    <p class="gloss">
+      <b>OG(Open Graph) 태그</b> — 링크를 메신저에 붙였을 때 뜨는 제목·설명·그림을 정하는 HTML 태그. 메신저 서버가 한 번 읽어 저장해 두기 때문에, 바꿔도 바로 반영되지 않는다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>남은 일</h3>
+    <ul>
+      <li><strong>몇 명이 왔나.</strong> <a href="/notes/bumpercar-2026/">범퍼카</a>처럼 bamti-bomb 서버에 방문 신호 한 줄을 달면 된다</li>
+      <li>정식 공개 — 번호 폴더로 옮기고 목록에 올리기</li>
+      <li>얼굴을 더 정밀하게 — 6만 면 모델을 직접 줄여 쓰는 방법을 아직 안 해 봤다</li>
+      <li>모델 압축(Draco · meshopt) — 5.4MB 를 절반 아래로. 폰에서 "불러오는 중"이 짧아진다</li>
+    </ul>
+
+    <!-- ============================================================ -->
+    <h3>정리</h3>
+
+    <table>
+      <tr><th>고른 것</th><th>한 줄 이유</th></tr>
+      <tr><td>Three.js, 빌드 없음</td><td>범퍼카에서 검증한 구조. 고치고 새로고침이면 끝</td></tr>
+      <tr><td>동네를 코드로</td><td>참고 그림과 똑같이, 다운로드 0</td></tr>
+      <tr><td>칸 단위로 정한 경로</td><td>안내 문장과 실제 길이 한 칸도 어긋나지 않게</td></tr>
+      <tr><td>HD 로 뽑고 줄여서 뼈</td><td>마음에 든 모양을 지키면서 리깅이 받는 크기로</td></tr>
+      <tr><td>얼굴은 건드리지 않는다</td><td>세 번 망가지고 정한 규칙</td></tr>
+      <tr><td>NPC 는 그림 판</td><td>말만 하는 사람은 원본 그림이 가장 닮았다</td></tr>
+      <tr><td>후보 24곳 점수제 카메라</td><td>사람마다 서 있는 자리가 달라도 늘 둘 다 보이게</td></tr>
+      <tr><td>천천히 돌아오는 그립</td><td>드리프트는 손을 뗀 뒤의 관성이 손맛이다</td></tr>
+      <tr><td>둥근 파형만 쓴 엔진</td><td>거친 소리는 이어폰에서 귀를 찌른다</td></tr>
+      <tr><td>목소리도 Web Audio</td><td>아이폰은 누르지 않은 순간의 &lt;audio&gt; 를 막는다</td></tr>
+      <tr><td>숨은 주소 + DM 자동화</td><td>댓글이 곧 링크 요청. 팔로우까지 한 번에</td></tr>
+    </table>
+
+    <p>
+      범퍼카 때 배운 Tripo 손질과 앉히기가 그대로 쓰여서, 이번엔 처음부터 "그럴듯하게"에 시간을 쓸 수 있었다. 그 시간이 거의 다 <strong>얼굴과 소리</strong>에 들어갔다.
+      둘 다 숫자로는 맞는지 알 수 없고, 보고 듣는 사람이 "다르다", "귀 아프다"고 해야 안다. 그래서 바꿀 때마다 되돌릴 자리를 남겨 두고, 아니다 싶으면 바로 되돌렸다.
+      그리고 PC 에서 멀쩡했던 게 폰에서 둘이나 고장 났다. 링크를 받는 사람은 거의 다 폰이다. 다음엔 폰으로 먼저 해 본다.
+    </p>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 적을 것</p>
+      <ul>
+        <li><a href="/notes/bumpercar-2026/">범퍼카 2026</a> — Tripo 모델 손질과 앉히기를 처음 만든 게임</li>
+        <li><a href="/notes/rhyme-play/">라임놀이</a> — Web Audio 로 박자를 맞추고, 아이폰에서만 나던 문제를 처음 겪은 게임</li>
+        <li>Web Audio 로 효과음 만들기 — 파일 없이 엔진·끼익·코인 소리</li>
+        <li>인스타 DM 자동화로 링크 나눠 주기 — 숫자로 본 결과</li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

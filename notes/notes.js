@@ -26,6 +26,16 @@ const CATS = [
 const NOTES = [
 
   {
+    slug: "gamst-scooter",
+    title: "감스트의 전동 스쿠터 라이딩 — 동네 사람에게 길을 묻는 3D 웹 게임",
+    desc: "AI 로 만든 3D 주인공을 스쿠터에 앉혀 동네를 달리게. 얼굴은 두고 몸만 고치기, 두 사람을 같이 잡는 대화 카메라, 귀 아프지 않은 엔진 합성음, 아이폰에서만 안 나던 목소리, DM 으로만 나눠 준 링크까지.",
+    date: "2026-10-28",
+    cat: "stack",
+    tags: ["Three.js", "WebGL", "Web Audio API", "Tripo", "glTF", "Python", "Cloudflare Pages", "리틀리"],
+    mine: true,
+  },
+
+  {
     slug: "rhyme-play",
     title: "라임놀이 — 박자에 맞춰 한글을 던져 주는 프리스타일 랩 게임",
     desc: "비트 위로 단어·모음·제시어·초성이 떨어진다. 소리 시계 하나로 맞춘 박자, 한글을 쪼개 만든 라임 문제, 코드로 만든 찐 힙합 비트, 아이폰에서만 나던 문제들까지.",
