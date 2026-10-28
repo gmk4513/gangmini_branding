@@ -51,6 +51,21 @@
       명령과 출력은 내 컴퓨터에서 실제로 돌린 것이다. GitHub 대신 같은 컴퓨터 안의 빈 저장소(<code>remote.git</code>)를 원격으로 썼다. 명령은 GitHub 일 때와 똑같다.
     </p>
 
+
+    <aside class="rel">
+      <p class="rel__head">직접 따라 하기 — 연습 저장소</p>
+      <p style="margin:0 0 8px;font-size:14px">이 글의 시작 상태와 정답을 <a href="https://github.com/gmk4513/memo-api-practice">github.com/gmk4513/memo-api-practice</a> 에 올려 두었다.
+      <code>main</code>·<code>dev</code> 는 한 파일짜리 시작 상태(<code>v0.1.0</code>), <code>solution</code> 은 커밋 다섯 개로 정리한 결과(<code>solution-v0.2.0</code>)다.</p>
+<pre><code>git clone https://github.com/gmk4513/memo-api-practice.git
+cd memo-api-practice
+git switch dev
+python -m venv .venv          # Windows: .venv\Scriptsctivate
+pip install -r requirements.txt
+python smoke.py
+git switch -c refactor/layered-di   # 여기서부터 내 작업</code></pre>
+      <p style="margin:0;font-size:14px">막히면 <code>git diff dev solution -- src/</code> 로 정답과 비교한다.</p>
+    </aside>
+
     <!-- ============================================================ -->
     <h3>전체 그림</h3>
 
