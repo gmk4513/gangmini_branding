@@ -815,9 +815,32 @@
   };
 
   /* ---------------- 시작 ---------------- */
-  loadAll(p => { btnStart.textContent = `불러오는 중… ${Math.round(p * 100)}%`; })
-    .then(() => { btnStart.disabled = false; btnStart.textContent = "시작"; btnStart.classList.remove("loading"); })
-    .catch(() => { btnStart.textContent = "불러오지 못했어요 (새로고침)"; });
+  /* 첫 화면 불러오는 중 n% — 그림 80% + 소리 20%. 다 받으면 걷어낸다 (소리가 늦으면 그림만 받고 8초 뒤) */
+  const boot = $("boot"), bootBar = $("bootBar"), bootPct = $("bootPct");
+  let imgP = 0, imgDone = false, sndDone = 0;
+  const sndTotal = Object.keys(SND_BYTES).length;
+  function bootUpdate() {
+    const pct = Math.min(100, Math.round(imgP * 80 + sndDone / sndTotal * 20));
+    if (bootBar) bootBar.style.width = pct + "%";
+    if (bootPct) bootPct.textContent = `불러오는 중… ${pct}%`;
+    if (imgDone && sndDone >= sndTotal) bootHide();
+  }
+  function bootHide() {
+    if (!boot || boot.dataset.gone) return;
+    boot.dataset.gone = "1"; boot.style.opacity = "0";
+    setTimeout(() => boot.remove(), 400);
+  }
+  Object.values(SND_BYTES).forEach(pr => pr.then(() => { sndDone++; bootUpdate(); }, () => { sndDone++; bootUpdate(); }));
+  loadAll(p => { imgP = p; btnStart.textContent = `불러오는 중… ${Math.round(p * 100)}%`; bootUpdate(); })
+    .then(() => {
+      btnStart.disabled = false; btnStart.textContent = "시작"; btnStart.classList.remove("loading");
+      imgDone = true; imgP = 1; bootUpdate();
+      setTimeout(bootHide, 8000);
+    })
+    .catch(() => {
+      btnStart.textContent = "불러오지 못했어요 (새로고침)";
+      if (bootPct) bootPct.textContent = "불러오지 못했어요 — 새로고침해 주세요";
+    });
   requestAnimationFrame(t => { last = t; frame(t); });
   // 방문 숫자 (gangmini.com 에서 열렸을 때만)
   if (/gangmini\.com$/.test(location.hostname)) new Image().src = API + "/beacon.gif?s=shotgun";
