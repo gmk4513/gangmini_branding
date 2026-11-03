@@ -190,7 +190,6 @@
      카드가 뒤집혀 김병지가 보이는 순간(1.067초) 소리를 지르기 시작한다. 영상 소리는 끈다 */
   const CARD_FIRST = 10, CARD_EVERY = 15, CARD_REVEAL = 32 / 30;
   const CARD_Y = 100, CARD_W = 228;   // 영상 네모(잘라 낸 760x1150) 자리. 보이는 카드는 그 안쪽
-  const DOOR_X = 162;                  // 방 배경 그림에서 흰 문 가운데 x (원본 픽셀)
   let cardX = 6;
   const cardVideo = document.createElement("video");
   cardVideo.muted = true; cardVideo.playsInline = true; cardVideo.setAttribute("playsinline", "");
@@ -473,7 +472,8 @@
       const rs = Math.max((VW + 40) / room.width, (H + 40) / room.height);
       ctx.drawImage(room, -20 - sx * 0.5, -20, room.width * rs, room.height * rs);
       ctx.fillStyle = "rgba(10,12,30,.25)"; ctx.fillRect(-20, -20, VW + 40, H + 40);
-      cardX = -20 + DOOR_X * rs - CARD_W / 2;      // 방이 커지면 문도 옮겨 가니 문 가운데에 맞춘다
+      // 카드는 감스트 바로 왼쪽 (치켜든 팔이 판정 좌표 x 240 쯤에서 시작). 화면이 넓어져도 감스트 옆에 붙어 있게
+      cardX = Math.max(6, OX + 4);
     }
     drawCard();                     // 왼쪽 흰 문 위 (캐릭터 뒤)
 
