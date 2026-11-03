@@ -87,6 +87,10 @@ input { font: inherit; font-size: 26px; font-weight: 700; width: 260px; padding:
 #rankList li.me { background: rgba(255, 207, 74, .25); }
 #rankList li.empty { justify-content: center; opacity: .7; }
 
-#rotate { display: none; position: fixed; inset: 0; z-index: 10; background: #000; color: #fff;
-  align-items: center; justify-content: center; font-size: 22px; text-align: center; padding: 20px; }
+#rotate { display: none; position: fixed; inset: 0; z-index: 30; background: #000; color: #fff;
+  align-items: center; justify-content: center; text-align: center; padding: 24px; }
+#rotate .r1 { font-size: 24px; font-weight: 800; }
+#rotate .r2 { font-size: 16px; line-height: 1.55; margin-top: 18px; opacity: .9; }
+#rotate .r3 { font-size: 13px; line-height: 1.6; margin-top: 14px; opacity: .65; }
+#rotate b { color: #ffcf4a; }
 @media (orientation: portrait) and (pointer: coarse) { #rotate { display: flex; } }

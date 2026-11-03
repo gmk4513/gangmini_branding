@@ -6,6 +6,11 @@
   "use strict";
   const Sim = window.ShotgunSim;
   const W = 1280, H = 720, HZ = Sim.HZ;
+  /* 화면이 16:9 보다 길쭉하면(휴대폰 가로) 양옆으로 넓혀서 검은 여백을 없앤다 (2026-11-03).
+     판정 좌표(0~1280)는 그대로 가운데 두고 OX 만큼 오른쪽으로 밀어 그린다. 최대 1680 — 아이템이 화면 오른쪽
+     밖 200px(1480)에서 만들어지고 왼쪽 -200 에서 지워지므로 그 안쪽까지만 넓힌다 (sim.js fill·step) */
+  const VW_MAX = 1680;
+  let VW = W, OX = 0;
 
   const q = new URLSearchParams(location.search);
   const API = q.get("api") || "https://bamti-bomb.fly.dev";
@@ -184,7 +189,9 @@
      게임 시작 10초 뒤 처음, 그 뒤 15초마다 왼쪽 흰 문 위에 카드 영상(2.09초, 자르지 않음)을 띄운다.
      카드가 뒤집혀 김병지가 보이는 순간(1.067초) 소리를 지르기 시작한다. 영상 소리는 끈다 */
   const CARD_FIRST = 10, CARD_EVERY = 15, CARD_REVEAL = 32 / 30;
-  const CARD_X = 6, CARD_Y = 100, CARD_W = 228;   // 영상 네모(잘라 낸 760x1150) 자리. 보이는 카드는 그 안쪽
+  const CARD_Y = 100, CARD_W = 228;   // 영상 네모(잘라 낸 760x1150) 자리. 보이는 카드는 그 안쪽
+  const DOOR_X = 162;                  // 방 배경 그림에서 흰 문 가운데 x (원본 픽셀)
+  let cardX = 6;
   const cardVideo = document.createElement("video");
   cardVideo.muted = true; cardVideo.playsInline = true; cardVideo.setAttribute("playsinline", "");
   cardVideo.preload = "auto"; cardVideo.src = "assets/video/card.mp4?v=1";
@@ -243,16 +250,16 @@
     const box = cardBox(Math.floor(cardVideo.currentTime * 30 + 0.001));
     if (!box) return;
     const k = CARD_W / 760, h = 1150 * k;
-    const X = v => CARD_X + v * k, Y = v => CARD_Y + v * k;
+    const X = v => cardX + v * k, Y = v => CARD_Y + v * k;
     ctx.save();
     ctx.globalAlpha = cardAlpha;
-    ctx.beginPath(); ctx.rect(CARD_X, CARD_Y, CARD_W, h); ctx.clip();   // 영상 밖으로는 안 나가게 (날아갈 때)
+    ctx.beginPath(); ctx.rect(cardX, CARD_Y, CARD_W, h); ctx.clip();   // 영상 밖으로는 안 나가게 (날아갈 때)
     shieldPath(X(box[0]), Y(box[1]), X(box[2]), Y(box[3]));
     ctx.shadowColor = "rgba(0,0,0,.5)"; ctx.shadowBlur = 16; ctx.shadowOffsetY = 5;
     ctx.fillStyle = "#0b2a2a"; ctx.fill();          // 그림자
     ctx.shadowColor = "transparent";
     ctx.clip();
-    ctx.drawImage(cardVideo, CARD_X, CARD_Y, CARD_W, h);
+    ctx.drawImage(cardVideo, cardX, CARD_Y, CARD_W, h);
     ctx.restore();
   }
 
@@ -261,11 +268,14 @@
   const cv = document.getElementById("cv");
   const ctx = cv.getContext("2d");
   function fit() {
-    const s = Math.min(innerWidth / W, innerHeight / H);
+    VW = Math.max(W, Math.min(VW_MAX, Math.round(H * innerWidth / innerHeight)));
+    OX = (VW - W) / 2;
+    stage.style.width = VW + "px";
+    const s = Math.min(innerWidth / VW, innerHeight / H);
     stage.style.transform = `scale(${s}) translate(-50%, -50%)`;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    const px = Math.round(W * s * dpr);
-    if (cv.width !== px) { cv.width = px; cv.height = Math.round(H * s * dpr); }
+    const px = Math.round(VW * s * dpr), py = Math.round(H * s * dpr);
+    if (cv.width !== px || cv.height !== py) { cv.width = px; cv.height = py; }
   }
   addEventListener("resize", fit); fit();
 
@@ -447,7 +457,7 @@
   const HOE_SEQ = [1, 2, 3, 4, 5, 4, 3, 2];
 
   function draw() {
-    const k = cv.width / W;
+    const k = cv.width / VW;
     ctx.setTransform(k, 0, 0, k, 0, 0);
     ctx.imageSmoothingQuality = "high";
 
@@ -460,16 +470,20 @@
     // 방 (조금 어둡게 해서 캐릭터를 띄운다)
     const room = IMG.room;
     if (room) {
-      const rs = Math.max((W + 40) / room.width, (H + 40) / room.height);
+      const rs = Math.max((VW + 40) / room.width, (H + 40) / room.height);
       ctx.drawImage(room, -20 - sx * 0.5, -20, room.width * rs, room.height * rs);
-      ctx.fillStyle = "rgba(10,12,30,.25)"; ctx.fillRect(-20, -20, W + 40, H + 40);
+      ctx.fillStyle = "rgba(10,12,30,.25)"; ctx.fillRect(-20, -20, VW + 40, H + 40);
+      cardX = -20 + DOOR_X * rs - CARD_W / 2;      // 방이 커지면 문도 옮겨 가니 문 가운데에 맞춘다
     }
     drawCard();                     // 왼쪽 흰 문 위 (캐릭터 뒤)
+
+    // 여기부터는 판정 좌표 (0~1280 이 화면 가운데)
+    ctx.translate(OX, 0);
 
     const inHoe = s && s.tick < s.hoeUntil && mode === "play";
     // 캐릭터 몸 — 책상 윗선 아래는 잘라낸다
     ctx.save();
-    ctx.beginPath(); ctx.rect(-40, -40, W + 80, DESK_TOP + 42); ctx.clip();
+    ctx.beginPath(); ctx.rect(-OX - 40, -40, VW + 80, DESK_TOP + 42); ctx.clip();
     if (inHoe) drawHoe();
     else { joltOn(); drawGamst(); ctx.restore(); }
     ctx.restore();
@@ -478,12 +492,12 @@
     const desk = IMG.desk;
     if (desk) {
       const dw = desk.width * DESK_SC, dh = desk.height * DESK_SC;
-      let x = -((s ? s.cam : 0) % dw) - 20;
-      while (x < W + 20) { ctx.drawImage(desk, x, DESK_TOP, dw, dh); x += dw; }
+      let x = -OX - ((s ? s.cam : 0) % dw) - 20;
+      while (x < W + OX + 20) { ctx.drawImage(desk, x, DESK_TOP, dw, dh); x += dw; }
       // 윗선 그림자
       const g = ctx.createLinearGradient(0, DESK_TOP, 0, DESK_TOP + 26);
       g.addColorStop(0, "rgba(0,0,0,.45)"); g.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = g; ctx.fillRect(-20, DESK_TOP, W + 40, 26);
+      ctx.fillStyle = g; ctx.fillRect(-OX - 20, DESK_TOP, VW + 40, 26);
     }
 
     // 판정 원 (게임 중에만)
@@ -546,7 +560,7 @@
         ctx.globalAlpha = 1;
       } else if (e.kind === "fly") {
         // 게이지로 날아가는 작은 뽀또
-        const tx = gaugeEndX(), ty = 44, e2 = p * p;
+        const tx = gaugeEndX() - OX, ty = 44, e2 = p * p;
         const x = e.x + (tx - e.x) * e2, y = e.y + (ty - e.y) * e2 - 120 * Math.sin(Math.PI * p);
         const w = 54 - 20 * p, im = IMG.potto;
         if (im) ctx.drawImage(im, x - w / 2, y - w * 0.4, w, w * im.height / im.width);
@@ -565,9 +579,9 @@
 
     // 빨간 번쩍 (압정)
     if (redFlash > 0) {
-      const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, H * 0.9);
+      const g = ctx.createRadialGradient(VW / 2, H / 2, H * 0.3, VW / 2, H / 2, H * 0.9);
       g.addColorStop(0, "rgba(255,0,0,0)"); g.addColorStop(1, `rgba(255,0,0,${0.55 * redFlash})`);
-      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = g; ctx.fillRect(0, 0, VW, H);
     }
 
     drawHud();
@@ -616,10 +630,12 @@
     ctx.restore();
   }
 
-  const G_X = 850, G_Y = 30, G_W = 390, G_H = 28;
+  const G_Y = 30, G_W = 390, G_H = 28;
+  let G_X = 850;                  // 화면 오른쪽 끝에서 430 (넓어지면 같이 간다)
   function gaugeEndX() { return G_X + G_W * (s ? s.gauge / Sim.GAUGE_MAX : 1); }
 
   function drawHud() {
+    G_X = VW - 430;
     // 시간
     const t = s ? s.tick / HZ : 0;
     label(fmt(t), 34, 58, 46, "#ffffff", 0, "left");
@@ -635,7 +651,7 @@
     const im = IMG.potto;
     if (im) { const w = 58; ctx.drawImage(im, gaugeEndX() - w / 2, G_Y + G_H / 2 - w * 0.4, w, w * im.height / im.width); }
     // 연속
-    if (s && s.streak >= 5 && mode === "play") label(s.streak + "연속", Sim.STRIKE_X, DESK_TOP - 20, 30, "#ffe066");
+    if (s && s.streak >= 5 && mode === "play") label(s.streak + "연속", Sim.STRIKE_X + OX, DESK_TOP - 20, 30, "#ffe066");
     ctx.globalAlpha = 0.6; label("비공식 팬 게임", 16, H - 14, 15, "#ffffff", 0, "left"); ctx.globalAlpha = 1;
   }
 
