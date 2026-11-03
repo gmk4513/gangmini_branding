@@ -73,12 +73,17 @@
     else if (actx.state === "suspended") actx.resume();
     if (sndLoading) return;
     sndLoading = true;
-    ["bang1", "bang2", "bang3", "hoe1", "hoe2", "ppotto3", "scream", "death"].forEach(n => {
-      fetch("assets/audio/" + n + ".mp3?v=4").then(r => r.arrayBuffer())
-        .then(b => new Promise((ok, no) => actx.decodeAudioData(b, ok, no)))
+    // 파일은 페이지를 열 때 미리 받아 둔다(SND_BYTES). 소리 장치는 버튼을 눌러야 열 수 있어서 풀기만 여기서
+    Object.keys(SND_BYTES).forEach(n => {
+      SND_BYTES[n].then(b => new Promise((ok, no) => actx.decodeAudioData(b.slice(0), ok, no)))
         .then(buf => { SND[n] = buf; }).catch(() => { });
     });
   }
+  const SND_BYTES = {};
+  ["bang1", "bang2", "bang3", "hoe1", "hoe2", "ppotto3", "scream", "death"].forEach(n => {
+    SND_BYTES[n] = fetch("assets/audio/" + n + ".mp3?v=4").then(r => r.arrayBuffer());
+    SND_BYTES[n].catch(() => { });
+  });
 
   /* 소리 장치 지킴이.
      블루투스 이어폰(에어팟 등)이 다른 기기로 넘어가거나 통화 모드로 바뀌면, 브라우저는 "재생 중"이라고 하면서
