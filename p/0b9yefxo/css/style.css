@@ -1,0 +1,92 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: #000; color: #fff; overflow: hidden;
+  font-family: Pretendard, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
+
+/* 16:9 판을 화면에 꽉 맞춘다 (남는 곳은 검은 띠) */
+#stage { position: absolute; left: 50%; top: 50%; width: 1280px; height: 720px;
+  transform-origin: 0 0; }
+#cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#ui { position: absolute; inset: 0; pointer-events: none; }
+
+.panel { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center;
+  justify-content: center; gap: 18px; background: rgba(8, 10, 24, .62); pointer-events: auto;
+  text-align: center; }
+.panel.show { display: flex; }
+
+h1 { font-size: 92px; font-weight: 900; letter-spacing: -2px; line-height: 1;
+  text-shadow: 0 6px 0 #0b1a6b, 0 0 30px rgba(0,0,0,.6); }
+h1 small { display: block; font-size: 40px; letter-spacing: 0; margin-bottom: 8px; }
+h1 b { color: #ffcf4a; }
+#pause h2 { font-size: 64px; font-weight: 900; text-shadow: 0 5px 0 #0b1a6b; }
+
+/* 뽀또 모양 시작 버튼 */
+.potto-btn { width: 250px; height: 200px; padding: 0; border-radius: 50%;
+  background: url(../assets/img/potto.webp?v=3) center / contain no-repeat;
+  color: #5a2a08; font-size: 52px; font-weight: 900; letter-spacing: 2px;
+  text-shadow: 0 0 6px #fff4d6, 0 0 14px #fff4d6, 0 2px 0 #fff4d6;
+  filter: drop-shadow(0 10px 14px rgba(0,0,0,.45)); transition: transform .12s; }
+.potto-btn:hover:not(:disabled) { transform: scale(1.06) rotate(-3deg); }
+.potto-btn:active:not(:disabled) { transform: scale(.94); }
+.potto-btn.loading { font-size: 22px; letter-spacing: 0; }
+
+/* 게임 중 멈추기 버튼 (시간 옆) */
+#btnPause { position: absolute; left: 236px; top: 20px; width: 50px; height: 50px; padding: 0;
+  border-radius: 50%; background: rgba(0,0,0,.5); border: 3px solid rgba(255,255,255,.85);
+  display: none; align-items: center; justify-content: center; gap: 6px; pointer-events: auto; }
+#btnPause.show { display: flex; }
+/* 결과 카드 — 오른쪽에 작게. 캐릭터는 왼쪽으로 비켜서서 세레모니가 가리지 않는다 */
+#over.card { inset: auto; right: 18px; top: 72px; width: 450px; height: 482px; padding: 18px 30px; gap: 12px;
+  justify-content: center; border-radius: 24px; background: rgba(8, 10, 24, .82); box-shadow: 0 10px 30px rgba(0,0,0,.45); }
+#over .label { font-size: 26px; }
+#over .time { font-size: 96px; text-shadow: 0 5px 0 #0b1a6b; }
+#over .sub { font-size: 22px; }
+#over form.row { width: 100%; gap: 10px; }
+#over input { flex: 1; min-width: 0; width: auto; font-size: 24px; padding: 12px 14px; }
+#over form button { font-size: 22px; padding: 14px 16px; white-space: nowrap; }
+#over .msg { font-size: 19px; line-height: 1.35; }
+#over .big { width: 100%; font-size: 34px; padding: 16px 0; }
+#over .row button { font-size: 21px; padding: 12px 22px; }
+#toast { position: absolute; left: 50%; top: 84px; transform: translateX(-50%); padding: 10px 18px;
+  border-radius: 12px; background: rgba(0,0,0,.72); color: #fff; font-size: 20px; font-weight: 700;
+  opacity: 0; transition: opacity .25s; pointer-events: none; white-space: nowrap; }
+#toast.show { opacity: 1; }
+#btnPause i { display: block; width: 7px; height: 20px; background: #fff; border-radius: 2px; }
+.how { font-size: 30px; font-weight: 700; line-height: 1.45; text-shadow: 0 2px 8px #000; }
+.how .potto { color: #ffcf4a; } .how .tack { color: #ff7b7b; }
+.how2 { font-size: 22px; font-weight: 700; color: #ffe08a; margin-top: -8px; text-shadow: 0 2px 6px #000; }
+.keys { font-size: 20px; opacity: .8; }
+.fine { position: absolute; bottom: 16px; font-size: 16px; opacity: .65; }
+
+.row { display: flex; gap: 14px; align-items: center; justify-content: center; }
+button { font: inherit; font-size: 24px; font-weight: 800; color: #10131f; background: #fff;
+  border: 0; border-radius: 14px; padding: 14px 26px; cursor: pointer; }
+button.big { font-size: 34px; padding: 18px 44px; background: #ffcf4a; box-shadow: 0 6px 0 #b8861a; }
+button.big:active { transform: translateY(4px); box-shadow: 0 2px 0 #b8861a; }
+button.ghost { background: rgba(255,255,255,.14); color: #fff; }
+button:disabled { opacity: .6; cursor: default; }
+
+.label { font-size: 26px; opacity: .85; }
+.time { font-size: 120px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums;
+  text-shadow: 0 6px 0 #0b1a6b; }
+.sub { font-size: 22px; opacity: .85; min-height: 1.2em; }
+input { font: inherit; font-size: 26px; font-weight: 700; width: 260px; padding: 13px 16px;
+  border-radius: 14px; border: 3px solid #fff; background: rgba(0,0,0,.35); color: #fff; outline: none;
+  -webkit-user-select: text; user-select: text; }
+.msg { font-size: 20px; min-height: 1.3em; color: #ffe08a; }
+
+#rank h2 { font-size: 44px; font-weight: 900; }
+#rank h2 span { font-size: 22px; opacity: .7; margin-left: 8px; }
+#rankList { list-style: none; width: 560px; max-height: 470px; overflow-y: auto; background: rgba(0,0,0,.35);
+  border-radius: 16px; padding: 8px 0; -webkit-overflow-scrolling: touch; }
+#rankList li { display: flex; padding: 8px 22px; font-size: 24px; font-weight: 700; }
+#rankList li .r { width: 56px; text-align: left; opacity: .7; }
+#rankList li .n { flex: 1; text-align: left; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+#rankList li .s { font-variant-numeric: tabular-nums; }
+#rankList li.top .r { color: #ffcf4a; opacity: 1; }
+#rankList li.me { background: rgba(255, 207, 74, .25); }
+#rankList li.empty { justify-content: center; opacity: .7; }
+
+#rotate { display: none; position: fixed; inset: 0; z-index: 10; background: #000; color: #fff;
+  align-items: center; justify-content: center; font-size: 22px; text-align: center; padding: 20px; }
+@media (orientation: portrait) and (pointer: coarse) { #rotate { display: flex; } }
