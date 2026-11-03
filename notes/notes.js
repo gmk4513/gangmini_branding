@@ -26,6 +26,16 @@ const CATS = [
 const NOTES = [
 
   {
+    slug: "gamst-shotgun",
+    title: "감스트의 뽀또 샷건치기 — 사진 몇 장으로 만든 책상 내려치기 게임",
+    desc: "주먹으로 책상을 내려쳐 뽀또를 부수는 2D 게임. 그림을 통째로 갈아 끼워 움직이게 하기, 주먹이 닿는 순간의 판정, 점수 대신 입력을 보내는 순위표, 겹치지 않는 대사와 카드 영상, 갑자기 사라진 소리까지.",
+    date: "2026-11-03",
+    cat: "stack",
+    tags: ["Canvas", "Web Audio API", "결정론적 시뮬레이션", "OpenCV", "Python", "Node.js", "Fly.io", "Cloudflare Pages", "리틀리"],
+    mine: true,
+  },
+
+  {
     slug: "gamst-scooter",
     title: "감스트의 전동 스쿠터 라이딩 — 동네 사람에게 길을 묻는 3D 웹 게임",
     desc: "AI 로 만든 3D 주인공을 스쿠터에 앉혀 동네를 달리게. 얼굴은 두고 몸만 고치기, 두 사람을 같이 잡는 대화 카메라, 귀 아프지 않은 엔진 합성음, 아이폰에서만 안 나던 목소리, DM 으로만 나눠 준 링크까지.",
