@@ -126,7 +126,7 @@
   body.touch #timer b { font-size:28px; }
   body.touch #timer span { font-size:10px; }
   body.touch #pauseBtn { width:32px; height:32px; margin-top:2px; font-size:11px; }
-  body.touch #map { left:auto; right:10px; top:56px; bottom:auto; width:100px; border-width:2px; border-radius:8px; }
+  body.touch #map { left:auto; right:calc(10px + env(safe-area-inset-right)); top:50px; bottom:auto; width:92px; border-width:2px; border-radius:8px; }
   body.touch #boostBar { top:9px; bottom:auto; width:34vw; height:9px; }
   body.touch #hint { top:22px; bottom:auto; font-size:17px; }
   body.touch #toast { top:44px; font-size:16px; }
@@ -135,11 +135,15 @@
   body.touch #stuck div { height:8px; }
   body.touch #fan { right:auto; left:50%; transform:translateX(-50%); bottom:3px; font-size:9px; }
   body.touch #bubble { font-size:12px; padding:5px 10px; border-radius:12px; }
-  body.touch #touch button { width:58px; height:58px; font-size:20px; border-width:2px; }
-  body.touch #tL { left:12px; bottom:14px; } body.touch #tR { left:80px; bottom:14px; }
-  body.touch #tU { right:12px; bottom:76px; }
-  body.touch #tD { right:12px; bottom:12px; width:52px !important; height:52px !important; }
-  body.touch #tS { right:80px; bottom:28px; width:66px !important; height:66px !important; font-size:13px !important; }
+  /* 조작 버튼: 크게 + 둘레 14px 는 보이지 않는 터치 영역 (2026-11-08 — 작아서 누르기 힘들다고 함).
+     왼쪽 ◀ ▶ 는 화면 끝(아이폰 노치 쪽)에서 떨어뜨린다 */
+  body.touch #touch button { width:76px; height:76px; font-size:26px; border-width:2.5px; }
+  body.touch #touch button::before { content:""; position:absolute; inset:-14px; border-radius:50%; }
+  body.touch #tL { left:calc(30px + env(safe-area-inset-left)); bottom:18px; }
+  body.touch #tR { left:calc(124px + env(safe-area-inset-left)); bottom:18px; }
+  body.touch #tU { right:calc(22px + env(safe-area-inset-right)); bottom:92px; }
+  body.touch #tD { right:calc(28px + env(safe-area-inset-right)); bottom:14px; width:64px !important; height:64px !important; }
+  body.touch #tS { right:calc(114px + env(safe-area-inset-right)); bottom:34px; width:84px !important; height:84px !important; font-size:15px !important; }
   /* 키보드 설명은 터치에선 숨기고 터치 설명을 보인다 */
   .tc { display:none; }
   body.touch .kb { display:none; }
