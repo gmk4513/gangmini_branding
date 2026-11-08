@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="robots" content="noindex">
+<title>바이스벌사의 보이스발사</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root { --red:#e0322b; --ink:#16181d; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; height:100%; overflow:hidden; background:#bfe3f5; font-family:'Noto Sans KR',system-ui,sans-serif; color:#fff; user-select:none; -webkit-user-select:none; touch-action:none; }
+  canvas#c { position:fixed; inset:0; width:100%; height:100%; display:block; transition:none; }
+
+  /* HUD */
+  #hud { position:fixed; inset:0; pointer-events:none; }
+  #topR { position:absolute; top:14px; right:18px; display:flex; align-items:flex-start; gap:12px; }
+  #timer { text-align:right; }
+  #timer b { display:block; font-size:clamp(34px,5.6vw,60px); font-weight:900; font-variant-numeric:tabular-nums; letter-spacing:.01em; text-shadow:0 3px 0 rgba(0,0,0,.42),0 0 18px rgba(0,0,0,.28); line-height:1.05; }
+  #timer span { font-size:14px; font-weight:700; text-shadow:0 1px 3px rgba(0,0,0,.7); }
+  #stars { position:absolute; top:14px; left:16px; display:flex; gap:3px; }
+  #stars svg { width:34px; height:34px; filter:drop-shadow(0 2px 2px rgba(0,0,0,.55)); }
+  #stars svg path { fill:rgba(20,22,28,.35); stroke:#fff; stroke-width:1.6; stroke-linejoin:round; }
+  #stars svg.on path { fill:#fff; }
+  #stars.blink svg path { animation:starBlink .28s steps(2) 10; }
+  @keyframes starBlink { 50% { fill:rgba(20,22,28,.35); stroke:rgba(255,255,255,.35); } }
+  #cops { position:absolute; top:18px; left:18px; display:flex; gap:6px; align-items:center; font-weight:900; font-size:15px; background:rgba(20,22,28,.62); padding:7px 13px; border-radius:999px; }
+  #cops i { width:12px; height:12px; border-radius:50%; background:#555a63; display:inline-block; }
+  #cops i.on { background:#ff3a33; box-shadow:0 0 10px #ff3a33; animation:cop .5s steps(2) infinite; }
+  #cops i.on:nth-of-type(even) { background:#4277ff; box-shadow:0 0 10px #4277ff; }
+  @keyframes cop { 50% { opacity:.35; } }
+  #camBtn, #bubbleBtn { position:absolute; top:60px; left:18px; pointer-events:auto; border:2px solid rgba(255,255,255,.85); background:rgba(20,22,28,.62); color:#fff; border-radius:999px; padding:6px 14px; font:900 14px 'Noto Sans KR',sans-serif; cursor:pointer; }
+  #camBtn:hover, #bubbleBtn:hover { background:rgba(232,54,46,.85); }
+  #bubbleBtn { top:98px; }
+  #boostBar { position:absolute; bottom:30px; left:50%; transform:translateX(-50%); width:min(340px,56vw); height:14px; border-radius:9px; background:rgba(15,16,20,.55); overflow:hidden; opacity:0; transition:opacity .15s; }
+  #boostBar i { display:block; height:100%; width:100%; transform-origin:left; background:linear-gradient(90deg,#ff8a2a,#ffd23c); }
+  #hint { position:absolute; bottom:54px; left:50%; transform:translateX(-50%); font-size:clamp(20px,3vw,30px); font-weight:900; color:#ffe14f; text-shadow:0 2px 0 #000,0 0 14px rgba(0,0,0,.6); opacity:0; white-space:nowrap; }
+  #toast { position:absolute; top:112px; left:50%; transform:translateX(-50%); font-size:clamp(20px,3vw,32px); font-weight:900; text-shadow:0 2px 0 rgba(0,0,0,.65),0 0 14px rgba(0,0,0,.55); white-space:nowrap; opacity:0; transition:opacity .25s; }
+  #fan { position:absolute; bottom:8px; right:12px; font-size:12px; font-weight:700; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.85); opacity:.85; }
+  #map { position:absolute; left:14px; bottom:14px; width:clamp(130px,17vw,200px); border-radius:12px; border:3px solid rgba(255,255,255,.85); box-shadow:0 3px 12px rgba(0,0,0,.35); background:#8fca55; }
+
+  /* 말풍선 */
+  #bubble { position:absolute; left:0; top:0; padding:8px 15px; background:#fff; color:#111; border-radius:16px; font-size:clamp(14px,1.8vw,20px); font-weight:900; white-space:nowrap; box-shadow:0 2px 0 rgba(0,0,0,.35); will-change:transform; display:none; }
+  #bubble:after { content:""; position:absolute; left:50%; bottom:-10px; transform:translateX(-50%); border:7px solid transparent; border-top:11px solid #fff; border-bottom:0; }
+
+  /* 막힘 경고 */
+  #stuck { position:absolute; left:50%; top:31%; transform:translate(-50%,-50%); width:clamp(190px,26vw,300px); opacity:0; text-align:center; }
+  #stuck p { margin:0 0 6px; font-size:clamp(16px,2.2vw,23px); font-weight:900; text-shadow:0 2px 0 #000,0 0 10px #000; }
+  #stuck div { height:12px; border-radius:7px; background:rgba(0,0,0,.6); overflow:hidden; border:2px solid #fff; }
+  #stuck i { display:block; height:100%; background:var(--red); width:0; }
+  #vig { position:fixed; inset:0; pointer-events:none; opacity:0; background:radial-gradient(ellipse at center,transparent 52%,rgba(190,0,0,.72) 100%); }
+
+  /* wasted */
+  #wasted { position:fixed; inset:0; pointer-events:none; opacity:0; display:flex; align-items:center; justify-content:center; background:radial-gradient(ellipse at center,rgba(0,0,0,.08) 30%,rgba(0,0,0,.72) 100%); }
+  #wBand { position:absolute; left:0; right:0; top:29%; height:clamp(90px,19vh,170px); transform:translateY(-50%); background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.62) 16%,rgba(0,0,0,.62) 84%,rgba(0,0,0,0)); }
+  #wText { position:absolute; top:29%; left:50%; margin-top:-.62em; line-height:1.2; font-family:Impact,'Arial Black','Noto Sans KR',sans-serif; font-size:clamp(68px,12.5vw,158px); letter-spacing:.015em; color:#c8201f; text-shadow:0 2px 0 #000,3px 4px 0 rgba(0,0,0,.65); transform:translateX(-50%) scale(1.5); opacity:0; }
+
+  /* 화면 카드 */
+  .screen { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; padding:18px; }
+  .card { width:min(620px,100%); background:rgba(17,19,24,.84); border-radius:24px; padding:clamp(20px,4vw,34px); text-align:center; backdrop-filter:blur(5px); max-height:96vh; overflow:auto; }
+  .card h1 { margin:0; font-size:clamp(26px,3.05vw,44px); font-weight:900; line-height:1.15; white-space:nowrap; }
+  @media (max-width:900px) { .card h1 { font-size:clamp(25px,6.4vw,44px); } }
+  .card h1 em { font-style:normal; color:#ff5a4e; }
+  .card h2 { margin:6px 0 16px; font-size:clamp(15px,2.3vw,20px); font-weight:700; color:#ffd23c; }
+  .keys { display:grid; grid-template-columns:auto 1fr; gap:7px 14px; text-align:left; font-size:clamp(14px,2vw,17px); margin:0 auto 18px; max-width:470px; }
+  .keys b { background:#fff; color:#111; border-radius:7px; padding:1px 9px; font-weight:900; text-align:center; white-space:nowrap; }
+  button.go { pointer-events:auto; border:0; border-radius:999px; background:#e8362e; color:#fff; font:900 clamp(19px,3vw,25px) 'Noto Sans KR',sans-serif; padding:14px 42px; cursor:pointer; box-shadow:0 5px 0 #8e1712; }
+  button.go:active { transform:translateY(3px); box-shadow:0 2px 0 #8e1712; }
+  button.go[disabled] { background:#6b6f78; box-shadow:0 5px 0 #40434a; cursor:wait; }
+  .fine { margin:13px 0 0; font-size:12.5px; color:#b9bcc5; }
+  #result { display:none; align-items:flex-end; padding-bottom:4vh; pointer-events:none; }
+  #result .card { pointer-events:auto; width:min(440px,100%); background:rgba(14,14,16,.78); }
+  #rTime { font-size:clamp(40px,8vw,62px); font-weight:900; font-variant-numeric:tabular-nums; line-height:1.1; }
+  #rBest { margin:2px 0 14px; font-weight:700; color:#ffd23c; font-size:16px; min-height:1.4em; }
+
+  #pauseBtn { margin-top:8px; pointer-events:auto; width:44px; height:44px; border-radius:50%; border:2px solid rgba(255,255,255,.85); background:rgba(20,22,28,.62); color:#fff; font:900 15px 'Noto Sans KR',sans-serif; cursor:pointer; letter-spacing:-1px; }
+  #pauseBtn:hover { background:rgba(232,54,46,.85); }
+  #pause, #rank { display:none; z-index:5; }
+  #pause .card h2 { font-size:clamp(26px,4vw,36px); color:#fff; margin:0 0 18px; }
+  button.ghost { pointer-events:auto; border:2px solid rgba(255,255,255,.75); background:transparent; color:#fff; font:700 16px 'Noto Sans KR',sans-serif; padding:9px 22px; border-radius:999px; cursor:pointer; }
+  button.ghost:hover { background:rgba(255,255,255,.12); }
+  .row { display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap; margin-top:12px; }
+  #nameForm { margin:0 0 6px; }
+  #nameIn { pointer-events:auto; width:170px; padding:10px 14px; border-radius:12px; border:2px solid rgba(255,255,255,.6); background:rgba(255,255,255,.95); color:#111; font:700 16px 'Noto Sans KR',sans-serif; }
+  #btnSubmit { pointer-events:auto; border:0; border-radius:12px; padding:11px 16px; background:#ffd23c; color:#111; font:900 16px 'Noto Sans KR',sans-serif; cursor:pointer; }
+  #btnSubmit[disabled] { opacity:.55; cursor:wait; }
+  #submitMsg { min-height:1.3em; margin:4px 0 12px; font-size:14px; color:#ffd8a8; }
+  #rank .card { width:min(520px,100%); }
+  #rank h2 span { font-size:14px; color:#c9ccd4; margin-left:6px; font-weight:500; }
+  #rankList { list-style:none; margin:0 0 14px; padding:6px 0; max-height:min(60vh,520px); overflow-y:auto; background:rgba(0,0,0,.3); border-radius:14px; text-align:left; }
+  #rankList li { display:flex; padding:7px 18px; font-size:17px; font-weight:700; }
+  #rankList li .r { width:42px; opacity:.7; }
+  #rankList li .n { flex:1; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+  #rankList li .s { font-variant-numeric:tabular-nums; }
+  #rankList li.top .r { color:#ffd23c; opacity:1; }
+  #rankList li.me { background:rgba(255,210,60,.25); }
+  #rankList li.empty { justify-content:center; opacity:.7; }
+
+  @media (min-width:901px) { #start { justify-content:flex-start; padding-left:4vw; } #start .card { width:min(540px,44vw); } }
+
+  /* 터치 */
+  #touch { position:fixed; inset:0; pointer-events:none; display:none; }
+  #touch button { position:absolute; pointer-events:auto; border:3px solid rgba(255,255,255,.8); background:rgba(20,22,28,.45); color:#fff; border-radius:50%; width:72px; height:72px; font:900 25px 'Noto Sans KR',sans-serif; touch-action:none; }
+  #touch button.on { background:rgba(232,54,46,.82); }
+  #tL { left:16px; bottom:24px; } #tR { left:100px; bottom:24px; }
+  #tU { right:16px; bottom:100px; } #tD { right:16px; bottom:18px; width:64px !important; height:64px !important; }
+  #tS { right:96px; bottom:40px; width:84px !important; height:84px !important; font-size:18px !important; }
+  body.touch #touch { display:block; }
+  body.touch #boostBar { bottom:118px; }
+  body.touch #map { bottom:auto; top:140px; width:120px; }   /* 폰은 왼쪽 아래에 방향 버튼, 오른쪽 위에 시간이 있어서 */
+  body.touch #hint { bottom:140px; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="vig"></div>
+<div id="hud" style="display:none">
+  <button id="camBtn" title="시점 바꾸기 (C 키)">시점: 기본</button>
+  <button id="bubbleBtn" title="말풍선 켜기·끄기 (B 키)">말풍선: 켬</button>
+  <div id="stars"><svg viewBox="0 0 24 24"><path d="M12 1.8l3.1 6.5 7.1.9-5.2 4.9 1.3 7-6.3-3.4-6.3 3.4 1.3-7L1.8 9.2l7.1-.9z"/></svg><svg viewBox="0 0 24 24"><path d="M12 1.8l3.1 6.5 7.1.9-5.2 4.9 1.3 7-6.3-3.4-6.3 3.4 1.3-7L1.8 9.2l7.1-.9z"/></svg><svg viewBox="0 0 24 24"><path d="M12 1.8l3.1 6.5 7.1.9-5.2 4.9 1.3 7-6.3-3.4-6.3 3.4 1.3-7L1.8 9.2l7.1-.9z"/></svg><svg viewBox="0 0 24 24"><path d="M12 1.8l3.1 6.5 7.1.9-5.2 4.9 1.3 7-6.3-3.4-6.3 3.4 1.3-7L1.8 9.2l7.1-.9z"/></svg><svg viewBox="0 0 24 24"><path d="M12 1.8l3.1 6.5 7.1.9-5.2 4.9 1.3 7-6.3-3.4-6.3 3.4 1.3-7L1.8 9.2l7.1-.9z"/></svg></div>
+  <div id="topR"><button id="pauseBtn" title="멈추기 (Esc · P)">❚❚</button><div id="timer"><b id="tVal">00:00.0</b><span id="tBest"></span></div></div>
+  <canvas id="map" width="400" height="330"></canvas>
+  <div id="bubble"></div>
+  <div id="toast"></div>
+  <div id="stuck"><p>가로막혔어요! 빠져나오세요</p><div><i></i></div></div>
+  <div id="hint"></div>
+  <div id="boostBar"><i></i></div>
+  <div id="fan">비공식 팬 게임</div>
+</div>
+<div id="wasted"><div id="wBand"></div><div id="wText">wasted</div></div>
+
+<div id="start" class="screen">
+  <div class="card">
+    <h1>바이스벌사의 <em>보이스발사</em></h1>
+    <h2>feat. 경찰피하기 게임</h2>
+    <div class="keys">
+      <b>↑ ↓ ← →</b><span>운전</span>
+      <b>Shift</b><span>+ 방향키로 드리프트 — 스껄!</span>
+      <b>↑ 다시</b><span>드리프트 막바지에 누르면 5초 부스터 — 아~~~</span>
+      <b>C / B</b><span>시점 바꾸기(기본·위에서) / 말풍선 켜기·끄기 — 왼쪽 위 버튼도 됩니다</span>
+      <b>Esc</b><span>멈추기 (P 도 됩니다)</span>
+      <b>점프</b><span>분수대 둘레 노란 둔덕으로 빠르게 달려가면 분수를 날아서 넘어요</span>
+      <b>주의</b><span>경찰차에 막혀 3초 동안 못 움직이면 끝</span>
+    </div>
+    <button id="go" class="go" disabled>불러오는 중…</button>
+    <div class="row"><button id="rankBtn1" class="ghost">순위표</button></div>
+    <p class="fine">비공식 팬 게임 · 소리를 켜고 하세요 · 멈추기 Esc</p>
+  </div>
+</div>
+<div id="result" class="screen">
+  <div class="card">
+    <div id="rTime">00:00.0</div>
+    <div id="rBest"></div>
+    <form id="nameForm" class="row">
+      <input id="nameIn" maxlength="10" placeholder="닉네임" autocomplete="off" enterkeyhint="done">
+      <button id="btnSubmit" type="submit">순위 등록</button>
+    </form>
+    <p id="submitMsg"></p>
+    <button id="again" class="go">다시 달리기</button>
+    <div class="row"><button id="rankBtn2" class="ghost">순위표</button><button id="homeBtn2" class="ghost">처음으로</button></div>
+  </div>
+</div>
+<div id="pause" class="screen">
+  <div class="card">
+    <h2>멈춤</h2>
+    <button id="resumeBtn" class="go">계속하기</button>
+    <div class="row"><button id="homeBtn" class="ghost">처음으로</button></div>
+  </div>
+</div>
+<div id="rank" class="screen">
+  <div class="card">
+    <h2>순위표 <span>버틴 시간 · 50위까지</span></h2>
+    <ol id="rankList"></ol>
+    <button id="rankClose" class="ghost">닫기</button>
+  </div>
+</div>
+<div id="touch">
+  <button id="tL" data-k="left">◀</button><button id="tR" data-k="right">▶</button>
+  <button id="tU" data-k="up">▲</button><button id="tD" data-k="down">▼</button>
+  <button id="tS" data-k="drift">드리프트</button>
+</div>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
