@@ -638,6 +638,9 @@ function setCamMode(i) {
 }
 let camYaw = 0, camInit = false, orbitA = 0, shake = 0;
 function updateCamera(dt, realDt) {
+  // "위에서" 시점이 카메라 위쪽을 달리는 방향으로 돌려 놓는다 → 다른 화면에선 늘 똑바로 세운다
+  // (첫 화면으로 돌아왔을 때 90° 누워 보이던 문제, 2026-11-08)
+  camera.up.copy(UP);
   if (window.__fixCam) {  // 테스트·스크린샷용 고정 카메라
     const f = window.__fixCam;
     camera.position.set(f[0], f[1], f[2]); camera.fov = f[6] || 55; camera.updateProjectionMatrix(); camera.lookAt(f[3], f[4], f[5]);
