@@ -769,7 +769,7 @@ let lineI = 0, lineT = 0;
 const _v = new THREE.Vector3();
 function updateBubble(dt) {
   const b = $("bubble");
-  if (state !== "play" || !bubbleOn) { b.style.display = "none"; return; }
+  if ((state !== "play" && state !== "title") || !bubbleOn) { b.style.display = "none"; return; }   // 첫 화면에서도 띄운다
   lineT -= dt;
   if (lineT <= 0) { lineT = 2.5; b.textContent = LINES[lineI]; lineI = (lineI + 1) % LINES.length; }
   _v.set(P.x, models.headTopY + 0.3 + (P.y || 0), P.z).project(camera);   // 점프할 때도 머리 위를 따라간다
