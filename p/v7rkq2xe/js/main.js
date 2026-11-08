@@ -769,7 +769,8 @@ let lineI = 0, lineT = 0;
 const _v = new THREE.Vector3();
 function updateBubble(dt) {
   const b = $("bubble");
-  if ((state !== "play" && state !== "title") || !bubbleOn) { b.style.display = "none"; return; }   // 첫 화면에서도 띄운다
+  // 첫 화면에서도 띄운다 — 단 좁은 화면(폰)은 카드가 차를 가려서 말풍선만 떠 보이니 숨긴다
+  if ((state !== "play" && !(state === "title" && innerWidth > 900)) || !bubbleOn) { b.style.display = "none"; return; }
   lineT -= dt;
   if (lineT <= 0) { lineT = 2.5; b.textContent = LINES[lineI]; lineI = (lineI + 1) % LINES.length; }
   _v.set(P.x, models.headTopY + 0.3 + (P.y || 0), P.z).project(camera);   // 점프할 때도 머리 위를 따라간다
@@ -819,7 +820,17 @@ function addCop() {
   }
   updateCopDots();
 }
+/* 안드로이드 크롬은 전체화면일 때만 가로 고정이 된다. 아이폰은 안 되니 조용히 넘어간다 (세로면 #rotate 안내) */
+function tryLandscape() {
+  if (!matchMedia("(pointer: coarse)").matches) return;
+  const el = document.documentElement;
+  if (!document.fullscreenElement && el.requestFullscreen) {
+    el.requestFullscreen().then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock("landscape").catch(() => { })).catch(() => { });
+  }
+}
 function startGame() {
+  tryLandscape();
+  document.body.classList.add("playing");
   camera.clearViewOffset();
   reset();
   state = "play";
@@ -831,6 +842,7 @@ function startGame() {
 function restart() { startGame(); }
 function goWasted() {
   state = "wasted"; wastedT = 0;
+  document.body.classList.remove("playing");
   Au.wastedAudio();
   P.boostT = 0;
   $("bubble").style.display = "none"; $("stuck").style.opacity = 0; $("hint").style.opacity = 0; $("boostBar").style.opacity = 0;
@@ -856,6 +868,7 @@ function setPause(on) {
 }
 function goHome() {
   paused = false; $("pause").style.display = "none";
+  document.body.classList.remove("playing");
   Au.unlock(); Au.silence();
   state = "title"; reset();
   $("hud").style.display = "none"; $("result").style.display = "none"; $("start").style.display = "flex";
