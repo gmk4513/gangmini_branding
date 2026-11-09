@@ -26,6 +26,16 @@ const CATS = [
 const NOTES = [
 
   {
+    slug: "viceversa-chase",
+    title: "바이스벌사의 보이스발사 — 경찰차를 피해 몇 초 버티나, 3D 추격 게임",
+    desc: "페라리 탄 바이스벌사가 경찰차 7대를 피해 달린다. 그림 좌표를 그대로 옮긴 1km 동네, 경찰 길찾기와 각도별 돌진, '갇혔다'를 정의하기, 다섯 번 바꾼 경찰 속도, 분수를 넘는 원형 점프대, 폰 화면까지.",
+    date: "2026-11-09",
+    cat: "stack",
+    tags: ["Three.js", "WebGL", "Web Audio API", "Tripo", "glTF", "길찾기", "헤드리스 Chrome", "Node.js", "Fly.io", "Cloudflare Pages", "리틀리"],
+    mine: true,
+  },
+
+  {
     slug: "gamst-shotgun",
     title: "감스트의 뽀또 샷건치기 — 사진 몇 장으로 만든 책상 내려치기 게임",
     desc: "주먹으로 책상을 내려쳐 뽀또를 부수는 2D 게임. 그림을 통째로 갈아 끼워 움직이게 하기, 주먹이 닿는 순간의 판정, 점수 대신 입력을 보내는 순위표, 겹치지 않는 대사와 카드 영상, 갑자기 사라진 소리까지.",
