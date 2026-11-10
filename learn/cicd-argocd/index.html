@@ -212,7 +212,8 @@ git add .
 git commit -m "cicd-hello 배포 매니페스트"
 gh repo create cicd-hello-manifests --public --source . --push</code></pre>
 
-    <p>공개 저장소라 ArgoCD 가 따로 로그인하지 않고 읽는다. 비공개로 하려면 아래 "비공개 저장소라면" 을 본다.</p>
+    <p>공개 저장소라 ArgoCD 가 따로 로그인하지 않고 읽는다. 비공개로 하려면 아래 "비공개 저장소라면" 을 본다.
+      이 저장소의 main 에는 3편처럼 "PR 필수" 규칙을 걸지 않는다. 13편에서 젠킨스가 여기에 바로 push 하기 때문이다.</p>
 
     <!-- ============================================================ -->
     <h3>5. Application 만들기</h3>
