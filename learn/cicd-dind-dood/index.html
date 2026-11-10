@@ -207,9 +207,9 @@ sleep 10                                     # 안쪽 데몬이 뜰 때까지
 docker exec dind docker ps                   # dind 안에서 docker ps
 docker exec dind docker images</code></pre>
 
-    <p>대략 이렇게 나온다. 머리줄만 있고 내용이 없다.</p>
+    <p>머리줄만 있고 내용이 없다 (Docker Desktop 29.6.1 에서 실제로 받은 출력).</p>
 <pre><code><span style="color:var(--ink-soft)">CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
-REPOSITORY   TAG       IMAGE ID   CREATED   SIZE</span></code></pre>
+IMAGE   ID             DISK USAGE   CONTENT SIZE   EXTRA</span></code></pre>
 
     <p>
       <strong>둘 다 비어 있다.</strong> 바깥에 <code>hello-outside</code> 도, <code>cicd-hello:local</code> 이미지도 있는데 안에서는 안 보인다. 안쪽 데몬은 갓 태어난 별개의 도커이기 때문이다.
@@ -225,9 +225,11 @@ sleep 5
 docker ps -a --filter name=dind-noprv --format '{{.Status}}'
 docker logs dind-noprv 2&gt;&amp;1 | tail -3</code></pre>
 
-    <p>대략 이렇게 나온다. 에러 문구는 도커 버전마다 조금씩 다르다.</p>
-<pre><code><span style="color:var(--ink-soft)">Exited (1) 3 seconds ago
-... (마운트·권한 관련 에러로 데몬이 못 뜬다)</span></code></pre>
+    <p>실제로 받은 출력이다. 에러 문구는 도커 버전마다 조금씩 다를 수 있다.</p>
+<pre><code><span style="color:var(--ink-soft)">Exited (1) 7 seconds ago
+Could not mount /sys/kernel/security.
+AppArmor detection and --privileged mode might break.
+mount: permission denied (are you root?)</span></code></pre>
 
     <p>
       데몬을 띄우려면 커널 기능을 직접 만져야 하는데, 보통 컨테이너에는 그 권한이 없다. 그래서 DinD 는 <code>--privileged</code> 없이는 안 된다. 이게 DinD 의 가장 큰 약점이다(아래 보안 절).
@@ -251,10 +253,10 @@ docker logs dind-noprv 2&gt;&amp;1 | tail -3</code></pre>
   -v /var/run/docker.sock:/var/run/docker.sock \
   docker:cli docker ps --format 'table {{.Names}}\t{{.Image}}'</code></pre>
 
-    <p>대략 이렇게 나온다. 첫 줄 이름은 도커가 무작위로 붙인다.</p>
-<pre><code><span style="color:var(--ink-soft)">NAMES            IMAGE
-quirky_feynman   docker:cli          ← 방금 띄운 자기 자신
-hello-outside    cicd-hello:local</span></code></pre>
+    <p>이렇게 나온다. 첫 줄 이름은 도커가 무작위로 붙인다(직접 돌렸을 땐 <code>jovial_einstein</code>).</p>
+<pre><code><span style="color:var(--ink-soft)">NAMES             IMAGE
+jovial_einstein   docker:cli          ← 방금 띄운 자기 자신
+hello-outside     cicd-hello:local</span></code></pre>
 
     <p>
       <strong>바깥 컨테이너가 보인다.</strong> 심지어 자기 자신도 목록에 있다. 안에서 친 <code>docker</code> 가 바깥 데몬에게 그대로 전달되기 때문이다.
