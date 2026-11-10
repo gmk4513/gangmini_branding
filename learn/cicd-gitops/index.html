@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>ArgoCD 로 배포 자동화 — 커밋 하나가 운영까지 · gangmin</title>
+<meta name="description" content="CI/CD 실습 13편(마지막). 젠킨스가 테스트·이미지 빌드 뒤 매니페스트 저장소의 이미지 태그를 고쳐 커밋하고, ArgoCD 가 그 커밋을 보고 클러스터를 바꾼다. 앱 코드 push 한 번으로 운영까지, 실패하면 멈추고, 되돌리기는 git revert.">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="ArgoCD 로 배포 자동화 — 커밋 하나가 운영까지">
+<meta property="og:description" content="젠킨스(CI) + ArgoCD(CD) 를 이어 앱 코드 push 한 번으로 배포까지. 시리즈 마무리.">
+<meta property="og:url" content="https://gangmini.com/learn/cicd-gitops/">
+<meta property="og:image" content="https://gangmini.com/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../../notes/note.css?v=20261028">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/learn/">← 이론/용어</a>
+    <p class="eyebrow">PRACTICE · CI/CD 13/13</p>
+    <h2 class="masthead__title">ArgoCD 로 배포 자동화<br>— 커밋 하나가 운영까지</h2>
+    <div class="doc__meta">
+      <span class="tag">실습</span>
+      <span class="tag">GitOps</span>
+      <span class="tag">ArgoCD</span>
+      <span class="tag">Jenkins</span>
+      <span class="tag">Kaniko</span>
+      <span class="tag">롤백</span>
+      <time class="note__date">2026.11.10</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      11편에서 젠킨스가 이미지를 만들어 Docker Hub 에 올렸다(CI). 12편에서 ArgoCD 가 Git 의 매니페스트대로 클러스터를 맞췄다(CD).
+      그런데 둘 사이가 아직 끊겨 있다. 새 이미지가 나와도 매니페스트의 <code>image:</code> 태그는 사람이 고쳐야 한다.
+    </p>
+    <p>
+      이 글에서 그 마지막 한 칸을 젠킨스에게 맡긴다. 젠킨스는 이미지를 올린 뒤 <strong>매니페스트 저장소의 태그 한 줄을 고쳐 커밋</strong>만 한다.
+      클러스터에는 손대지 않는다. 그 커밋을 ArgoCD 가 보고 배포한다. 이렇게 되면 개발자는 앱 코드를 push 하는 것 말고는 아무것도 안 해도 된다.
+    </p>
+
+    <h4>이번 단계에서 할 것</h4>
+    <ol>
+      <li>젠킨스에 매니페스트 저장소에 쓸 수 있는 GitHub 토큰 넣기</li>
+      <li><code>Jenkinsfile.gitops</code> — 11편 파이프라인 끝에 "매니페스트 태그 고쳐 커밋" 단계 붙이기</li>
+      <li>앱 문구를 바꿔 push 하고, 운영(클러스터)까지 저절로 바뀌는 걸 끝까지 따라가 보기</li>
+      <li>테스트가 깨지면 멈추는 것, <code>git revert</code> 로 되돌리는 것 확인</li>
+    </ol>
+    <p><strong>끝나면:</strong> <code>app.py</code> 를 고쳐 push 하고 몇 분 기다리면 <code>curl localhost:8200/</code> 의 답이 바뀐다. 그 사이 사람은 아무것도 누르지 않는다.</p>
+
+    <!-- ============================================================ -->
+    <h3>전체 흐름</h3>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 290" role="img" aria-label="개발자가 앱 저장소에 push 하면 젠킨스가 1 테스트, 2 Kaniko 로 빌드해 Docker Hub 에 푸시, 3 매니페스트 저장소의 이미지 태그를 고쳐 커밋한다. ArgoCD 가 매니페스트 저장소를 읽어 클러스터에 적용하고, 새 파드는 Docker Hub 에서 이미지를 받아 롤링 업데이트된다.">
+          <rect class="d-box" x="16" y="50" width="92" height="56" rx="4"/>
+          <text class="d-t" x="62" y="74" text-anchor="middle">개발자</text>
+          <text class="d-t-m" x="62" y="94" text-anchor="middle">git push</text>
+
+          <rect class="d-box" x="132" y="50" width="128" height="56" rx="4"/>
+          <text class="d-t" x="196" y="74" text-anchor="middle">앱 저장소</text>
+          <text class="d-t-m" x="196" y="94" text-anchor="middle">cicd-hello</text>
+
+          <rect class="d-box-m" x="284" y="24" width="200" height="112" rx="4"/>
+          <text class="d-t" x="384" y="44" text-anchor="middle">젠킨스 (cicd-hello-gitops)</text>
+          <text class="d-t-s" x="300" y="70">1  Test — pytest</text>
+          <text class="d-t-s" x="300" y="92">2  Build — Kaniko 빌드·푸시</text>
+          <text class="d-t-s" x="300" y="114">3  Update — 태그 고쳐 커밋</text>
+
+          <rect class="d-box" x="528" y="50" width="96" height="56" rx="4"/>
+          <text class="d-t" x="576" y="74" text-anchor="middle">Docker Hub</text>
+          <text class="d-t-m" x="576" y="94" text-anchor="middle">이미지:새태그</text>
+
+          <rect class="d-box" x="284" y="190" width="200" height="56" rx="4"/>
+          <text class="d-t" x="384" y="214" text-anchor="middle">매니페스트 저장소</text>
+          <text class="d-t-m" x="384" y="234" text-anchor="middle">image: …:새태그</text>
+
+          <rect class="d-box-m" x="132" y="190" width="128" height="56" rx="4"/>
+          <text class="d-t" x="196" y="214" text-anchor="middle">ArgoCD</text>
+          <text class="d-t-s" x="196" y="234" text-anchor="middle">자동 동기화</text>
+
+          <rect class="d-box" x="16" y="190" width="92" height="56" rx="4"/>
+          <text class="d-t" x="62" y="214" text-anchor="middle">새 파드</text>
+          <text class="d-t-s" x="62" y="234" text-anchor="middle">롤링 업데이트</text>
+
+          <path class="d-line" d="M108,78 H125"/><polygon points="132,78 125,74 125,82" fill="#1A1D18"/>
+          <path class="d-line" d="M260,78 H277"/><polygon points="284,78 277,74 277,82" fill="#1A1D18"/>
+          <path class="d-line" d="M484,78 H521"/><polygon points="528,78 521,74 521,82" fill="#1A1D18"/>
+          <text class="d-t-s" x="506" y="70" text-anchor="middle">푸시</text>
+          <path class="d-line" d="M384,136 V183"/><polygon points="384,190 380,183 388,183" fill="#1A1D18"/>
+          <text class="d-t-s" x="394" y="166">커밋</text>
+          <path class="d-line" d="M284,218 H267"/><polygon points="260,218 267,214 267,222" fill="#1A1D18"/>
+          <text class="d-t-s" x="272" y="208" text-anchor="middle">읽기</text>
+          <path class="d-line" d="M132,218 H115"/><polygon points="108,218 115,214 115,222" fill="#1A1D18"/>
+          <path class="d-dash" d="M576,106 V272 H62 V253"/><polygon points="62,246 58,253 66,253" fill="#1A1D18"/>
+          <text class="d-t-s" x="430" y="266" text-anchor="middle">새 파드가 이미지를 받아 간다</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        젠킨스와 ArgoCD 는 서로를 모른다. 둘 사이에는 <strong>매니페스트 저장소의 커밋</strong> 하나만 오간다. 그래서 둘 중 하나를 다른 도구(예: GitHub Actions)로 바꿔도 나머지는 그대로다.
+      </figcaption>
+    </figure>
+
+    <!-- ============================================================ -->
+    <h3>왜 저장소를 둘로 나누나</h3>
+
+    <table>
+      <tr><th></th><th>앱 코드와 매니페스트를 한 저장소에</th><th>둘로 나눔 (이 시리즈)</th></tr>
+      <tr><td>무한 반복</td><td>젠킨스가 태그를 커밋 → 그 커밋이 또 젠킨스를 깨움 → 또 빌드… 막으려면 "봇 커밋은 건너뛰기" 규칙이 따로 필요</td><td>젠킨스는 앱 저장소만 보고, 커밋은 매니페스트 저장소에만 한다. 고리가 안 생긴다</td></tr>
+      <tr><td>기록</td><td>"기능 고침"과 "배포: 태그 12" 커밋이 섞인다</td><td>매니페스트 저장소의 커밋 목록 = 배포 이력 그 자체</td></tr>
+      <tr><td>권한</td><td>앱 개발자 누구나 운영 설정을 바꿀 수 있다</td><td>운영 저장소는 승인 규칙을 따로 건다</td></tr>
+      <tr><td>되돌리기</td><td>배포만 되돌리려 해도 코드 기록과 엉킨다</td><td>매니페스트에서 revert 하면 코드는 그대로, 배포만 뒤로</td></tr>
+    </table>
+
+    <p class="gloss">
+      <b>매니페스트 저장소(config repo, GitOps repo)</b> — "무엇이 어떤 설정으로 배포되어 있어야 하나"만 담은 저장소. 앱 저장소와 나누는 게 ArgoCD 공식 문서의 권장이다.<br>
+      <b>봇 커밋</b> — 사람이 아니라 자동화 도구가 만든 커밋. 작성자 이름을 <code>jenkins-bot</code> 처럼 따로 둬서 사람 커밋과 구별한다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>1. 젠킨스에 쓰기 토큰 넣기</h3>
+
+    <p>
+      젠킨스가 매니페스트 저장소에 push 하려면 쓰기 권한이 필요하다. 3편에서 만든 <strong>fine-grained PAT</strong> 를 쓴다
+      (저장소: <code>cicd-hello-manifests</code> 포함, 권한: Contents <strong>Read and write</strong>). 없다면 GitHub → Settings → Developer settings → Fine-grained tokens 에서 만든다.
+    </p>
+
+    <ol>
+      <li>11편의 젠킨스(<code>http://localhost:8095</code>, port-forward 켜기) → <strong>Manage Jenkins → Credentials</strong></li>
+      <li><strong>System → Global credentials → Add Credentials</strong></li>
+      <li>Kind <strong>Username with password</strong>, Username = GitHub 아이디, Password = PAT, <strong>ID = <code>github-token</code></strong> → Create</li>
+    </ol>
+
+    <p class="gloss">
+      <b>fine-grained PAT</b> — 저장소와 권한을 골라서 주는 GitHub 토큰. "이 저장소 하나에 내용 쓰기만" 처럼 좁힐 수 있어서, 새어 나가도 피해가 그 저장소에 그친다. 옛 방식(classic)은 계정 전체 저장소에 권한이 간다.<br>
+      <b>자격 증명 ID</b> — Jenkinsfile 이 비밀값을 부르는 이름. Jenkinsfile 에는 토큰이 아니라 <code>github-token</code> 이라는 이름만 적힌다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>2. Jenkinsfile.gitops 쓰기</h3>
+
+    <p>
+      cicd-hello 저장소에 <code>Jenkinsfile.gitops</code> 를 만든다. 11편의 <code>Jenkinsfile.k8s</code> 를 복사하고 끝에 <strong>Update manifest</strong> 단계만 더한 것이다.
+      <code>&lt;도커허브아이디&gt;</code> 를 바꾼다.
+    </p>
+
+<pre><code>cd ~/cicd/cicd-hello
+cp Jenkinsfile.k8s Jenkinsfile.gitops</code></pre>
+
+<pre><code>// Jenkinsfile.gitops — 테스트 → Kaniko 빌드·푸시 → 매니페스트 태그 커밋 (배포는 ArgoCD 가)
+pipeline {
+  agent {
+    kubernetes {
+      yaml '''
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+    - name: python
+      image: python:3.12-slim
+      command: ["sleep"]
+      args: ["infinity"]
+    - name: kaniko
+      image: gcr.io/kaniko-project/executor:debug
+      command: ["/busybox/cat"]
+      tty: true
+      volumeMounts:
+        - name: docker-config
+          mountPath: /kaniko/.docker
+  volumes:
+    - name: docker-config
+      secret:
+        secretName: dockerhub-cred
+        items:
+          - key: .dockerconfigjson
+            path: config.json
+'''
+    }
+  }
+
+  environment {
+    IMAGE = '&lt;도커허브아이디&gt;/cicd-hello'
+    MANIFEST_REPO = 'cicd-hello-manifests'
+  }
+
+  options {
+    timeout(time: 20, unit: 'MINUTES')
+    buildDiscarder(logRotator(numToKeepStr: '20'))
+    disableConcurrentBuilds()          // 두 빌드가 동시에 매니페스트를 고치지 않게
+  }
+
+  triggers {
+    pollSCM('H/2 * * * *')
+  }
+
+  stages {
+    stage('Tag') {
+      steps {
+        script {
+          def shortSha = sh(script: 'git rev-parse --short=7 HEAD', returnStdout: true).trim()
+          env.IMAGE_TAG = "${env.BUILD_NUMBER}-${shortSha}"
+        }
+        echo "이번 이미지: ${env.IMAGE}:${env.IMAGE_TAG}"
+      }
+    }
+
+    stage('Test') {
+      steps {
+        container('python') {
+          sh '''
+            python -m venv /tmp/venv
+            . /tmp/venv/bin/activate
+            pip install -q -r requirements-dev.txt
+            python -m pytest -q --junitxml=test-results.xml
+          '''
+        }
+      }
+      post {
+        always { junit 'test-results.xml' }
+      }
+    }
+
+    stage('Build &amp; Push') {
+      steps {
+        container(name: 'kaniko', shell: '/busybox/sh') {
+          sh '''#!/busybox/sh
+            /kaniko/executor \
+              --context="$WORKSPACE" \
+              --dockerfile="$WORKSPACE/Dockerfile" \
+              --build-arg "APP_VERSION=$IMAGE_TAG" \
+              --destination="$IMAGE:$IMAGE_TAG" \
+              --skip-unused-stages
+          '''
+        }
+      }
+    }
+
+    stage('Update manifest') {
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'github-token',
+                                          usernameVariable: 'GIT_USER',
+                                          passwordVariable: 'GIT_TOKEN')]) {
+          sh '''
+            rm -rf manifests
+            git clone --depth 1 "https://${GIT_USER}:${GIT_TOKEN}@github.com/${GIT_USER}/${MANIFEST_REPO}.git" manifests
+            cd manifests
+
+            # image: 줄의 태그만 새것으로
+            sed -i "s|image: .*/cicd-hello:.*|image: ${IMAGE}:${IMAGE_TAG}|" k8s/deployment.yaml
+            git diff
+
+            git config user.name  "jenkins-bot"
+            git config user.email "jenkins-bot@users.noreply.github.com"
+            git commit -am "배포: cicd-hello ${IMAGE_TAG}"
+            git push origin HEAD:main
+          '''
+        }
+      }
+    }
+  }
+
+  post {
+    success { echo "매니페스트를 ${env.IMAGE_TAG} 로 올렸다. 이제 ArgoCD 가 배포한다." }
+    failure { echo '실패. 매니페스트는 바뀌지 않았으니 운영은 그대로다.' }
+  }
+}</code></pre>
+
+    <table>
+      <tr><th>새로 생긴 것</th><th>뜻</th></tr>
+      <tr><td><code>disableConcurrentBuilds()</code></td><td>빌드가 겹치면 두 빌드가 동시에 매니페스트를 push 하다 하나가 거절당한다. 한 번에 하나씩</td></tr>
+      <tr><td><code>withCredentials([usernamePassword(…)])</code></td><td>1번의 <code>github-token</code> 을 이 블록 안에서만 <code>GIT_USER</code>·<code>GIT_TOKEN</code> 환경변수로 꺼낸다. 로그에 찍히면 젠킨스가 <code>****</code> 로 가린다</td></tr>
+      <tr><td><code>sh '''…'''</code> (작은따옴표 세 개)</td><td><code>${GIT_TOKEN}</code> 을 젠킨스(Groovy)가 아니라 셸이 풀게 한다. 큰따옴표 <code>"""</code> 로 쓰면 토큰이 명령 문자열에 박혀 젠킨스가 경고를 낸다</td></tr>
+      <tr><td><code>git clone --depth 1</code></td><td>최신 커밋 하나만 받는다. 기록 전체가 필요 없으니 빠르다</td></tr>
+      <tr><td><code>${GIT_USER}/${MANIFEST_REPO}</code></td><td>토큰 주인 = 저장소 주인이라고 가정한 주소. 조직(organization) 저장소라면 그 부분을 조직 이름으로 바꾼다</td></tr>
+      <tr><td><code>sed -i "s|image: …|…|"</code></td><td><code>image:</code> 로 시작하는 줄을 새 이미지로 바꾼다. 구분자를 <code>|</code> 로 쓴 건 이미지 이름의 <code>/</code> 와 안 헷갈리게</td></tr>
+      <tr><td><code>git diff</code></td><td>무엇이 바뀌는지 로그에 남긴다. 나중에 콘솔 출력만 봐도 알 수 있게</td></tr>
+      <tr><td><code>git push origin HEAD:main</code></td><td>지금 커밋을 원격의 main 으로</td></tr>
+    </table>
+
+    <p class="gloss">
+      <b>Groovy 문자열 보간</b> — Jenkinsfile 은 Groovy 언어다. 큰따옴표 문자열 안의 <code>${…}</code> 는 Groovy 가 먼저 값을 채워 넣는다. 비밀값이 이렇게 채워지면 프로세스 목록 같은 곳에 노출될 수 있어서, 비밀값은 작은따옴표로 셸에 넘기는 게 원칙이다.<br>
+      <b>Kustomize</b> — sed 대신 쓰는 정석 도구. <code>kustomization.yaml</code> 에 이미지 태그를 따로 적어 두고 <code>kustomize edit set image</code> 로 바꾼다. YAML 구조를 알고 고치니 sed 처럼 엉뚱한 줄을 바꿀 위험이 없다. ArgoCD 는 kustomization.yaml 이 있으면 알아서 읽는다.
+    </p>
+
+<pre><code>git add Jenkinsfile.gitops
+git commit -m "젠킨스가 매니페스트 태그를 고쳐 커밋하는 GitOps 파이프라인"
+git push</code></pre>
+
+    <!-- ============================================================ -->
+    <h3>3. 잡 만들기</h3>
+
+    <ol>
+      <li>11편 잡 <code>cicd-hello-k8s</code> 는 <strong>Disable Project</strong> 로 꺼 둔다. 같은 저장소를 둘이 보고 있으면 push 한 번에 빌드가 두 번 돈다.</li>
+      <li><strong>New Item</strong> → <code>cicd-hello-gitops</code> → Pipeline</li>
+      <li>Pipeline script from SCM → Git → <code>https://github.com/&lt;내아이디&gt;/cicd-hello.git</code>, 브랜치 <code>*/main</code>, <strong>Script Path</strong> <code>Jenkinsfile.gitops</code> → Save</li>
+      <li><strong>Build Now</strong> 한 번 (첫 실행이 끝나야 Poll SCM 이 등록된다)</li>
+    </ol>
+
+    <p>첫 빌드가 초록이면 확인할 곳이 세 군데다.</p>
+    <ul>
+      <li>젠킨스 콘솔 출력의 <code>git diff</code> 부분: <code>-  image: …:1-a1b2c3d</code> / <code>+  image: …:1-9f8e7d6</code> 같은 두 줄</li>
+      <li>GitHub 의 <code>cicd-hello-manifests</code> → Commits: <code>jenkins-bot</code> 의 "배포: cicd-hello …" 커밋</li>
+      <li>ArgoCD 화면: 잠시 <code>OutOfSync</code> → 자동으로 <code>Synced</code>, 파드가 새 이름으로 바뀜 (기다리기 싫으면 REFRESH)</li>
+    </ul>
+
+    <!-- ============================================================ -->
+    <h3>4. 진짜 변경 하나를 끝까지 따라가기</h3>
+
+    <p>앱 문구를 바꾼다. 지금 문구는 9편에서 바꾼 <code>Hello, Docker CI/CD!</code> 다(9편을 건너뛰었다면 <code>Hello, CI/CD!</code>). 테스트도 같이 고쳐야 한다(안 고치면 어떻게 되는지는 5번에서).</p>
+
+<pre><code># app.py
+    return f"Hello, GitOps! version={VERSION}\n"
+
+# test_app.py
+    assert b"Hello, GitOps!" in res.data</code></pre>
+
+<pre><code>git commit -am "인사말을 GitOps 로"
+git push</code></pre>
+
+    <p>이제 손을 뗀다. 터미널 두 개로 지켜본다.</p>
+
+<pre><code># 터미널 A — 파드가 바뀌는 순간
+kubectl -n cicd-hello get pods -w
+
+# 터미널 B — 앱의 답 (port-forward 는 파드가 바뀌면 끊기니 다시 켠다)
+kubectl -n cicd-hello port-forward svc/cicd-hello 8200:80 &amp;
+watch -n 5 curl -s localhost:8200/</code></pre>
+
+    <table>
+      <tr><th>시간(대략)</th><th>일어나는 일</th><th>어디서 보나</th></tr>
+      <tr><td>0분</td><td>git push</td><td>GitHub cicd-hello</td></tr>
+      <tr><td>~2분</td><td>젠킨스가 변경 감지(Poll SCM), 에이전트 파드 생성</td><td><code>kubectl -n jenkins get pods</code></td></tr>
+      <tr><td>~2–5분</td><td>Test → Build &amp; Push → Update manifest</td><td>젠킨스 Stage View, Docker Hub Tags</td></tr>
+      <tr><td>~5–8분</td><td>ArgoCD 가 매니페스트 변경 감지 → 자동 Sync</td><td>ArgoCD 화면, <code>argocd app get cicd-hello</code></td></tr>
+      <tr><td>+20초</td><td>롤링 업데이트: 새 파드 Ready → 옛 파드 종료</td><td>터미널 A</td></tr>
+      <tr><td>끝</td><td><code>Hello, GitOps! version=3-…</code></td><td>터미널 B</td></tr>
+    </table>
+
+    <p>
+      몇 분씩 기다리는 구간은 둘 다 "주기적으로 확인하기(폴링)" 때문이다. 실서버에서는 GitHub <strong>웹훅</strong>을 젠킨스(<code>/github-webhook/</code>)와 ArgoCD(<code>/api/webhook</code>)에 걸어 push 즉시 움직이게 한다.
+      이 실습의 젠킨스·ArgoCD 는 내 컴퓨터 안에 있어서 GitHub 가 찾아올 수 없으니 폴링을 쓴 것이다.
+    </p>
+
+    <p class="gloss">
+      <b>폴링(polling)</b> — 바뀐 게 있는지 일정 간격으로 가서 물어보는 방식. 단순하지만 느리고 헛걸음이 많다.<br>
+      <b>웹훅(webhook)</b> — 일이 생기면 상대가 내 주소로 알려 주는 방식. 빠르지만 내 주소가 인터넷에서 보여야 한다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>5. 테스트가 깨지면 — 멈춘다</h3>
+
+    <p><code>app.py</code> 의 문구만 <code>"Hi!"</code> 로 바꾸고 테스트는 그대로 둔 채 push 한다.</p>
+
+    <ul>
+      <li>젠킨스: <strong>Test</strong> 에서 빨간 X. Build &amp; Push, Update manifest 는 회색(실행 안 됨)</li>
+      <li>Docker Hub: 새 태그 없음</li>
+      <li>매니페스트 저장소: 새 커밋 없음 → ArgoCD 는 할 일이 없다</li>
+      <li><code>curl</code>: 여전히 <code>Hello, GitOps!</code> — 운영은 멀쩡하다</li>
+    </ul>
+
+    <p>
+      파이프라인의 단계 순서 자체가 안전장치다. 확인을 통과한 것만 다음 칸으로 간다. 고쳐서(또는 되돌려서) push 하면 다시 흐른다.
+    </p>
+
+    <h4>이미지는 만들어졌는데 뜨지 않는다면</h4>
+    <p>
+      테스트는 통과했지만 운영에서만 죽는 이미지(예: 환경변수가 없어 시작하자마자 에러)가 나갈 수도 있다. 이때 쿠버네티스의 롤링 업데이트가 한 번 더 막아 준다.
+      새 파드가 readinessProbe 를 통과하지 못하면 옛 파드를 내리지 않는다. ArgoCD 는 <code>Degraded</code>·<code>Progressing</code> 으로 알려 주고, 서비스는 옛 파드가 계속 받는다.
+      그 상태에서 6번처럼 되돌리면 된다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>6. 되돌리기 — git revert 한 줄</h3>
+
+    <p>"방금 배포한 버전에 문제가 있다." 이미지를 다시 빌드할 필요가 없다. Docker Hub 에는 이전 태그가 그대로 있으니 <strong>매니페스트만 한 칸 뒤로</strong> 돌린다.</p>
+
+<pre><code>cd ~/cicd/cicd-hello-manifests
+git pull                         # 젠킨스가 올린 커밋 받기
+git log --oneline -3
+<span style="color:var(--ink-soft)">9c1d2e3 배포: cicd-hello 3-7a6b5c4      ← 문제 버전
+4b5a6c7 배포: cicd-hello 2-9f8e7d6
+…</span>
+
+git revert --no-edit HEAD
+git push</code></pre>
+
+    <p>
+      ArgoCD 가 바뀐 매니페스트를 보고 <code>2-9f8e7d6</code> 로 되돌린다. "누가 언제 왜 되돌렸나" 도 revert 커밋으로 남는다.
+      앱 저장소에서 원인을 고쳐 다시 push 하면, 새 빌드가 새 태그로 다시 앞으로 나아간다.
+    </p>
+
+    <p class="gloss">
+      <b>롤백(rollback)</b> — 배포를 이전 버전으로 되돌리는 것. GitOps 에서는 "매니페스트를 revert" 와 같은 말이다. 이미지를 빌드할 때마다 고유 태그를 붙이고 지우지 않는 이유가 여기 있다. <code>latest</code> 하나만 덮어쓰면 돌아갈 곳이 없다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>더 나아가면</h3>
+
+    <table>
+      <tr><th>주제</th><th>한 줄</th></tr>
+      <tr><td>환경 나누기 (dev → prod)</td><td>매니페스트 저장소에 <code>envs/dev</code>, <code>envs/prod</code> 폴더(또는 Kustomize overlay)를 두고 Application 을 둘 만든다. 젠킨스는 dev 만 자동으로 고치고, prod 는 사람이 PR 로 태그를 올린다(승인 = 배포 승인)</td></tr>
+      <tr><td>Argo CD Image Updater</td><td>젠킨스가 매니페스트를 고치는 대신, 레지스트리에 새 태그가 생기면 ArgoCD 쪽 도구가 알아서 매니페스트를 고친다</td></tr>
+      <tr><td>Helm 차트로 배포</td><td>YAML 대신 차트와 values 파일. 젠킨스는 <code>values.yaml</code> 의 <code>image.tag</code> 를 고친다</td></tr>
+      <tr><td>알림</td><td>ArgoCD Notifications 로 동기화 성공·실패를 슬랙에</td></tr>
+      <tr><td>Argo Rollouts</td><td>새 버전에 트래픽을 10% → 50% → 100% 로 조금씩(카나리 배포), 지표가 나쁘면 자동 되돌리기</td></tr>
+      <tr><td>CI 를 GitHub Actions 로</td><td>젠킨스 자리를 Actions 로 바꿔도 "이미지 푸시 → 매니페스트 커밋" 만 하면 ArgoCD 쪽은 그대로다</td></tr>
+    </table>
+
+    <!-- ============================================================ -->
+    <h3>시리즈 정리 — 세 번 만든 파이프라인</h3>
+
+    <table>
+      <tr><th></th><th>온프레미스 (5·6편)</th><th>도커 (9편)</th><th>쿠버네티스 + ArgoCD (11–13편)</th></tr>
+      <tr><td>빌드하는 곳</td><td>서버의 젠킨스가 직접</td><td>젠킨스 컨테이너가 호스트 도커를 빌려(DooD)</td><td>빌드마다 뜨는 에이전트 파드 + Kaniko</td></tr>
+      <tr><td>결과물</td><td>파일 복사본</td><td>이미지 (Docker Hub)</td><td>이미지 (Docker Hub)</td></tr>
+      <tr><td>배포 방법</td><td>파일 복사 + <code>systemctl restart</code></td><td><code>docker run</code> (push 방식)</td><td>매니페스트 커밋 → ArgoCD (pull 방식)</td></tr>
+      <tr><td>되돌리기</td><td>이전 빌드 다시 돌리기</td><td>이전 태그로 <code>docker run</code></td><td><code>git revert</code></td></tr>
+      <tr><td>잘 맞는 곳</td><td>서버 한두 대, 컨테이너 안 쓰는 팀</td><td>서버 몇 대, 단순한 서비스</td><td>서비스 여럿, 서버 여럿, 감사 기록이 필요한 곳</td></tr>
+    </table>
+
+    <p>
+      도구는 바뀌어도 뼈대는 같았다. <strong>코드가 바뀌면 → 자동으로 확인하고 → 버전이 붙은 결과물을 만들고 → 같은 방법으로 내보내고 → 문제가 생기면 이전 버전으로 돌아간다.</strong>
+      1편에서 그린 그림을 다시 보면, 이제 칸마다 어떤 명령이 들어가는지 채워져 있을 것이다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>자주 걸리는 것</h3>
+
+    <table>
+      <tr><th>증상</th><th>원인과 해결</th></tr>
+      <tr><td>Update manifest 에서 <code>403</code> / <code>Permission denied</code> / <code>Authentication failed</code></td><td>토큰에 그 저장소가 선택 안 됐거나 권한이 Read-only. fine-grained 토큰 설정에서 <code>cicd-hello-manifests</code> 와 Contents: Read and write 확인. 자격 증명 ID 가 정확히 <code>github-token</code> 인지</td></tr>
+      <tr><td><code>nothing to commit, working tree clean</code> 으로 실패</td><td>sed 가 아무 줄도 못 바꿨다. <code>deployment.yaml</code> 의 이미지 줄이 <code>image: &lt;아이디&gt;/cicd-hello:태그</code> 모양인지 (10편에서 (나) 방식의 <code>cicd-hello:local-1</code> 이면 <code>/</code> 가 없어서 안 맞는다. Docker Hub 이미지로 바꿔 둔다)</td></tr>
+      <tr><td><code>! [rejected] … (fetch first)</code></td><td>그 사이 누가 매니페스트를 고쳤다. 다시 빌드하면 새로 clone 해서 된다. 자주 나면 <code>disableConcurrentBuilds()</code> 가 있는지</td></tr>
+      <tr><td>push 한 번에 빌드가 두 번</td><td>11편 잡 <code>cicd-hello-k8s</code> 를 안 껐다</td></tr>
+      <tr><td>매니페스트는 바뀌었는데 클러스터가 그대로</td><td>Application 의 자동 동기화가 꺼져 있다(12편 8번). 또는 3분을 안 기다렸다 → REFRESH</td></tr>
+      <tr><td>ArgoCD <code>Degraded</code>, 파드 <code>ImagePullBackOff</code></td><td>태그는 커밋됐는데 그 이미지가 Docker Hub 에 없다(푸시 실패를 무시하고 넘어간 경우 등). 6번처럼 revert 하고 젠킨스 로그 확인</td></tr>
+    </table>
+
+    <h4>실습 뒷정리 (모두 끝났다면)</h4>
+<pre><code>kind delete cluster --name cicd                    # 10~13편: 젠킨스·ArgoCD·앱 모두 사라진다
+cd ~/cicd/jenkins-docker &amp;&amp; docker compose down    # 8~9편 젠킨스 (볼륨까지 지우려면 -v)
+docker rm -f cicd-hello                            # 9편 앱 컨테이너
+sudo systemctl disable --now jenkins cicd-hello    # 4~6편 우분투의 젠킨스와 앱 서비스</code></pre>
+    <p>
+      Docker Hub·GitHub 토큰은 실습이 끝나면 지우거나 만료일을 짧게 둔다. 저장소(cicd-hello, cicd-hello-manifests)는 남겨 두면 나중에 다시 따라 할 때 그대로 쓸 수 있다.
+      8~9편 폴더 이름(<code>~/cicd/jenkins-docker</code>)은 그 글에서 만든 이름을 쓴다.
+    </p>
+
+    <p class="gloss">
+      <b>이 글의 용어 정리</b><br>
+      <b>매니페스트 저장소</b> 배포 설정만 담은 저장소 · <b>봇 커밋</b> 도구가 만든 커밋 · <b>fine-grained PAT</b> 저장소·권한을 골라 주는 토큰 ·
+      <b>withCredentials</b> 블록 안에서만 비밀값 꺼내기 · <b>Groovy 보간</b> 큰따옴표 안 <code>${}</code> 를 젠킨스가 먼저 채움 · <b>Kustomize</b> YAML 을 구조적으로 고치는 도구 ·
+      <b>폴링 / 웹훅</b> 가서 묻기 / 와서 알려 주기 · <b>롤백</b> 이전 버전으로 = 매니페스트 revert · <b>카나리 배포</b> 새 버전에 조금씩 트래픽 주기
+    </p>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 볼 것</p>
+      <ul>
+        <li><a href="/learn/cicd-argocd/">← 12. ArgoCD 설치와 사용법</a> — 자동 동기화를 켠 곳</li>
+        <li><a href="/learn/cicd-overview/">1. CI/CD 한눈에</a> — 처음 그림을 다시 보기</li>
+        <li><a href="/learn/github-actions/">GitHub Actions 첫걸음</a> — 젠킨스 자리에 넣을 수 있는 다른 CI</li>
+        <li><a href="/learn/git-main-dev/">운영 브랜치와 개발 브랜치</a> — dev·prod 로 나눠 배포하는 흐름</li>
+        <li><a href="/learn/arch-test-cicd/">테스트와 CI/CD</a> — 무엇을 테스트해야 파이프라인을 믿을 수 있나</li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

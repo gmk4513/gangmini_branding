@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>실습 환경 준비 — WSL2 우분투, Docker, kind, kubectl · gangmin</title>
+<meta name="description" content="CI/CD 실습 시리즈를 따라 하기 전에 한 번만 해 두는 준비. 윈도우 11 에 WSL2 우분투를 '회사 서버' 역할로 깔고, Docker Desktop 을 붙이고, kubectl·kind·helm·gh 를 설치하고, GitHub·Docker Hub 계정과 토큰을 만든다.">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="실습 환경 준비 — WSL2 우분투, Docker, kind, kubectl">
+<meta property="og:description" content="CI/CD 실습 전에 한 번만. WSL2 우분투, Docker Desktop, kubectl·kind·helm, 계정과 토큰.">
+<meta property="og:url" content="https://gangmini.com/learn/cicd-setup/">
+<meta property="og:image" content="https://gangmini.com/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../../notes/note.css?v=20261028">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/learn/">← 이론/용어</a>
+    <p class="eyebrow">PRACTICE · CI/CD 02/13</p>
+    <h2 class="masthead__title">실습 환경 준비<br>— WSL2 우분투, Docker, kind, kubectl</h2>
+    <div class="doc__meta">
+      <span class="tag">실습</span>
+      <span class="tag">WSL2</span>
+      <span class="tag">Ubuntu</span>
+      <span class="tag">Docker Desktop</span>
+      <span class="tag">kubectl</span>
+      <span class="tag">kind</span>
+      <time class="note__date">2026.11.10</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      <a href="/learn/cicd-overview/">1편</a>에서 그린 지도대로 가려면 리눅스 서버, 도커, 쿠버네티스가 필요하다. 회사라면 진짜 서버가 있겠지만,
+      실습은 <strong>내 윈도우 컴퓨터 안에 리눅스(우분투)를 하나 띄워서 그걸 "회사 서버"로 삼는다</strong>. 그게 WSL2 다.
+      이 글은 시리즈를 시작하기 전에 <strong>한 번만</strong> 해 두는 준비다. 설치가 대부분이라 다운로드 시간을 포함해 1시간쯤 잡는다.
+    </p>
+
+    <h4>이번 단계에서 할 것</h4>
+    <ul>
+      <li>WSL2 로 우분투 24.04 설치, systemd 켜져 있는지 확인</li>
+      <li>Docker Desktop 설치하고 우분투에서 <code>docker</code> 명령이 되게 연결</li>
+      <li>kubectl · kind · helm · git · gh 설치</li>
+      <li>GitHub · Docker Hub 계정 준비, Docker Hub 토큰 만들기</li>
+      <li>실습 폴더 <code>~/cicd</code> 만들기</li>
+    </ul>
+    <p><strong>끝나면</strong>: 우분투 터미널에서 <code>docker run hello-world</code>, <code>kubectl version --client</code>, <code>kind version</code>, <code>helm version</code> 이 모두 답을 한다.</p>
+
+    <!-- ============================================================ -->
+    <h3>한눈에 — 무엇이 어디서 도나</h3>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 280" role="img" aria-label="윈도우 11 컴퓨터 안에 WSL2 가상 머신이 있고, 그 안에 우분투(명령 치는 곳, 회사 서버 역할)와 Docker Desktop 엔진이 함께 돈다. 우분투의 docker, kubectl, kind 명령은 도커 엔진에 말을 건다. kind 는 도커 컨테이너로 쿠버네티스를 띄운다. 윈도우의 브라우저는 localhost 주소로 우분투와 컨테이너 안의 서비스에 접속한다.">
+          <rect class="d-box" x="10" y="14" width="620" height="254" rx="6"/>
+          <text class="d-t" x="24" y="36">내 컴퓨터 — 윈도우 11</text>
+
+          <rect class="d-box" x="24" y="56" width="140" height="92" rx="4"/>
+          <text class="d-t" x="94" y="80" text-anchor="middle">브라우저</text>
+          <text class="d-t-m" x="94" y="102" text-anchor="middle">localhost:8080</text>
+          <text class="d-t-s" x="94" y="122" text-anchor="middle">젠킨스·앱 화면 보기</text>
+
+          <rect class="d-box" x="24" y="164" width="140" height="88" rx="4"/>
+          <text class="d-t" x="94" y="188" text-anchor="middle">Docker Desktop</text>
+          <text class="d-t-s" x="94" y="208" text-anchor="middle">설정 화면 (윈도우 앱)</text>
+          <text class="d-t-s" x="94" y="226" text-anchor="middle">켜 둬야 엔진이 돈다</text>
+
+          <rect class="d-box-m" x="196" y="48" width="420" height="208" rx="5"/>
+          <text class="d-t" x="210" y="70">WSL2 (가볍게 도는 리눅스 가상 머신)</text>
+
+          <rect class="d-box" x="210" y="84" width="190" height="158" rx="4"/>
+          <text class="d-t" x="305" y="106" text-anchor="middle">우분투 24.04</text>
+          <text class="d-t-s" x="305" y="124" text-anchor="middle">"회사 서버" 역할 · 명령은 여기</text>
+          <text class="d-t-m" x="224" y="150">$ docker ...</text>
+          <text class="d-t-m" x="224" y="168">$ kubectl ... / kind ...</text>
+          <text class="d-t-m" x="224" y="186">$ git ... / gh ...</text>
+          <text class="d-t-m" x="224" y="204">젠킨스 직접 설치 (4편)</text>
+          <text class="d-t-m" x="224" y="222">~/cicd/ 실습 폴더</text>
+
+          <rect class="d-box" x="432" y="84" width="170" height="70" rx="4"/>
+          <text class="d-t" x="517" y="108" text-anchor="middle">도커 엔진</text>
+          <text class="d-t-s" x="517" y="128" text-anchor="middle">Docker Desktop 이 띄움</text>
+          <text class="d-t-s" x="517" y="144" text-anchor="middle">컨테이너가 실제로 도는 곳</text>
+
+          <rect class="d-box" x="432" y="172" width="170" height="70" rx="4"/>
+          <text class="d-t" x="517" y="196" text-anchor="middle">kind 클러스터</text>
+          <text class="d-t-s" x="517" y="216" text-anchor="middle">쿠버네티스를 컨테이너로</text>
+          <text class="d-t-s" x="517" y="232" text-anchor="middle">(10편에서 만든다)</text>
+
+          <path class="d-line" d="M400,119 H425"/><polygon points="432,119 425,115 425,123" fill="#1A1D18"/>
+          <path class="d-line" d="M517,154 V165"/><polygon points="517,172 513,165 521,165" fill="#1A1D18"/>
+          <path class="d-dash" d="M164,102 H203"/><polygon points="210,102 203,98 203,106" fill="#6E7469"/>
+          <path class="d-dash" d="M164,208 H189"/><polygon points="196,208 189,204 189,212" fill="#6E7469"/>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        명령은 전부 우분투 터미널에 친다. 화면(젠킨스·ArgoCD·앱)은 윈도우 브라우저에서 <code>localhost:포트</code> 로 연다. WSL2 가 우분투의 포트를 윈도우 쪽 localhost 로 이어 준다.
+      </figcaption>
+    </figure>
+
+    <p class="gloss">
+      <b>WSL2 (Windows Subsystem for Linux 2)</b> — 윈도우 안에서 진짜 리눅스를 돌리는 기능. 마이크로소프트가 만든 가벼운 가상 머신 위에 우분투 같은 리눅스를 올린다. 따로 VM 프로그램을 깔 필요가 없다.<br>
+      <b>우분투(Ubuntu)</b> — 가장 널리 쓰는 리눅스 배포판 중 하나. 회사 서버에도 많이 쓴다. 24.04 는 2024년 4월에 나온 장기 지원(LTS) 버전이라는 뜻.<br>
+      <b>Docker Desktop</b> — 윈도우·맥에서 도커를 쓰게 해 주는 프로그램. 도커 엔진을 WSL2 안에 띄우고, 우분투에서 그 엔진을 부를 수 있게 이어 준다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>0. 컴퓨터가 버틸까 — 사양 확인</h3>
+
+    <p>시리즈 후반에는 쿠버네티스 + 젠킨스 + ArgoCD 가 한꺼번에 뜬다. 메모리를 꽤 쓴다.</p>
+    <table>
+      <tr><th>항목</th><th>권장</th><th>메모</th></tr>
+      <tr><td>메모리(RAM)</td><td>16GB 이상</td><td>8GB 도 1~9편은 된다. 11~13편에서 느리거나 파드가 안 뜰 수 있다</td></tr>
+      <tr><td>디스크 여유</td><td>40GB 이상</td><td>도커 이미지(젠킨스 하나가 약 0.9GB)가 쌓인다</td></tr>
+      <tr><td>가상화</td><td>켜져 있어야 함</td><td>작업 관리자 → 성능 → CPU → <strong>가상화: 사용</strong>. "사용 안 함"이면 BIOS 에서 켠다(Intel VT-x / AMD SVM)</td></tr>
+      <tr><td>윈도우</td><td>윈도우 11 (또는 10 최신)</td><td><code>wsl --install</code> 이 되는 버전</td></tr>
+    </table>
+
+    <!-- ============================================================ -->
+    <h3>1. WSL2 와 우분투 24.04 설치</h3>
+
+    <p>시작 메뉴에서 <strong>PowerShell</strong> 을 <strong>관리자 권한으로 실행</strong>하고 친다. (이 단계만 윈도우 PowerShell 이고, 다음부터는 전부 우분투다.)</p>
+
+<pre><code>wsl --install -d Ubuntu-24.04</code></pre>
+
+    <ol>
+      <li>처음이면 WSL 기능을 켜고 재부팅하라고 한다. 재부팅한다.</li>
+      <li>재부팅 후 우분투 창이 저절로 열리며 <strong>리눅스용 사용자 이름과 비밀번호</strong>를 묻는다. 윈도우 계정과 상관없다. 영어 소문자로 짧게(예: <code>me</code>). 비밀번호는 쳐도 화면에 안 보이는 게 정상이다.</li>
+      <li>이 비밀번호는 <code>sudo</code> 를 칠 때마다 쓴다. 잊지 않게 적어 둔다.</li>
+    </ol>
+
+    <p>PowerShell 에서 버전 2 인지 확인한다.</p>
+
+<pre><code>wsl -l -v
+<span style="color:var(--ink-soft)">  NAME            STATE           VERSION
+* Ubuntu-24.04    Running         2</span></code></pre>
+
+    <p>
+      VERSION 이 <code>1</code> 이면 <code>wsl --set-version Ubuntu-24.04 2</code> 로 바꾼다.
+      이미 다른 우분투(예: 22.04)가 깔려 있다면 그걸 써도 된다. 우분투 안에서 <code>lsb_release -a</code> 로 버전을 보고 22.04 이상이면 된다.
+    </p>
+
+    <p>
+      앞으로 우분투 터미널은 시작 메뉴의 <strong>Ubuntu 24.04</strong> 를 누르거나, 윈도우 터미널(Windows Terminal)의 탭 목록에서 연다.
+      프롬프트가 <code>me@PC이름:~$</code> 처럼 생겼으면 우분투다. 이 시리즈의 모든 명령은 여기에 친다.
+    </p>
+
+    <p>먼저 패키지 목록을 최신으로 맞춰 둔다.</p>
+
+<pre><code>sudo apt update &amp;&amp; sudo apt upgrade -y</code></pre>
+
+    <p class="gloss">
+      <b>sudo</b> — "관리자 권한으로 실행". 시스템 파일을 바꾸거나 프로그램을 설치할 때 앞에 붙인다. 처음 한 번 비밀번호를 묻는다.<br>
+      <b>apt</b> — 우분투의 프로그램 설치 도구. <code>apt update</code> 는 "설치 가능한 목록 새로 받기", <code>apt install 이름</code> 은 설치. 앱스토어를 명령으로 쓰는 셈이다.<br>
+      <b>LTS (Long Term Support)</b> — 오래(우분투는 5년) 보안 업데이트를 해 주는 버전. 서버에는 보통 LTS 를 쓴다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>2. systemd 가 켜져 있나</h3>
+
+    <p>
+      4편에서 젠킨스를, 5편에서 실습 앱을 <strong>systemd 서비스</strong>로 띄운다. 회사 리눅스 서버에서 프로그램을 "항상 켜져 있게" 관리하는 표준 방법이다.
+      WSL 은 예전엔 systemd 가 꺼져 있었다. 새로 깐 우분투 24.04 는 기본으로 켜져 있지만 확인한다.
+    </p>
+
+<pre><code>ps -p 1 -o comm=
+<span style="color:var(--ink-soft)">systemd</span></code></pre>
+
+    <p><code>systemd</code> 가 나오면 끝. <code>init</code> 같은 다른 이름이 나오면 설정 파일을 연다.</p>
+
+<pre><code>sudo nano /etc/wsl.conf</code></pre>
+
+<pre><code>[boot]
+systemd=true</code></pre>
+
+    <p>
+      저장(<code>Ctrl+O</code>, 엔터)하고 나와서(<code>Ctrl+X</code>), <strong>윈도우 PowerShell</strong> 에서 <code>wsl --shutdown</code> 을 친 뒤 우분투를 다시 연다. 다시 <code>ps -p 1 -o comm=</code> 으로 확인한다.
+    </p>
+
+    <p class="gloss">
+      <b>systemd</b> — 리눅스가 켜질 때 가장 먼저 시작해서(프로세스 번호 1번) 나머지 프로그램들을 켜고 끄고 지켜보는 관리자. "이 프로그램을 부팅할 때 켜 둬, 죽으면 다시 살려"를 맡긴다. 명령은 <code>systemctl</code>.<br>
+      <b>서비스(service)</b> — systemd 가 관리하는 상시 실행 프로그램. <code>sudo systemctl status jenkins</code> 처럼 이름으로 다룬다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>3. WSL 이 쓸 메모리 정하기 (선택이지만 권장)</h3>
+
+    <p>
+      WSL2 는 기본으로 컴퓨터 메모리의 절반까지 쓴다. Docker Desktop 도 같은 WSL2 안에서 돌기 때문에 이 한도를 같이 쓴다.
+      16GB 컴퓨터라면 8GB 정도로 정해 두면 윈도우가 느려지지 않는다. 윈도우 탐색기 주소창에 <code>%UserProfile%</code> 를 치고, 그 폴더에 <code>.wslconfig</code> 파일을 만든다(메모장으로 만들 때 확장자 <code>.txt</code> 가 붙지 않게 주의).
+    </p>
+
+<pre><code># C:\Users\윈도우사용자\.wslconfig
+[wsl2]
+memory=8GB
+processors=4
+swap=4GB</code></pre>
+
+    <p>PowerShell 에서 <code>wsl --shutdown</code> 후 우분투를 다시 열면 적용된다. 우분투에서 <code>free -h</code> 의 total 이 8GB 가까이 나오면 된다.</p>
+
+    <!-- ============================================================ -->
+    <h3>4. Docker Desktop 설치와 우분투 연결</h3>
+
+    <ol>
+      <li><a href="https://www.docker.com/products/docker-desktop/">docker.com</a> 에서 Docker Desktop for Windows 를 받아 설치한다. 설치 화면의 <strong>Use WSL 2 instead of Hyper-V</strong> 는 켠 채로 둔다.</li>
+      <li>설치 후 Docker Desktop 을 실행한다. 왼쪽 아래가 초록(Engine running)이 될 때까지 기다린다.</li>
+      <li>오른쪽 위 톱니바퀴 <strong>Settings → Resources → WSL integration</strong> 에서 <strong>Ubuntu-24.04</strong> 스위치를 켜고 <strong>Apply &amp; restart</strong>.</li>
+    </ol>
+
+    <p>이제 <strong>우분투 터미널</strong>에서(새로 열어서) 확인한다.</p>
+
+<pre><code>docker version
+docker run hello-world</code></pre>
+
+    <p>대략 이렇게 나오면 성공이다(버전 숫자는 다르다).</p>
+
+<pre><code><span style="color:var(--ink-soft)">Client:
+ Version:           29.x.x
+ ...
+Server: Docker Desktop
+ Engine:
+  Version:          29.x.x
+...
+Hello from Docker!
+This message shows that your installation appears to be working correctly.</span></code></pre>
+
+    <ul>
+      <li><strong>우분투 안에 <code>apt install docker.io</code> 로 도커를 또 깔지 않는다.</strong> Docker Desktop 의 도커와 엔진이 두 개가 되어 서로 꼬인다.</li>
+      <li>실습 내내 Docker Desktop 은 <strong>켜 둔다</strong>. 꺼지면 우분투의 <code>docker</code> 명령이 "Cannot connect to the Docker daemon" 에러를 낸다.</li>
+      <li>Docker Desktop 은 개인·교육·작은 회사(직원 250명 미만이고 매출 1천만 달러 미만)는 무료다. 큰 회사는 유료 구독이 필요하다.</li>
+    </ul>
+
+    <p class="gloss">
+      <b>도커 엔진(Docker Engine, 데몬)</b> — 이미지를 받고 컨테이너를 실제로 띄우는 뒤편의 프로그램. 우리가 치는 <code>docker</code> 명령(클라이언트)은 엔진에게 "이거 해 줘"라고 부탁만 한다. 둘이 따로라는 점이 7편 DooD 의 핵심이다.<br>
+      <b>hello-world</b> — 도커가 제공하는 시험용 이미지. 받아서 실행되면 메시지 몇 줄을 찍고 끝난다. 받기 → 컨테이너 만들기 → 실행이 다 되는지 보는 용도.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>5. 기본 도구 설치</h3>
+
+    <p>3편에서 파이썬 테스트를 돌리고, 여러 편에서 <code>curl</code> 로 주소를 불러 볼 것이다.</p>
+
+<pre><code>sudo apt install -y git curl ca-certificates unzip python3 python3-venv python3-pip</code></pre>
+
+<pre><code>git --version
+python3 --version
+<span style="color:var(--ink-soft)">git version 2.43.0
+Python 3.12.3</span></code></pre>
+
+    <p>(우분투 24.04 컨테이너에서 같은 명령으로 설치했을 때 나온 버전이다. 업데이트에 따라 끝자리는 다를 수 있다.)</p>
+
+    <!-- ============================================================ -->
+    <h3>6. kubectl — 쿠버네티스에 말 거는 명령</h3>
+
+    <p>공식 문서의 방법 그대로, 최신 안정판 파일을 받아 <code>/usr/local/bin</code> 에 넣는다.</p>
+
+<pre><code>cd ~
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+rm kubectl
+kubectl version --client</code></pre>
+
+<pre><code><span style="color:var(--ink-soft)">Client Version: v1.37.2
+Kustomize Version: v5.8.1</span></code></pre>
+
+    <p>
+      (2026-11-10 에 같은 주소로 받은 파일을 리눅스 컨테이너에서 실행해 나온 출력이다. 받는 날에 따라 숫자가 다르다.) 아직 연결할 클러스터가 없으니 <code>kubectl get nodes</code> 를 치면 에러가 나는 게 정상이다. 클러스터는 10편에서 만든다.
+    </p>
+
+    <p class="gloss">
+      <b>kubectl</b> — "큐브컨트롤" 또는 "큐브씨티엘"로 읽는다. 쿠버네티스 클러스터에 "이 앱을 띄워", "지금 뭐가 떠 있어?"를 묻는 명령줄 도구.<br>
+      <b>/usr/local/bin</b> — 내가 직접 넣은 실행 파일을 두는 폴더. 여기 넣으면 어느 폴더에서든 이름만으로 실행된다(PATH 에 들어 있어서).<br>
+      <b>클러스터(cluster)</b> — 쿠버네티스가 하나로 묶어 관리하는 서버(노드)들의 무리.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>7. kind — 도커 안에 쿠버네티스 띄우는 도구</h3>
+
+    <p>진짜 쿠버네티스는 서버가 여러 대 필요하다. kind 는 도커 컨테이너 하나를 서버 한 대처럼 써서, 내 컴퓨터에 연습용 클러스터를 1분 만에 만든다.</p>
+
+<pre><code>[ $(uname -m) = x86_64 ] &amp;&amp; curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.33.0/kind-linux-amd64
+chmod +x ./kind
+sudo mv ./kind /usr/local/bin/kind
+kind version</code></pre>
+
+<pre><code><span style="color:var(--ink-soft)">kind v0.33.0 go1.26.7 linux/amd64</span></code></pre>
+
+    <p>
+      주소의 <code>v0.33.0</code> 은 2026-11-10 기준 최신판이다. 새 버전이 나왔으면 <a href="https://kind.sigs.k8s.io/docs/user/quick-start/#installation">kind 설치 문서</a>의 줄을 그대로 복사해 쓴다.
+      클러스터 만들기(<code>kind create cluster</code>)는 <a href="/learn/cicd-k8s-basics/">10편</a>에서 한다. 지금 만들어 두면 메모리만 먹는다.
+    </p>
+
+    <p class="gloss">
+      <b>kind (Kubernetes IN Docker)</b> — 쿠버네티스 노드를 도커 컨테이너로 흉내 내는 도구. 쿠버네티스 개발자들이 테스트용으로 만들었다. 연습·CI 용이지 운영용이 아니다. 비슷한 도구로 minikube, k3d 가 있다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>8. helm — 쿠버네티스 앱 설치 도구</h3>
+
+    <p>11편에서 젠킨스를 쿠버네티스 안에 설치할 때 쓴다. 공식 설치 스크립트를 받아 실행한다.</p>
+
+<pre><code>curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-4
+chmod 700 get_helm.sh
+./get_helm.sh
+rm get_helm.sh
+helm version</code></pre>
+
+<pre><code><span style="color:var(--ink-soft)">version.BuildInfo{Version:"v4.3.1", GitCommit:"c0d08d0...", GitTreeState:"clean", GoVersion:"go1.27.2", KubeClientVersion:"v1.37"}</span></code></pre>
+
+    <p>
+      2026-11-10 기준 최신은 Helm 4(v4.3.1)다. 11편에서 쓰는 <code>helm repo add</code> · <code>helm install</code> 은 Helm 3 와 같은 모양이라, 이미 Helm 3 가 깔려 있으면 그대로 써도 된다.
+      스크립트 주소가 바뀌었으면 <a href="https://helm.sh/docs/intro/install/">Helm 설치 문서</a>를 본다.
+    </p>
+
+    <p class="gloss">
+      <b>Helm</b> — 쿠버네티스용 패키지 관리자. 젠킨스처럼 YAML 파일 수십 개로 이뤄진 프로그램을 <b>차트(chart)</b>라는 묶음으로 받아 한 줄로 설치·업그레이드·삭제한다. 우분투의 apt 가 하는 일을 쿠버네티스에서 한다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>9. Git 과 GitHub CLI</h3>
+
+    <p>Git 에 내 이름을 알려 준다. 커밋마다 찍힌다.</p>
+
+<pre><code>git config --global user.name "내이름"
+git config --global user.email "GitHub에 등록한 이메일"
+git config --global init.defaultBranch main</code></pre>
+
+    <p>
+      공개 저장소에 진짜 이메일을 남기기 싫으면 GitHub → Settings → Emails 의 <code>…@users.noreply.github.com</code> 주소를 쓴다.
+      그다음 GitHub 를 명령으로 다루는 <code>gh</code> 를 깐다(<a href="https://github.com/cli/cli/blob/trunk/docs/install_linux.md">공식 설치 문서</a>의 우분투 방법).
+    </p>
+
+<pre><code>(type -p wget &gt;/dev/null || (sudo apt update &amp;&amp; sudo apt install wget -y)) \
+  &amp;&amp; sudo mkdir -p -m 755 /etc/apt/keyrings \
+  &amp;&amp; out=$(mktemp) &amp;&amp; wget -nv -O$out https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+  &amp;&amp; cat $out | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg &gt; /dev/null \
+  &amp;&amp; sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+  &amp;&amp; sudo mkdir -p -m 755 /etc/apt/sources.list.d \
+  &amp;&amp; echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list &gt; /dev/null \
+  &amp;&amp; sudo apt update \
+  &amp;&amp; sudo apt install gh -y</code></pre>
+
+    <p>로그인한다. 질문에는 이렇게 고른다.</p>
+
+<pre><code>gh auth login</code></pre>
+
+    <table>
+      <tr><th>질문</th><th>고를 것</th></tr>
+      <tr><td>Where do you use GitHub?</td><td>GitHub.com</td></tr>
+      <tr><td>Preferred protocol for Git operations?</td><td>HTTPS</td></tr>
+      <tr><td>Authenticate Git with your GitHub credentials?</td><td>Yes — 이후 <code>git push</code> 가 비밀번호를 안 묻는다</td></tr>
+      <tr><td>How would you like to authenticate?</td><td>Login with a web browser</td></tr>
+    </table>
+
+    <p>
+      화면에 8자리 코드가 나온다. WSL 에서는 브라우저가 저절로 안 열릴 수 있다. 그러면 윈도우 브라우저에서 <code>https://github.com/login/device</code> 를 직접 열고 코드를 넣는다.
+      <code>gh auth status</code> 에 <code>Logged in to github.com</code> 이 나오면 끝.
+    </p>
+
+    <p class="gloss">
+      <b>GitHub CLI (gh)</b> — 저장소 만들기, PR 열기 같은 GitHub 웹 화면의 일을 터미널에서 하는 도구. 없어도 웹에서 같은 걸 할 수 있다.<br>
+      <b>HTTPS / SSH</b> — Git 이 GitHub 와 통신하는 두 방법. HTTPS 는 주소가 <code>https://github.com/...</code> 이고 토큰으로 인증, SSH 는 <code>git@github.com:...</code> 이고 열쇠 파일로 인증. 이 시리즈는 HTTPS 로 통일한다(젠킨스도 HTTPS + 토큰을 쓴다).
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>10. 계정 두 개 — GitHub 와 Docker Hub</h3>
+
+    <h4>GitHub</h4>
+    <p>
+      없으면 <a href="https://github.com/">github.com</a> 에서 만든다. 시리즈에서 공개 저장소 두 개(<code>cicd-hello</code>, <code>cicd-hello-manifests</code>)를 만든다.
+      젠킨스가 쓸 토큰(PAT)은 <a href="/learn/cicd-git-repo/">3편</a>에서 저장소를 만든 뒤에 만든다. 토큰 권한을 그 저장소에만 주기 위해서다.
+    </p>
+
+    <h4>Docker Hub</h4>
+    <ol>
+      <li><a href="https://hub.docker.com/">hub.docker.com</a> 에서 무료 계정을 만든다. 아이디(Docker ID)가 이미지 이름 앞에 붙는다: <code>&lt;도커허브아이디&gt;/cicd-hello</code>. 이 글들에서 <code>&lt;도커허브아이디&gt;</code> 라고 쓴 자리에 이 아이디를 넣는다.</li>
+      <li>오른쪽 위 프로필 → <strong>Account settings → Personal access tokens → Generate new token</strong>.</li>
+      <li>Description 은 <code>jenkins-cicd</code>, Access permissions 는 <strong>Read &amp; Write</strong>(이미지를 올려야 하니까). 만료일은 실습 기간에 맞게.</li>
+      <li><strong>Generate</strong> 를 누르면 토큰이 <strong>딱 한 번</strong> 보인다. 비밀번호 관리자나 안전한 메모에 적어 둔다. 9편·11편에서 젠킨스에 넣는다.</li>
+    </ol>
+
+    <p>우분투에서 토큰으로 로그인되는지 확인한다. 비밀번호 자리에 토큰을 붙여 넣는다.</p>
+
+<pre><code>docker login -u &lt;도커허브아이디&gt;
+<span style="color:var(--ink-soft)">Password:              ← 토큰 붙여 넣기 (화면엔 안 보인다)
+Login Succeeded</span></code></pre>
+
+    <p class="gloss">
+      <b>액세스 토큰(Access Token)</b> — 비밀번호 대신 쓰는 긴 문자열. 권한(읽기만/쓰기도)과 만료일을 정할 수 있고, 새어 나가면 그 토큰만 지우면 된다. 그래서 프로그램(젠킨스)에는 진짜 비밀번호가 아니라 토큰을 준다.<br>
+      <b>Docker Hub</b> — 도커가 운영하는 공개 이미지 보관소(레지스트리). <code>python:3.12-slim</code> 같은 공식 이미지도 여기서 받는다. 무료 계정은 공개 저장소를 만들 수 있고, 받기(pull) 횟수에 한도가 있다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>11. 실습 폴더</h3>
+
+<pre><code>mkdir -p ~/cicd
+cd ~/cicd
+pwd
+<span style="color:var(--ink-soft)">/home/me/cicd</span></code></pre>
+
+    <ul>
+      <li><strong>실습 파일은 우분투 홈(<code>~</code>) 안에 둔다.</strong> 윈도우 폴더(<code>/mnt/c/...</code>)에서도 열리긴 하지만, 리눅스↔윈도우를 건너다니느라 아주 느리고 파일 권한·줄바꿈 문제가 생긴다.</li>
+      <li>코드는 VS Code 로 고치면 편하다. 윈도우에 VS Code 와 <strong>WSL 확장</strong>(Microsoft)을 깔아 두면, 우분투 폴더 안에서 <code>code .</code> 을 쳤을 때 VS Code 가 그 폴더를 열고 아래 터미널도 우분투가 된다.</li>
+      <li>윈도우 탐색기에서 우분투 파일을 보고 싶으면 주소창에 <code>\\wsl$\Ubuntu-24.04\home\me\cicd</code>.</li>
+    </ul>
+
+    <!-- ============================================================ -->
+    <h3>맥 · 리눅스라면</h3>
+
+    <table>
+      <tr><th></th><th>맥</th><th>리눅스(우분투) 컴퓨터</th></tr>
+      <tr><td>명령 치는 곳</td><td>기본 터미널(zsh)</td><td>그 컴퓨터의 터미널</td></tr>
+      <tr><td>도커</td><td>Docker Desktop for Mac</td><td>Docker Engine (<a href="https://docs.docker.com/engine/install/ubuntu/">공식 설치 문서</a>) + <code>sudo usermod -aG docker $USER</code> 후 다시 로그인</td></tr>
+      <tr><td>kubectl·kind·helm·gh</td><td><code>brew install kubectl kind helm gh</code></td><td>이 글과 같다</td></tr>
+      <tr><td>4~6편(젠킨스 직접 설치·systemd)</td><td>맥엔 systemd 가 없다. UTM·Multipass 같은 도구로 우분투 VM 을 하나 띄워 그 안에서 한다</td><td>그대로 따라 한다</td></tr>
+      <tr><td>Apple 실리콘(M 칩)</td><td colspan="2">바이너리 주소의 <code>amd64</code> 를 <code>arm64</code> 로 바꾼다 (brew 를 쓰면 신경 안 써도 된다)</td></tr>
+    </table>
+
+    <!-- ============================================================ -->
+    <h3>준비 끝 — 점검표</h3>
+
+    <table>
+      <tr><th>확인</th><th>명령 (우분투 터미널)</th></tr>
+      <tr><td>WSL 버전 2</td><td><code>wsl -l -v</code> (PowerShell) → VERSION 2</td></tr>
+      <tr><td>systemd 켜짐</td><td><code>ps -p 1 -o comm=</code> → systemd</td></tr>
+      <tr><td>도커 연결</td><td><code>docker run hello-world</code> → Hello from Docker!</td></tr>
+      <tr><td>Docker Hub 로그인</td><td><code>docker login</code> → Login Succeeded</td></tr>
+      <tr><td>쿠버네티스 도구</td><td><code>kubectl version --client</code> · <code>kind version</code> · <code>helm version</code></td></tr>
+      <tr><td>Git · gh</td><td><code>git config --global user.name</code> · <code>gh auth status</code></td></tr>
+      <tr><td>파이썬</td><td><code>python3 -m venv --help</code> 가 도움말을 찍는다</td></tr>
+      <tr><td>실습 폴더</td><td><code>ls -d ~/cicd</code></td></tr>
+    </table>
+
+    <!-- ============================================================ -->
+    <h3>자주 걸리는 것</h3>
+
+    <table>
+      <tr><th>증상</th><th>원인</th><th>해결</th></tr>
+      <tr><td><code>wsl --install</code> 중 <code>0x80370102</code></td><td>BIOS 에서 가상화가 꺼져 있다</td><td>BIOS 에서 Intel VT-x / AMD SVM 을 켠다</td></tr>
+      <tr><td>우분투에서 <code>docker: command not found</code></td><td>Docker Desktop 의 WSL integration 이 꺼져 있다</td><td>Settings → Resources → WSL integration 에서 Ubuntu-24.04 켜고 우분투 터미널을 새로 연다</td></tr>
+      <tr><td><code>Cannot connect to the Docker daemon</code></td><td>Docker Desktop 이 꺼져 있다</td><td>윈도우에서 Docker Desktop 실행, 초록불 확인</td></tr>
+      <tr><td><code>permission denied ... docker.sock</code></td><td>(리눅스 컴퓨터) 내 계정이 docker 그룹에 없다</td><td><code>sudo usermod -aG docker $USER</code> 후 로그아웃·로그인</td></tr>
+      <tr><td><code>apt update</code> 가 시간 관련 에러(Release file is not valid yet)</td><td>절전에서 깨어난 뒤 WSL 시계가 틀어짐</td><td>PowerShell 에서 <code>wsl --shutdown</code> 후 다시 연다</td></tr>
+      <tr><td>윈도우가 버벅인다</td><td>WSL·도커가 메모리를 많이 잡았다</td><td>3번의 <code>.wslconfig</code> 로 한도를 둔다. 안 쓸 땐 <code>wsl --shutdown</code></td></tr>
+      <tr><td>파일 작업이 유난히 느리다</td><td><code>/mnt/c/...</code> 윈도우 폴더에서 작업 중</td><td>실습 폴더를 <code>~/cicd</code> 로 옮긴다</td></tr>
+    </table>
+
+    <!-- ============================================================ -->
+    <h3>용어 정리</h3>
+
+    <p class="gloss">
+      <b>WSL2</b> — 윈도우 안의 진짜 리눅스. 이 시리즈에서 "회사 서버" 역할.<br>
+      <b>systemd · 서비스</b> — 리눅스에서 프로그램을 항상 켜 두고 관리하는 장치와 그 단위. 4·5편에서 쓴다.<br>
+      <b>도커 엔진 / 클라이언트</b> — 컨테이너를 실제로 돌리는 쪽 / 명령을 보내는 쪽. 둘은 따로다.<br>
+      <b>kubectl</b> — 쿠버네티스에 명령하는 도구. <b>kind</b> — 도커 안에 연습용 쿠버네티스를 만드는 도구. <b>helm</b> — 쿠버네티스용 설치 도구.<br>
+      <b>gh</b> — GitHub 를 터미널에서 다루는 도구.<br>
+      <b>액세스 토큰</b> — 프로그램에 주는, 권한과 만료일이 있는 비밀번호 대용.
+    </p>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 볼 것</p>
+      <ul>
+        <li><a href="/learn/cicd-overview/">01. CI/CD 한눈에</a> — 앞 글, 시리즈 지도</li>
+        <li><a href="/learn/cicd-git-repo/">03. 버전 관리와 Git — 실습 앱 저장소 만들고 관리하기</a> — 다음 글</li>
+        <li><a href="/learn/dev-setup/">실습 환경 준비 — VS Code, 터미널, Git, Python</a> — Git·코드 구조 실습용 준비(윈도우 Git Bash 기준)</li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

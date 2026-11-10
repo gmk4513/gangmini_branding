@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>CI/CD 한눈에 — 개발 환경과 아키텍처는 어떻게 바뀌었나 · gangmin</title>
+<meta name="description" content="왜 배포를 자동으로 하게 됐나. 워터폴에서 DevOps 로, 물리 서버에서 컨테이너·쿠버네티스로, 모놀리스에서 MSA 로. CI·지속적 전달·지속적 배포의 차이, 파이프라인 단계, 도구 지도, 그리고 13편 실습 시리즈의 지도.">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="CI/CD 한눈에 — 개발 환경과 아키텍처는 어떻게 바뀌었나">
+<meta property="og:description" content="CI/CD 가 왜 생겼고 무엇을 하나. 13편 실습 시리즈의 지도.">
+<meta property="og:url" content="https://gangmini.com/learn/cicd-overview/">
+<meta property="og:image" content="https://gangmini.com/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../../notes/note.css?v=20261028">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/learn/">← 이론/용어</a>
+    <p class="eyebrow">THEORY · CI/CD 01/13</p>
+    <h2 class="masthead__title">CI/CD 한눈에<br>— 개발 환경과 아키텍처는 어떻게 바뀌었나</h2>
+    <div class="doc__meta">
+      <span class="tag">이론</span>
+      <span class="tag">CI/CD</span>
+      <span class="tag">DevOps</span>
+      <span class="tag">컨테이너</span>
+      <span class="tag">MSA</span>
+      <span class="tag">파이프라인</span>
+      <time class="note__date">2026.11.10</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      내 사이트(gangmini.com)는 <code>main</code> 브랜치에 push 하면 1~2분 뒤 저절로 바뀐다. 파일을 서버에 올리는 일을 내가 한 번도 안 한다.
+      이게 아주 작은 CI/CD 다. 회사에서는 같은 일을 훨씬 큰 규모로 한다. 서버가 수십 대, 서비스가 수십 개, 하루 배포가 수십 번이다.
+    </p>
+    <p>
+      이 글은 <strong>CI/CD 실습 시리즈 13편의 첫 글</strong>이다. 명령은 하나도 안 친다. 대신 "왜 이런 게 생겼나"를 개발 방식·서버·코드 구조가 바뀐 순서대로 짚고,
+      CI/CD 가 정확히 무엇인지, 앞으로 13편 동안 무엇을 만드는지 지도를 그린다. 실습은 <a href="/learn/cicd-setup/">2편 환경 준비</a>부터 시작한다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>먼저, 손으로 배포하면 무슨 일이 생기나</h3>
+
+    <p>CI/CD 가 없는 팀의 배포 날은 대략 이렇다.</p>
+    <ol>
+      <li>개발자가 운영 서버에 SSH 로 접속한다.</li>
+      <li><code>git pull</code> 로 최신 코드를 받는다. (테스트는? "내 컴퓨터에서 돌려 봤어요.")</li>
+      <li>패키지를 설치하고, 서버 프로그램을 껐다 켠다.</li>
+      <li>화면을 열어 눌러 보고 "됐다"고 메신저에 쓴다.</li>
+    </ol>
+    <p>이 방식은 작을 때는 돌아간다. 사람이 늘고 배포가 잦아지면 이런 일이 생긴다.</p>
+
+    <table>
+      <tr><th>문제</th><th>실제 모습</th></tr>
+      <tr><td>내 컴퓨터에서만 된다</td><td>내 노트북은 파이썬 3.12, 서버는 3.10. 내 컴퓨터엔 깔려 있던 라이브러리가 서버엔 없다</td></tr>
+      <tr><td>순서를 빼먹는다</td><td>열 단계 중 "설정 파일 복사"를 깜빡해서 운영이 멈춘다. 매번 사람이 기억에 의존한다</td></tr>
+      <tr><td>합칠 때 터진다</td><td>다섯 명이 2주 동안 따로 만든 걸 금요일에 한꺼번에 합치니 충돌과 버그가 쏟아진다("통합 지옥")</td></tr>
+      <tr><td>무엇이 나갔는지 모른다</td><td>지금 운영에 도는 게 어느 커밋인지, 누가 언제 올렸는지 기록이 없다</td></tr>
+      <tr><td>되돌리기가 어렵다</td><td>배포 후 에러가 나면 "전에 뭐였더라"부터 찾는다. 되돌리는 데 한 시간이 걸린다</td></tr>
+      <tr><td>배포가 무섭다</td><td>무서우니까 덜 하고, 덜 하니까 한 번에 바뀌는 게 커지고, 커지니까 더 자주 터진다</td></tr>
+    </table>
+
+    <p>
+      CI/CD 는 이 문제들을 <strong>"사람이 기억해서 하던 순서를, 기계가 매번 똑같이 하게"</strong> 바꿔서 푼다.
+      그런데 왜 하필 지금 이게 필수가 됐을까. 세 가지가 동시에 바뀌었기 때문이다. 일하는 방식, 서버, 코드 구조.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>1. 일하는 방식의 변화 — 워터폴, 애자일, DevOps</h3>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 250" role="img" aria-label="워터폴은 요구사항, 설계, 개발, 테스트, 배포를 한 번씩 차례로 하고 배포가 몇 달에 한 번이다. 애자일은 2주짜리 스프린트를 반복해 자주 만들지만 배포는 운영팀에게 넘긴다. DevOps 는 개발과 운영이 한 고리로 이어져 만들고 배포하고 지켜보기를 계속 돈다.">
+          <!-- 워터폴 -->
+          <text class="d-t" x="16" y="22">워터폴 — 몇 달에 한 번 배포</text>
+          <rect class="d-box" x="16" y="34" width="84" height="30" rx="3"/>
+          <text class="d-t-s" x="58" y="53" text-anchor="middle">요구사항</text>
+          <rect class="d-box" x="52" y="70" width="84" height="30" rx="3"/>
+          <text class="d-t-s" x="94" y="89" text-anchor="middle">설계</text>
+          <rect class="d-box" x="88" y="106" width="84" height="30" rx="3"/>
+          <text class="d-t-s" x="130" y="125" text-anchor="middle">개발</text>
+          <rect class="d-box" x="124" y="142" width="84" height="30" rx="3"/>
+          <text class="d-t-s" x="166" y="161" text-anchor="middle">테스트</text>
+          <rect class="d-box-m" x="160" y="178" width="84" height="30" rx="3"/>
+          <text class="d-t-s" x="202" y="197" text-anchor="middle">배포 (한 번)</text>
+          <text class="d-t-s" x="16" y="234">앞 단계가 끝나야 다음으로. 되돌아가기 비싸다</text>
+
+          <!-- 애자일 -->
+          <text class="d-t" x="262" y="22">애자일 — 2주마다 조금씩</text>
+          <rect class="d-box" x="262" y="60" width="52" height="40" rx="3"/>
+          <text class="d-t-s" x="288" y="84" text-anchor="middle">1회차</text>
+          <rect class="d-box" x="322" y="60" width="52" height="40" rx="3"/>
+          <text class="d-t-s" x="348" y="84" text-anchor="middle">2회차</text>
+          <rect class="d-box" x="382" y="60" width="52" height="40" rx="3"/>
+          <text class="d-t-s" x="408" y="84" text-anchor="middle">3회차</text>
+          <text class="d-t-s" x="348" y="122" text-anchor="middle">회차마다 계획 → 개발 → 시연</text>
+          <rect class="d-box" x="302" y="146" width="92" height="34" rx="3"/>
+          <text class="d-t-s" x="348" y="167" text-anchor="middle">운영팀이 배포</text>
+          <path class="d-dash" d="M348,100 V139"/><polygon points="348,146 344,139 352,139" fill="#6E7469"/>
+          <text class="d-t-s" x="262" y="234">개발은 빨라졌는데 배포는 여전히 벽 너머</text>
+
+          <!-- DevOps -->
+          <text class="d-t" x="460" y="22">DevOps — 하루에도 여러 번</text>
+          <rect class="d-box-m" x="460" y="40" width="164" height="168" rx="80"/>
+          <text class="d-t" x="542" y="76" text-anchor="middle">만들기</text>
+          <text class="d-t" x="600" y="128" text-anchor="middle">배포</text>
+          <text class="d-t" x="542" y="182" text-anchor="middle">지켜보기</text>
+          <text class="d-t" x="484" y="128" text-anchor="middle">고치기</text>
+          <text class="d-t-s" x="542" y="128" text-anchor="middle">한 팀이 끝까지</text>
+          <text class="d-t-s" x="460" y="234">개발·운영이 한 고리. 자동화가 전제</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        오른쪽으로 갈수록 "한 번에 크게"에서 "자주 조금씩"으로 간다. 자주 하려면 배포 한 번이 싸야 하고, 그러려면 손이 아니라 기계가 해야 한다.
+      </figcaption>
+    </figure>
+
+    <ul>
+      <li><strong>워터폴</strong> — 요구사항 → 설계 → 개발 → 테스트 → 배포를 폭포처럼 한 방향으로 한 번씩. 계획대로 갈 때는 깔끔하지만, 몇 달 뒤 배포했는데 고객이 원하던 게 아니면 처음부터 다시다.</li>
+      <li><strong>애자일</strong> — 1~4주짜리 짧은 주기(스프린트)를 반복하며 조금씩 만들고 보여 준다. 개발 속도는 빨라졌지만, 만든 걸 운영 서버에 올리는 일은 여전히 별도 운영팀의 몫이라 거기서 막혔다.</li>
+      <li><strong>DevOps</strong> — 개발(Development)과 운영(Operations)의 벽을 없앤다. 만든 팀이 배포하고, 운영 중 문제도 직접 본다. 사람이 줄을 서서 넘겨주던 단계를 <strong>자동화로 이어 붙이는 것</strong>이 핵심이고, 그 자동화의 중심이 CI/CD 파이프라인이다.</li>
+    </ul>
+
+    <p class="gloss">
+      <b>스프린트(sprint)</b> — 애자일에서 정해 둔 짧은 개발 주기. 보통 2주. 회차가 끝날 때마다 돌아가는 결과물을 보여 준다.<br>
+      <b>DevOps</b> — 도구 이름이 아니라 일하는 문화. "만든 사람이 운영까지 책임지고, 그 사이를 자동화로 잇는다"는 생각이다. 회사에서 "데브옵스 엔지니어"는 대개 이 자동화(파이프라인·인프라)를 만드는 사람을 말한다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>2. 서버의 변화 — 물리 서버, 가상 머신, 컨테이너, 쿠버네티스</h3>
+
+    <p>프로그램을 "어디에 올리나"도 크게 바뀌었다. 바뀔 때마다 배포의 단위가 작아지고 빨라졌다.</p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 262" role="img" aria-label="왼쪽부터 물리 서버(하드웨어 위 운영체제 위 앱들이 섞여 있음), 가상 머신(하드웨어 위 하이퍼바이저 위 VM 마다 운영체제와 앱), 컨테이너(하드웨어 위 운영체제 하나 위 컨테이너 런타임 위 앱 컨테이너들), 쿠버네티스(서버 여러 대를 한 덩어리로 묶고 컨테이너를 알아서 배치)">
+          <!-- 물리 -->
+          <text class="d-t" x="16" y="22">① 물리 서버</text>
+          <rect class="d-box" x="16" y="40" width="130" height="50" rx="3"/>
+          <text class="d-t-s" x="81" y="60" text-anchor="middle">앱 A · 앱 B · 앱 C</text>
+          <text class="d-t-s" x="81" y="78" text-anchor="middle">라이브러리가 섞임</text>
+          <rect class="d-box" x="16" y="96" width="130" height="34" rx="3"/>
+          <text class="d-t-s" x="81" y="117" text-anchor="middle">운영체제</text>
+          <rect class="d-box" x="16" y="136" width="130" height="34" rx="3"/>
+          <text class="d-t-s" x="81" y="157" text-anchor="middle">하드웨어 1대</text>
+          <text class="d-t-s" x="16" y="196">서버 사는 데 몇 주</text>
+          <text class="d-t-s" x="16" y="212">한 앱이 다른 앱을 망친다</text>
+
+          <!-- VM -->
+          <text class="d-t" x="170" y="22">② 가상 머신(VM)</text>
+          <rect class="d-box" x="170" y="40" width="62" height="24" rx="3"/>
+          <text class="d-t-s" x="201" y="56" text-anchor="middle">앱 A</text>
+          <rect class="d-box" x="238" y="40" width="62" height="24" rx="3"/>
+          <text class="d-t-s" x="269" y="56" text-anchor="middle">앱 B</text>
+          <rect class="d-box" x="170" y="66" width="62" height="24" rx="3"/>
+          <text class="d-t-s" x="201" y="82" text-anchor="middle">OS</text>
+          <rect class="d-box" x="238" y="66" width="62" height="24" rx="3"/>
+          <text class="d-t-s" x="269" y="82" text-anchor="middle">OS</text>
+          <rect class="d-box" x="170" y="96" width="130" height="34" rx="3"/>
+          <text class="d-t-s" x="235" y="117" text-anchor="middle">하이퍼바이저</text>
+          <rect class="d-box" x="170" y="136" width="130" height="34" rx="3"/>
+          <text class="d-t-s" x="235" y="157" text-anchor="middle">하드웨어</text>
+          <text class="d-t-s" x="170" y="196">몇 분 만에 서버 생성</text>
+          <text class="d-t-s" x="170" y="212">VM 마다 OS 통째로 (무겁다)</text>
+
+          <!-- 컨테이너 -->
+          <text class="d-t" x="324" y="22">③ 컨테이너</text>
+          <rect class="d-box-m" x="324" y="40" width="40" height="50" rx="3"/>
+          <text class="d-t-s" x="344" y="69" text-anchor="middle">A</text>
+          <rect class="d-box-m" x="369" y="40" width="40" height="50" rx="3"/>
+          <text class="d-t-s" x="389" y="69" text-anchor="middle">B</text>
+          <rect class="d-box-m" x="414" y="40" width="40" height="50" rx="3"/>
+          <text class="d-t-s" x="434" y="69" text-anchor="middle">C</text>
+          <rect class="d-box" x="324" y="96" width="130" height="34" rx="3"/>
+          <text class="d-t-s" x="389" y="111" text-anchor="middle">OS 하나</text>
+          <text class="d-t-s" x="389" y="125" text-anchor="middle">+ 컨테이너 런타임</text>
+          <rect class="d-box" x="324" y="136" width="130" height="34" rx="3"/>
+          <text class="d-t-s" x="389" y="157" text-anchor="middle">하드웨어 또는 VM</text>
+          <text class="d-t-s" x="324" y="196">몇 초 만에 실행</text>
+          <text class="d-t-s" x="324" y="212">앱 + 필요한 것을 이미지로 포장</text>
+
+          <!-- 쿠버네티스 -->
+          <text class="d-t" x="478" y="22">④ 쿠버네티스</text>
+          <rect class="d-box" x="478" y="40" width="146" height="90" rx="3"/>
+          <text class="d-t-s" x="551" y="58" text-anchor="middle">"A 를 3개 띄워 둬"</text>
+          <rect class="d-box-m" x="490" y="70" width="22" height="22" rx="2"/>
+          <rect class="d-box-m" x="518" y="70" width="22" height="22" rx="2"/>
+          <rect class="d-box-m" x="546" y="70" width="22" height="22" rx="2"/>
+          <rect class="d-box-m" x="574" y="70" width="22" height="22" rx="2"/>
+          <rect class="d-box-m" x="602" y="70" width="14" height="22" rx="2"/>
+          <text class="d-t-s" x="551" y="116" text-anchor="middle">컨테이너를 알아서 배치</text>
+          <rect class="d-box" x="478" y="136" width="44" height="34" rx="3"/>
+          <text class="d-t-s" x="500" y="157" text-anchor="middle">서버</text>
+          <rect class="d-box" x="529" y="136" width="44" height="34" rx="3"/>
+          <text class="d-t-s" x="551" y="157" text-anchor="middle">서버</text>
+          <rect class="d-box" x="580" y="136" width="44" height="34" rx="3"/>
+          <text class="d-t-s" x="602" y="157" text-anchor="middle">서버</text>
+          <text class="d-t-s" x="478" y="196">서버 여러 대를 한 덩어리로</text>
+          <text class="d-t-s" x="478" y="212">죽으면 다시 띄움 · 늘리고 줄임</text>
+
+          <text class="d-t-s" x="16" y="248">→ 오른쪽으로 갈수록 "서버를 준비하는 일"이 줄고, 한 번 배포하는 단위가 작고 빨라진다</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        컨테이너는 "앱 + 그 앱이 돌아가는 데 필요한 모든 것"을 한 상자에 담는다. 그래서 "내 컴퓨터에선 되는데"가 사라진다. 내 컴퓨터에서 돌린 그 상자를 그대로 서버에 올리니까.
+      </figcaption>
+    </figure>
+
+    <table>
+      <tr><th>단계</th><th>배포가 어떻게 바뀌었나</th></tr>
+      <tr><td>물리 서버</td><td>서버를 사고 설치하는 데 몇 주. 배포는 그 서버에 접속해서 파일을 바꾸는 것. 회사 건물이나 데이터센터에 직접 둔다(<strong>온프레미스</strong>)</td></tr>
+      <tr><td>가상 머신</td><td>서버 한 대를 여러 대처럼 나눠 쓴다. 클라우드(AWS 등)에서 몇 분 만에 빌린다. 그래도 VM 마다 운영체제가 통째로 있어서 무겁다</td></tr>
+      <tr><td>컨테이너 (Docker)</td><td>앱을 <strong>이미지</strong>로 포장해서 어디서든 같은 모습으로 실행한다. 배포 = "새 이미지로 바꿔 띄우기". 되돌리기 = "이전 이미지로 다시 띄우기"</td></tr>
+      <tr><td>쿠버네티스</td><td>컨테이너 수백 개를 서버 여러 대에 나눠 띄우고, 죽으면 살리고, 새 버전으로 하나씩 바꿔 끼운다. 사람은 "원하는 상태"를 파일로 적기만 한다</td></tr>
+    </table>
+
+    <p class="gloss">
+      <b>온프레미스(on-premises)</b> — 서버를 회사가 직접 사서 회사 안(또는 직접 계약한 데이터센터)에 두고 운영하는 방식. 반대말은 클라우드(남의 서버를 빌려 쓰기).<br>
+      <b>하이퍼바이저(hypervisor)</b> — 컴퓨터 한 대 위에서 여러 개의 가상 컴퓨터(VM)를 만들어 돌리는 프로그램.<br>
+      <b>이미지(image)</b> — 컨테이너를 만들기 위한 "포장된 틀". 운영체제 일부 + 언어(파이썬 등) + 라이브러리 + 내 코드가 들어 있다. 이미지를 실행한 것이 컨테이너다. 붕어빵 틀(이미지)과 붕어빵(컨테이너).<br>
+      <b>쿠버네티스(Kubernetes, k8s)</b> — 여러 서버에 걸쳐 컨테이너를 배치·관리해 주는 시스템. 이런 일을 <b>오케스트레이션</b>(지휘)이라고 부른다. k 와 s 사이 글자가 8개라 k8s.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>3. 코드 구조의 변화 — 모놀리스에서 MSA 로</h3>
+
+    <p>
+      한 프로그램에 모든 기능을 넣은 <strong>모놀리스</strong>는 배포할 것이 하나다. 기능별로 서버를 쪼갠 <strong>MSA(마이크로서비스 아키텍처)</strong>는
+      서비스마다 따로 만들고 따로 배포한다. 서비스가 20개고 각자 하루 두 번 배포하면, 하루 40번이다. 이걸 사람이 SSH 로 할 수는 없다.
+    </p>
+    <p>
+      즉 <strong>MSA 와 컨테이너가 퍼지면서 CI/CD 는 "있으면 좋은 것"에서 "없으면 못 하는 것"이 됐다</strong>.
+      모놀리스와 MSA 를 고르는 기준은 <a href="/learn/arch-overview/">코드 구조 한눈에</a>에 따로 정리했다(결론: 이유가 생기기 전엔 쪼개지 않는다).
+    </p>
+
+    <p class="gloss">
+      <b>모놀리스(monolith)</b> — 모든 기능이 프로그램 하나로 묶인 구조. 빌드·배포·로그가 한 곳이라 단순하다.<br>
+      <b>MSA(Microservice Architecture)</b> — 기능마다 작은 서버로 나누고 네트워크로 서로 부르는 구조. 따로 늘리고 따로 배포할 수 있지만, 관리할 것이 서비스 수만큼 늘어난다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>4. 그래서 CI/CD 란</h3>
+
+    <p>
+      <strong>CI/CD</strong> 는 두 덩어리다. 앞의 CI 는 "합치기", 뒤의 CD 는 "내보내기"다. CD 는 두 가지 뜻으로 쓰이니 구분해 둔다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 236" role="img" aria-label="커밋 push 부터 빌드, 테스트, 패키징, 개발 서버 배포, 운영 배포 순서로 이어진다. CI 는 push 부터 테스트까지, 지속적 전달은 개발 서버 배포까지 자동이고 운영은 사람이 버튼을 누른다. 지속적 배포는 운영까지 전부 자동이다.">
+          <rect class="d-box" x="10" y="40" width="88" height="56" rx="4"/>
+          <text class="d-t" x="54" y="64" text-anchor="middle">커밋 push</text>
+          <text class="d-t-s" x="54" y="82" text-anchor="middle">개발자</text>
+
+          <rect class="d-box" x="116" y="40" width="88" height="56" rx="4"/>
+          <text class="d-t" x="160" y="64" text-anchor="middle">빌드</text>
+          <text class="d-t-s" x="160" y="82" text-anchor="middle">설치·컴파일</text>
+
+          <rect class="d-box" x="222" y="40" width="88" height="56" rx="4"/>
+          <text class="d-t" x="266" y="64" text-anchor="middle">테스트</text>
+          <text class="d-t-s" x="266" y="82" text-anchor="middle">자동 검사</text>
+
+          <rect class="d-box" x="328" y="40" width="88" height="56" rx="4"/>
+          <text class="d-t" x="372" y="64" text-anchor="middle">패키징</text>
+          <text class="d-t-s" x="372" y="82" text-anchor="middle">이미지 + 버전</text>
+
+          <rect class="d-box" x="434" y="40" width="88" height="56" rx="4"/>
+          <text class="d-t" x="478" y="64" text-anchor="middle">개발 서버</text>
+          <text class="d-t-s" x="478" y="82" text-anchor="middle">배포·확인</text>
+
+          <rect class="d-box-m" x="540" y="40" width="88" height="56" rx="4"/>
+          <text class="d-t" x="584" y="64" text-anchor="middle">운영 서버</text>
+          <text class="d-t-s" x="584" y="82" text-anchor="middle">배포</text>
+
+          <path class="d-line" d="M98,68 H109"/><polygon points="116,68 109,64 109,72" fill="#1A1D18"/>
+          <path class="d-line" d="M204,68 H215"/><polygon points="222,68 215,64 215,72" fill="#1A1D18"/>
+          <path class="d-line" d="M310,68 H321"/><polygon points="328,68 321,64 321,72" fill="#1A1D18"/>
+          <path class="d-line" d="M416,68 H427"/><polygon points="434,68 427,64 427,72" fill="#1A1D18"/>
+          <path class="d-line" d="M522,68 H533"/><polygon points="540,68 533,64 533,72" fill="#1A1D18"/>
+
+          <!-- 범위 -->
+          <path class="d-line" d="M10,120 H310"/>
+          <path class="d-line" d="M10,114 V126 M310,114 V126"/>
+          <text class="d-t" x="160" y="142" text-anchor="middle">CI — 지속적 통합</text>
+          <text class="d-t-s" x="160" y="158" text-anchor="middle">합쳐도 되는가? (깨진 걸 바로 찾기)</text>
+
+          <path class="d-line" d="M10,180 H522"/>
+          <path class="d-line" d="M10,174 V186 M522,174 V186"/>
+          <text class="d-t" x="266" y="200" text-anchor="middle">지속적 전달 (Continuous Delivery) — 여기까지 자동</text>
+          <text class="d-t-s" x="584" y="190" text-anchor="middle">운영은 사람이</text>
+          <text class="d-t-s" x="584" y="204" text-anchor="middle">버튼 한 번</text>
+
+          <path class="d-dash" d="M10,222 H628"/>
+          <text class="d-t-s" x="320" y="234" text-anchor="middle">지속적 배포 (Continuous Deployment) — 운영까지 전부 자동, 사람 버튼 없음</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        두 CD 의 차이는 마지막 칸 하나다. 운영에 내보내기 직전에 사람이 확인 버튼을 누르면 지속적 전달, 테스트만 통과하면 그대로 나가면 지속적 배포.
+      </figcaption>
+    </figure>
+
+    <h4>CI — 지속적 통합 (Continuous Integration)</h4>
+    <p>
+      여러 사람의 변경을 <strong>자주(하루에도 여러 번) 합치되, 합칠 때마다 기계가 빌드하고 테스트</strong>해서 깨진 걸 바로 찾는 방식이다.
+      2주 모았다가 한꺼번에 합치면 어디서 깨졌는지 찾기 어렵다. 한 시간 전 커밋이 깨뜨렸다면 범인은 그 커밋 하나다.
+      CI 의 질문은 하나다. <strong>"이 변경을 main 에 합쳐도 되나?"</strong>
+    </p>
+
+    <h4>CD — 지속적 전달 (Continuous Delivery)</h4>
+    <p>
+      CI 를 통과한 코드를 <strong>언제든 운영에 내보낼 수 있는 상태</strong>(버전이 붙은 이미지 + 개발 서버 배포·확인)까지 자동으로 만들어 둔다.
+      운영 배포는 사람이 버튼 하나로 한다. 금융·의료처럼 확인 절차가 필요한 곳은 대개 여기까지.
+    </p>
+
+    <h4>CD — 지속적 배포 (Continuous Deployment)</h4>
+    <p>
+      버튼도 없앤다. 테스트를 통과하면 운영까지 자동으로 나간다. 대신 테스트와 모니터링, 자동 되돌리기를 그만큼 믿을 수 있어야 한다.
+      내 사이트(main 에 push → Cloudflare 가 바로 반영)는 테스트는 없지만 모양만 보면 이쪽이다.
+    </p>
+
+    <p class="gloss">
+      <b>통합(integration)</b> — 내 브랜치의 변경을 팀의 기준 브랜치(main)에 합치는 것.<br>
+      <b>파이프라인(pipeline)</b> — 빌드 → 테스트 → 패키징 → 배포처럼 정해진 단계를 차례로 자동 실행하는 흐름. 한 단계가 실패하면 거기서 멈춘다. 공장 컨베이어 벨트를 떠올리면 된다.<br>
+      <b>운영(production, 프로덕션)</b> — 실제 사용자가 쓰는 서버. 그 전 단계에서 확인용으로 쓰는 서버는 개발(dev)·스테이징(staging) 서버라고 부른다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>5. 왜 필요한가 — 바뀌는 것</h3>
+
+    <table>
+      <tr><th>손으로 할 때</th><th>CI/CD 가 있으면</th></tr>
+      <tr><td>"내 컴퓨터에선 됐는데"</td><td>매번 깨끗한 환경에서 같은 순서로 빌드·테스트한다. 컨테이너면 실행 환경까지 같다</td></tr>
+      <tr><td>순서를 사람이 기억</td><td>순서가 파일(Jenkinsfile 등)에 코드로 적혀 있고, 그 파일도 Git 으로 관리한다</td></tr>
+      <tr><td>2주 모아 한꺼번에 합치기</td><td>작게 자주 합친다. 깨지면 방금 그 커밋이 범인이다</td></tr>
+      <tr><td>무엇이 나갔는지 모름</td><td>이미지 태그에 빌드 번호·커밋 해시를 붙인다. 운영의 버전에서 커밋까지 거슬러 간다</td></tr>
+      <tr><td>되돌리기 한 시간</td><td>이전 버전 이미지로 다시 배포하면 끝. ArgoCD 라면 Git 커밋 하나 되돌리기</td></tr>
+      <tr><td>배포가 무서운 행사</td><td>배포가 지루한 일상이 된다. 자주 하니 한 번의 변경이 작고, 작으니 덜 터진다</td></tr>
+    </table>
+
+    <p>
+      팀의 배포 실력을 잴 때 흔히 쓰는 네 숫자가 있다(<strong>DORA 지표</strong>). 얼마나 자주 배포하나, 커밋에서 운영까지 얼마나 걸리나,
+      배포 중 몇 번이 장애를 내나, 장애에서 얼마나 빨리 회복하나. 네 가지 모두 CI/CD 로 좋아지는 숫자다.
+    </p>
+
+    <p class="gloss">
+      <b>DORA 지표</b> — 구글의 DevOps 연구 프로그램(DORA)이 정리한 배포 성과 지표 네 개: 배포 빈도, 변경 리드 타임, 변경 실패율, 서비스 복구 시간. 면접에서 "CI/CD 가 왜 좋은가"를 숫자로 말할 때 쓴다.<br>
+      <b>롤백(rollback)</b> — 문제가 생긴 배포를 이전 버전으로 되돌리는 것.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>6. 파이프라인은 보통 이 단계로 짠다</h3>
+
+    <table>
+      <tr><th>단계</th><th>하는 일</th><th>이 시리즈에서</th></tr>
+      <tr><td>체크아웃</td><td>Git 저장소에서 코드를 받는다</td><td>젠킨스가 GitHub 의 <code>cicd-hello</code> 를 받음</td></tr>
+      <tr><td>빌드</td><td>패키지 설치, 컴파일</td><td><code>pip install</code></td></tr>
+      <tr><td>테스트</td><td>자동 테스트, 코드 검사</td><td><code>pytest</code> (Dockerfile 의 test 단계)</td></tr>
+      <tr><td>패키징</td><td>실행할 수 있는 묶음 만들기 + 버전 붙이기</td><td>도커 이미지 <code>cicd-hello:12-a1b2c3d</code></td></tr>
+      <tr><td>저장</td><td>만든 묶음을 보관소에 올린다</td><td>Docker Hub 에 push</td></tr>
+      <tr><td>배포</td><td>서버에서 새 버전으로 바꿔 띄운다</td><td>systemd 재시작 → <code>docker run</code> → 쿠버네티스</td></tr>
+      <tr><td>확인</td><td>정말 살아 있나 확인(헬스 체크)</td><td><code>/health</code> 가 <code>ok</code> 인지</td></tr>
+    </table>
+
+    <p class="gloss">
+      <b>레지스트리(registry)</b> — 도커 이미지를 올려 두고 내려받는 보관소. Docker Hub 가 대표적이고, 회사는 AWS ECR·Harbor 같은 자체 레지스트리를 쓴다. 코드의 GitHub 에 해당한다.<br>
+      <b>헬스 체크(health check)</b> — 서버가 살아 있는지 확인하려고 부르는 주소. 이 시리즈의 앱은 <code>/health</code> 가 <code>{"status":"ok"}</code> 를 돌려준다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>7. 도구 지도</h3>
+
+    <table>
+      <tr><th>도구</th><th>맡는 일</th><th>비유</th></tr>
+      <tr><td>Git · GitHub</td><td>코드와 변경 기록 보관. 모든 자동화의 출발점</td><td>설계도 보관실</td></tr>
+      <tr><td>젠킨스 (Jenkins)</td><td>파이프라인을 실행하는 서버. 내가 직접 설치해서 운영한다</td><td>공장 반장</td></tr>
+      <tr><td>GitHub Actions</td><td>GitHub 안에 들어 있는 파이프라인 실행기</td><td>설계도 보관실에 딸린 반장</td></tr>
+      <tr><td>Docker</td><td>앱을 이미지로 포장하고 컨테이너로 실행</td><td>규격 상자</td></tr>
+      <tr><td>Docker Hub</td><td>이미지 보관소(레지스트리)</td><td>상자 창고</td></tr>
+      <tr><td>쿠버네티스</td><td>컨테이너를 여러 서버에 띄우고 관리</td><td>물류 센터</td></tr>
+      <tr><td>ArgoCD</td><td>Git 에 적힌 "원하는 상태"대로 쿠버네티스를 맞춰 둔다</td><td>도면대로 됐는지 계속 보는 감독</td></tr>
+    </table>
+
+    <h4>젠킨스와 GitHub Actions — 언제 무엇을</h4>
+    <p>둘 다 파이프라인을 돌린다. 이 시리즈는 커리큘럼대로 젠킨스를 쓰고, GitHub Actions 는 <a href="/learn/github-actions/">따로 정리한 글</a>이 있다.</p>
+
+    <table>
+      <tr><th></th><th>젠킨스</th><th>GitHub Actions</th></tr>
+      <tr><td>어디서 도나</td><td>내가 설치한 서버 (회사 안에도 둘 수 있다)</td><td>GitHub 가 빌려주는 컴퓨터 (내 서버를 붙일 수도 있다)</td></tr>
+      <tr><td>설정</td><td>화면 + <code>Jenkinsfile</code>(Groovy 문법)</td><td><code>.github/workflows/*.yml</code>(YAML)</td></tr>
+      <tr><td>장점</td><td>플러그인이 아주 많고, 회사 내부망·사내 Git 과 잘 붙는다. 오래 써서 자료가 많다</td><td>설치할 게 없다. GitHub 저장소와 바로 붙는다</td></tr>
+      <tr><td>단점</td><td>서버·플러그인 업데이트·보안을 내가 관리해야 한다</td><td>GitHub 밖 환경과 엮기 번거롭고, 많이 쓰면 비용</td></tr>
+      <tr><td>흔한 곳</td><td>금융·대기업·온프레미스가 많은 회사</td><td>스타트업, 오픈소스</td></tr>
+    </table>
+
+    <h4>밀어 넣기(push)와 끌어오기(pull) — 배포 방식 두 가지</h4>
+    <p>
+      9편까지는 젠킨스가 서버에 접속해서 "이걸 띄워"라고 <strong>밀어 넣는다(push 방식)</strong>. 12편부터는 방향이 바뀐다.
+      젠킨스는 Git 저장소에 "이제 이 버전이 맞다"고 적기만 하고, 쿠버네티스 안의 ArgoCD 가 그 저장소를 보고 있다가 <strong>스스로 끌어와 맞춘다(pull 방식)</strong>.
+      Git 을 배포의 기준으로 삼는 이 방식을 <strong>GitOps</strong> 라고 한다. 젠킨스가 운영 클러스터의 열쇠를 들고 있지 않아도 되고, 배포 기록이 Git 커밋으로 남는다.
+    </p>
+
+    <p class="gloss">
+      <b>GitOps</b> — 서버가 어떤 상태여야 하는지(어떤 이미지를 몇 개 띄울지 등)를 Git 저장소에 파일로 적어 두고, 도구가 실제 상태를 그 파일에 계속 맞추는 운영 방식. 배포 = Git 커밋, 롤백 = 커밋 되돌리기.<br>
+      <b>매니페스트(manifest)</b> — 쿠버네티스에 "이렇게 띄워 줘"라고 적어 주는 YAML 파일.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>8. 이 시리즈에서 만드는 것 — 13편 지도</h3>
+
+    <p>
+      앱은 하나만 쓴다. <code>cicd-hello</code> — 주소를 열면 <code>Hello, CI/CD! version=…</code> 를 돌려주는 파이썬(Flask) 서버다.
+      같은 앱을 세 번, 점점 현대적인 방식으로 자동 배포한다. 앱이 단순해야 바뀌는 것이 배포 방식뿐이라는 게 잘 보인다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 320" role="img" aria-label="세 줄. 첫 줄 온프레미스: GitHub 에서 젠킨스(우분투에 직접 설치)가 받아 pytest 후 systemd 서비스로 배포, 8000 번. 둘째 줄 도커: 컨테이너 젠킨스가 이미지를 빌드해 Docker Hub 에 올리고 docker run 으로 배포, 8100 번. 셋째 줄 쿠버네티스: 쿠버네티스 안 젠킨스 파드가 Kaniko 로 이미지를 빌드해 Docker Hub 에 올리고 매니페스트 저장소의 태그를 바꾸면 ArgoCD 가 클러스터에 맞춘다.">
+          <!-- 공통 출발 -->
+          <rect class="d-box" x="10" y="130" width="84" height="60" rx="4"/>
+          <text class="d-t" x="52" y="156" text-anchor="middle">GitHub</text>
+          <text class="d-t-m" x="52" y="174" text-anchor="middle">cicd-hello</text>
+          <text class="d-t-s" x="52" y="208" text-anchor="middle">1~3편</text>
+
+          <!-- 줄 1 -->
+          <text class="d-t-s" x="118" y="30">온프레미스 · 4~6편</text>
+          <rect class="d-box" x="118" y="40" width="130" height="50" rx="4"/>
+          <text class="d-t" x="183" y="61" text-anchor="middle">젠킨스</text>
+          <text class="d-t-s" x="183" y="78" text-anchor="middle">우분투에 직접 설치</text>
+          <rect class="d-box" x="282" y="40" width="130" height="50" rx="4"/>
+          <text class="d-t" x="347" y="61" text-anchor="middle">pytest · 복사</text>
+          <text class="d-t-s" x="347" y="78" text-anchor="middle">Jenkinsfile</text>
+          <rect class="d-box-m" x="446" y="40" width="184" height="50" rx="4"/>
+          <text class="d-t" x="538" y="61" text-anchor="middle">systemd 서비스</text>
+          <text class="d-t-m" x="538" y="78" text-anchor="middle">localhost:8000</text>
+          <path class="d-line" d="M248,65 H275"/><polygon points="282,65 275,61 275,69" fill="#1A1D18"/>
+          <path class="d-line" d="M412,65 H439"/><polygon points="446,65 439,61 439,69" fill="#1A1D18"/>
+
+          <!-- 줄 2 -->
+          <text class="d-t-s" x="118" y="125">도커 · 7~9편</text>
+          <rect class="d-box" x="118" y="135" width="130" height="50" rx="4"/>
+          <text class="d-t" x="183" y="156" text-anchor="middle">젠킨스 컨테이너</text>
+          <text class="d-t-s" x="183" y="173" text-anchor="middle">DooD</text>
+          <rect class="d-box" x="282" y="135" width="130" height="50" rx="4"/>
+          <text class="d-t" x="347" y="156" text-anchor="middle">docker build</text>
+          <text class="d-t-s" x="347" y="173" text-anchor="middle">→ Docker Hub push</text>
+          <rect class="d-box-m" x="446" y="135" width="184" height="50" rx="4"/>
+          <text class="d-t" x="538" y="156" text-anchor="middle">docker run</text>
+          <text class="d-t-m" x="538" y="173" text-anchor="middle">localhost:8100</text>
+          <path class="d-line" d="M248,160 H275"/><polygon points="282,160 275,156 275,164" fill="#1A1D18"/>
+          <path class="d-line" d="M412,160 H439"/><polygon points="446,160 439,156 439,164" fill="#1A1D18"/>
+
+          <!-- 줄 3 -->
+          <text class="d-t-s" x="118" y="220">쿠버네티스 · 10~13편</text>
+          <rect class="d-box" x="118" y="230" width="130" height="50" rx="4"/>
+          <text class="d-t" x="183" y="251" text-anchor="middle">젠킨스 파드</text>
+          <text class="d-t-s" x="183" y="268" text-anchor="middle">Kaniko 로 빌드</text>
+          <rect class="d-box" x="282" y="230" width="130" height="50" rx="4"/>
+          <text class="d-t" x="347" y="251" text-anchor="middle">매니페스트 저장소</text>
+          <text class="d-t-s" x="347" y="268" text-anchor="middle">이미지 태그 커밋</text>
+          <rect class="d-box-m" x="446" y="230" width="184" height="50" rx="4"/>
+          <text class="d-t" x="538" y="251" text-anchor="middle">ArgoCD → 클러스터</text>
+          <text class="d-t-m" x="538" y="268" text-anchor="middle">localhost:8200</text>
+          <path class="d-line" d="M248,255 H275"/><polygon points="282,255 275,251 275,259" fill="#1A1D18"/>
+          <path class="d-line" d="M412,255 H439"/><polygon points="446,255 439,251 439,259" fill="#1A1D18"/>
+
+          <!-- 출발에서 세 줄로 -->
+          <path class="d-line" d="M94,160 H111"/><polygon points="118,160 111,156 111,164" fill="#1A1D18"/>
+          <path class="d-line" d="M104,160 V65 H111"/><polygon points="118,65 111,61 111,69" fill="#1A1D18"/>
+          <path class="d-line" d="M104,160 V255 H111"/><polygon points="118,255 111,251 111,259" fill="#1A1D18"/>
+
+          <text class="d-t-s" x="320" y="308" text-anchor="middle">위에서 아래로 갈수록 "서버에 직접 손대는 일"이 줄고, Git 에 적는 일이 늘어난다</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        같은 앱, 같은 GitHub 저장소에서 출발해 세 가지 방식으로 배포한다. 커리큘럼의 다섯 주제(개요 · 버전 관리 · 온프레미스 · 도커 · 쿠버네티스)가 이 그림의 왼쪽에서 아래까지에 그대로 대응한다.
+      </figcaption>
+    </figure>
+
+    <table>
+      <tr><th>편</th><th>주제</th><th>끝나면 손에 남는 것</th></tr>
+      <tr><td>01</td><td>CI/CD 한눈에 (이 글)</td><td>왜 하는지, 무엇을 하는지의 지도</td></tr>
+      <tr><td>02</td><td><a href="/learn/cicd-setup/">실습 환경 준비</a></td><td>WSL2 우분투 + Docker + kind·kubectl·helm + 계정들</td></tr>
+      <tr><td>03</td><td><a href="/learn/cicd-git-repo/">버전 관리와 Git</a></td><td>GitHub 에 올라간 실습 앱 <code>cicd-hello</code>, 젠킨스용 토큰</td></tr>
+      <tr><td>04</td><td><a href="/learn/cicd-jenkins-install/">젠킨스 설치</a></td><td>우분투에 직접 깐 젠킨스 (localhost:8080)</td></tr>
+      <tr><td>05</td><td><a href="/learn/cicd-jenkins-job/">대시보드로 빌드·배포</a></td><td>버튼으로 돌리는 빌드 작업, systemd 로 배포된 앱 (8000)</td></tr>
+      <tr><td>06</td><td><a href="/learn/cicd-jenkinsfile/">Jenkinsfile 파이프라인</a></td><td>코드로 적은 파이프라인, 커밋하면 저절로 배포</td></tr>
+      <tr><td>07</td><td><a href="/learn/cicd-dind-dood/">DinD 와 DooD</a></td><td>컨테이너 안에서 도커를 쓰는 두 방법의 차이</td></tr>
+      <tr><td>08</td><td><a href="/learn/cicd-jenkins-docker/">도커로 젠킨스 띄우기</a></td><td>도커를 부를 수 있는 젠킨스 컨테이너 (8090)</td></tr>
+      <tr><td>09</td><td><a href="/learn/cicd-docker-pipeline/">이미지 빌드·푸시·배포 자동화</a></td><td>Docker Hub 의 버전 붙은 이미지, 컨테이너 배포 (8100)</td></tr>
+      <tr><td>10</td><td><a href="/learn/cicd-k8s-basics/">쿠버네티스 최소 기초</a></td><td>kind 클러스터, 손으로 배포해 본 Deployment·Service (8200)</td></tr>
+      <tr><td>11</td><td><a href="/learn/cicd-k8s-build/">쿠버네티스 안에서 이미지 빌드</a></td><td>파드로 뜨는 젠킨스 에이전트, Kaniko 빌드</td></tr>
+      <tr><td>12</td><td><a href="/learn/cicd-argocd/">ArgoCD 설치와 사용법</a></td><td>Git 저장소를 보고 클러스터를 맞추는 ArgoCD (8443)</td></tr>
+      <tr><td>13</td><td><a href="/learn/cicd-gitops/">ArgoCD 로 배포 자동화</a></td><td>커밋 하나가 빌드 → 태그 갱신 → 자동 배포까지 가는 전체 흐름</td></tr>
+    </table>
+
+    <p>
+      편마다 앞 편에서 만든 것을 그대로 이어 쓴다. 건너뛰지 말고 순서대로 가는 게 가장 빠르다.
+      한 편은 대략 30분~1시간 걸린다(설치·다운로드 시간 포함).
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>용어 정리</h3>
+
+    <p class="gloss">
+      <b>CI (지속적 통합)</b> — 변경을 자주 합치고, 합칠 때마다 자동으로 빌드·테스트해 깨진 걸 바로 찾는 것.<br>
+      <b>지속적 전달 (Continuous Delivery)</b> — 운영 직전까지 자동. 운영 배포는 사람이 버튼으로.<br>
+      <b>지속적 배포 (Continuous Deployment)</b> — 테스트를 통과하면 운영까지 자동.<br>
+      <b>파이프라인</b> — 체크아웃 → 빌드 → 테스트 → 패키징 → 배포를 차례로 자동 실행하는 흐름.<br>
+      <b>온프레미스</b> — 회사가 직접 가진 서버에서 운영하는 것. 이 시리즈에서는 WSL2 우분투가 그 서버 역할을 한다.<br>
+      <b>컨테이너 · 이미지</b> — 앱과 실행 환경을 담은 상자(컨테이너)와 그 상자의 틀(이미지).<br>
+      <b>레지스트리</b> — 이미지 보관소. Docker Hub.<br>
+      <b>쿠버네티스</b> — 여러 서버에 컨테이너를 배치·관리하는 시스템.<br>
+      <b>GitOps</b> — Git 에 적힌 상태대로 서버를 맞추는 배포 방식. ArgoCD 가 대표 도구.<br>
+      <b>DevOps</b> — 개발과 운영의 벽을 없애고 그 사이를 자동화로 잇는 일하는 방식.
+    </p>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 볼 것</p>
+      <ul>
+        <li><a href="/learn/cicd-setup/">02. 실습 환경 준비 — WSL2 우분투, Docker, kind, kubectl</a> — 다음 글</li>
+        <li><a href="/learn/arch-test-cicd/">테스트와 CI/CD</a> — 테스트를 어떻게 쓰고, CI 에서 무엇을 돌리나</li>
+        <li><a href="/learn/github-actions/">GitHub Actions 첫걸음</a> — 젠킨스 대신 GitHub 안에서 CI 돌리기</li>
+        <li><a href="/learn/arch-overview/">코드 구조 한눈에</a> — 모놀리스와 MSA 를 고르는 기준</li>
+        <li><a href="/learn/git-main-dev/">main 과 dev 로 일하기</a> — 개발 서버·운영 서버와 브랜치의 관계</li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

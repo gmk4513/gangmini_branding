@@ -222,6 +222,7 @@ gangmini.com/learn/ → 이론/용어 목록
 - 렌더러는 `learn/learn-app.js` (2026-10-28 부터, 기록의 notes-app.js 와 따로). 날짜순 카드가 아니라 **주제별 목차**: `TOPICS`(큰 주제 → groups 소주제) 순서로 묶고, 글마다 `topic`·`group`·`order`(주제 안 읽는 순서)를 단다. 칩은 주제만, 세부 키워드는 검색창. `#team` 처럼 주소로 주제를 바로 연다
 - 스타일도 `notes/note.css` 를 같이 쓴다. 글 본문 규칙(그림+글, `.fig__scroll`, `.d-*`)은 4-2 와 같다
 - 글: `learn/<slug>/index.html`, 맨 위 되돌아가기는 `← 이론/용어` (`/learn/`)
+- **CI/CD 파이프라인 실습** (topic `cicd`, slug `cicd-*`, 13편, 2026-11-10): 수업 커리큘럼(CI/CD 개요 → 코드 버전 관리 → 온프레미스 젠킨스 → 도커(DinD/DooD) → 쿠버네티스·ArgoCD)을 따라 쓴 튜토리얼. 실습 앱 하나(`cicd-hello`, Flask + 멀티 스테이지 Dockerfile)로 끝까지 이어 간다. 파이프라인 파일은 편마다 `Jenkinsfile`(6) · `Jenkinsfile.docker`(9) · `Jenkinsfile.k8s`(11) · `Jenkinsfile.gitops`(13) 로 나눠 같은 저장소에 공존. 포트 약속: 앱 8000(systemd)·8100(도커)·8200(k8s), 젠킨스 8080(직접)·8090(도커)·8095(k8s), ArgoCD 8443. 글 머리 eyebrow 는 `PRACTICE · CI/CD 05/13` 형식. 9편에서 인사말을 `Hello, Docker CI/CD!` 로 바꾸고 13편이 그 문구를 이어받는다 — 한 편을 고치면 앞뒤 편의 문구·태그·파일 이름이 맞는지 같이 본다
 
 절차: 글 파일 생성 → `learn.js` 의 `NOTES` 에 추가(topic·group·order 포함, 새 큰 주제면 `TOPICS` 에도) → `learn/index.html` 의
 `learn.js?v=` 숫자 올리기 → commit & push.

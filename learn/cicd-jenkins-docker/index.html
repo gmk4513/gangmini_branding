@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>도커로 젠킨스 띄우기 — 이미지 만들고 compose 로 실행 · gangmin</title>
+<meta name="description" content="젠킨스를 우분투에 직접 까는 대신 컨테이너로 띄운다. 도커 클라이언트를 넣은 젠킨스 이미지, docker compose 파일 한 장, 소켓 그룹 권한, 초기 비밀번호, 플러그인, 자격 증명, 백업과 업그레이드까지.">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="도커로 젠킨스 띄우기 — 이미지 만들고 compose 로 실행">
+<meta property="og:description" content="도커 클라이언트를 넣은 젠킨스 이미지와 compose 파일 한 장으로 젠킨스를 띄운다.">
+<meta property="og:url" content="https://gangmini.com/learn/cicd-jenkins-docker/">
+<meta property="og:image" content="https://gangmini.com/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../../notes/note.css?v=20261028">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/learn/">← 이론/용어</a>
+    <p class="eyebrow">PRACTICE · CI/CD 08/13</p>
+    <h2 class="masthead__title">도커로 젠킨스 띄우기<br>— 이미지 만들고 compose 로 실행</h2>
+    <div class="doc__meta">
+      <span class="tag">실습</span>
+      <span class="tag">Jenkins</span>
+      <span class="tag">Docker</span>
+      <span class="tag">docker compose</span>
+      <span class="tag">DooD</span>
+      <span class="tag">볼륨 백업</span>
+      <time class="note__date">2026.11.10</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      4번 글에서는 젠킨스를 우분투에 apt 로 직접 깔았다. 자바를 깔고, 저장소 키를 넣고, 서비스로 등록하고… 서버를 옮기거나 버전을 올릴 때마다 그걸 다시 해야 한다.
+      이번에는 젠킨스를 <strong>컨테이너</strong>로 띄운다. 설정은 파일 두 장(Dockerfile, compose 파일)에 남고, 데이터는 볼륨 하나에 모인다. 서버가 바뀌어도 파일 두 장과 볼륨만 옮기면 된다.
+    </p>
+    <p>
+      그리고 이 젠킨스는 9번 글에서 <code>docker build</code>·<code>docker run</code> 을 해야 한다. 7번 글에서 고른 대로 <strong>DooD</strong>(바깥 도커의 소켓 빌려 쓰기)로 간다.
+    </p>
+
+    <p><strong>이번 단계에서 할 것</strong></p>
+    <ol>
+      <li>도커 클라이언트를 넣은 젠킨스 이미지 만들기</li>
+      <li>compose 파일 한 장으로 띄우기 (포트 8090, 볼륨, 소켓, 그룹)</li>
+      <li>초기 비밀번호로 들어가 설정 마법사 끝내기</li>
+      <li>젠킨스 안에서 <code>docker ps</code> 가 되는지 확인</li>
+      <li>자격 증명(<code>dockerhub</code>, <code>github-token</code>) 등록</li>
+      <li>백업과 업그레이드 방법 알아 두기</li>
+    </ol>
+    <p><strong>끝나면</strong> — <code>http://localhost:8090</code> 에 젠킨스가 뜨고, 젠킨스 컨테이너 안에서 <code>docker ps</code> 를 치면 바깥 컨테이너 목록이 나온다.</p>
+
+    <!-- ============================================================ -->
+    <h3>무엇을 만드나</h3>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 260" role="img" aria-label="폴더 ~/cicd/jenkins-docker 에 Dockerfile 과 compose.yaml 과 .env 가 있다. docker compose up 을 하면 이미지 my-jenkins:dood 가 만들어지고, jenkins 컨테이너가 뜬다. 컨테이너의 8080 은 바깥 8090 으로, /var/jenkins_home 은 jenkins_home 볼륨으로, docker.sock 은 호스트 소켓으로 연결된다.">
+          <rect class="d-box" x="16" y="40" width="170" height="180" rx="4"/>
+          <text class="d-t" x="101" y="64" text-anchor="middle">~/cicd/jenkins-docker</text>
+          <text class="d-t-m" x="34" y="98">Dockerfile</text>
+          <text class="d-t-s" x="34" y="114">젠킨스 + 도커 CLI</text>
+          <text class="d-t-m" x="34" y="146">compose.yaml</text>
+          <text class="d-t-s" x="34" y="162">어떻게 띄울지</text>
+          <text class="d-t-m" x="34" y="194">.env</text>
+          <text class="d-t-s" x="34" y="210">DOCKER_GID=0</text>
+
+          <rect class="d-box-m" x="236" y="40" width="184" height="180" rx="4"/>
+          <text class="d-t" x="328" y="64" text-anchor="middle">jenkins 컨테이너</text>
+          <text class="d-t-s" x="328" y="82" text-anchor="middle">이미지 my-jenkins:dood</text>
+          <text class="d-t-m" x="252" y="114">:8080</text>
+          <text class="d-t-m" x="252" y="160">/var/jenkins_home</text>
+          <text class="d-t-m" x="252" y="206">/var/run/docker.sock</text>
+
+          <rect class="d-box" x="470" y="94" width="154" height="34" rx="3"/>
+          <text class="d-t" x="547" y="116" text-anchor="middle">localhost:8090</text>
+          <rect class="d-box" x="470" y="140" width="154" height="34" rx="3"/>
+          <text class="d-t" x="547" y="162" text-anchor="middle">볼륨 jenkins_home</text>
+          <rect class="d-box" x="470" y="186" width="154" height="34" rx="3"/>
+          <text class="d-t" x="547" y="208" text-anchor="middle">호스트 도커 데몬</text>
+
+          <path class="d-line" d="M186,130 H229"/><polygon points="236,130 229,126 229,134" fill="#1A1D18"/>
+          <text class="d-t-s" x="211" y="122" text-anchor="middle">up</text>
+          <path class="d-line" d="M420,111 H470"/>
+          <path class="d-line" d="M420,157 H470"/>
+          <path class="d-line" d="M420,203 H470"/>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        컨테이너는 언제든 지우고 다시 만들 수 있다. 남아야 하는 것(작업 설정, 빌드 기록, 플러그인)은 전부 <code>jenkins_home</code> 볼륨에 있다.
+      </figcaption>
+    </figure>
+
+    <p class="gloss">
+      <b>docker compose</b> — "어떤 이미지로, 어떤 포트·볼륨·환경 변수로 띄울지"를 YAML 파일에 적어 두고 <code>docker compose up</code> 한 줄로 띄우는 도구. Docker Desktop 에 들어 있다.<br>
+      <b>볼륨(volume)</b> — 컨테이너 바깥에 도커가 따로 보관하는 저장 공간. 컨테이너를 지워도 남는다. 젠킨스 데이터는 반드시 여기에 둔다.<br>
+      <b>jenkins_home</b> — 젠킨스의 모든 것(설정, 작업, 빌드 기록, 플러그인, 자격 증명)이 들어 있는 폴더. 공식 이미지에서는 <code>/var/jenkins_home</code>.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>0. 시작 전에</h3>
+
+    <ul>
+      <li>2번 글대로 Docker Desktop 이 켜져 있고, 우분투 터미널에서 <code>docker version</code> 이 된다.</li>
+      <li>4번 글의 젠킨스(8080)는 켜져 있어도 된다. 이번 것은 8090 이라 겹치지 않는다. 메모리가 빠듯하면 <code>sudo systemctl stop jenkins</code> 로 꺼 둔다.</li>
+    </ul>
+
+<pre><code>mkdir -p ~/cicd/jenkins-docker
+cd ~/cicd/jenkins-docker</code></pre>
+
+    <!-- ============================================================ -->
+    <h3>1. 젠킨스 이미지 만들기 — 도커 CLI 넣기</h3>
+
+    <p>
+      공식 젠킨스 이미지(<code>jenkins/jenkins:lts-jdk21</code>)에는 <code>docker</code> 명령이 없다. 그 위에 도커 클라이언트(CLI)만 얹은 이미지를 만든다. 데몬은 넣지 않는다(DooD 니까).
+    </p>
+
+<pre><code># ~/cicd/jenkins-docker/Dockerfile
+FROM jenkins/jenkins:lts-jdk21
+
+USER root
+RUN apt-get update \
+ &amp;&amp; apt-get install -y --no-install-recommends ca-certificates curl \
+ &amp;&amp; install -m 0755 -d /etc/apt/keyrings \
+ &amp;&amp; curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc \
+ &amp;&amp; echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release &amp;&amp; echo $VERSION_CODENAME) stable" \
+      &gt; /etc/apt/sources.list.d/docker.list \
+ &amp;&amp; apt-get update \
+ &amp;&amp; apt-get install -y --no-install-recommends docker-ce-cli docker-buildx-plugin \
+ &amp;&amp; rm -rf /var/lib/apt/lists/*
+USER jenkins</code></pre>
+
+    <table>
+      <tr><th>줄</th><th>뜻</th></tr>
+      <tr><td><code>lts-jdk21</code></td><td>LTS(오래 지원하는 안정판) 젠킨스 + 자바 21. 4번 글에서 직접 깐 것과 같은 조합</td></tr>
+      <tr><td><code>USER root</code></td><td>프로그램을 깔려면 관리자여야 한다. 다 깔고 나서 <code>USER jenkins</code> 로 돌려놓는다</td></tr>
+      <tr><td>가운데 긴 줄</td><td>도커 공식 apt 저장소를 등록한다(도커 공식 문서의 데비안 설치 방법 그대로). 젠킨스 이미지가 데비안 기반이라서</td></tr>
+      <tr><td><code>docker-ce-cli</code></td><td>도커 <strong>클라이언트</strong>만. 데몬(<code>docker-ce</code>)은 안 깐다</td></tr>
+      <tr><td><code>docker-buildx-plugin</code></td><td>요즘 <code>docker build</code> 가 쓰는 빌드 도구(BuildKit). 없으면 옛 빌더로 돌며 경고가 뜬다</td></tr>
+    </table>
+
+    <p class="gloss">
+      <b>LTS (Long-Term Support)</b> — 새 기능은 늦게 들어오지만 오래 고쳐 주는 안정판. 젠킨스는 매주 나오는 weekly 와 12주마다 나오는 LTS 가 있다. 서버에는 LTS.<br>
+      <b>데비안(Debian)</b> — 리눅스 배포판 하나. 우분투의 뿌리. 젠킨스 공식 이미지가 데비안 위에 만들어져 있어서 apt 로 프로그램을 깐다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>2. 소켓 그룹 번호 재기</h3>
+
+    <p>
+      7번 글에서 본 대로, 젠킨스 사용자(uid 1000)는 그대로는 소켓에 못 쓴다. 소켓의 <strong>그룹 번호</strong>를 재서 <code>.env</code> 파일에 적는다.
+      우분투에서 <code>ls -l</code> 로 보지 말고, <strong>컨테이너 안에서</strong> 잰다. Docker Desktop 은 우분투에서 보이는 소켓과 컨테이너에 붙는 소켓의 그룹이 다르기 때문이다.
+    </p>
+
+<pre><code>echo "DOCKER_GID=$(docker run --rm -v /var/run/docker.sock:/var/run/docker.sock alpine stat -c %g /var/run/docker.sock)" &gt; .env
+cat .env</code></pre>
+
+<pre><code><span style="color:var(--ink-soft)">DOCKER_GID=0</span>          # Docker Desktop 이면 0. 리눅스 Docker Engine 서버면 999 같은 docker 그룹 번호</code></pre>
+
+    <p class="gloss">
+      <b>.env</b> — compose 가 자동으로 읽는 변수 파일. compose 파일 안의 <code>${DOCKER_GID}</code> 자리에 이 값이 들어간다. 서버마다 다른 값을 파일 밖으로 빼는 용도.<br>
+      <b>gid (group id)</b> — 리눅스 그룹의 번호. 권한은 이름이 아니라 번호로 따진다. 그래서 컨테이너 안과 밖의 그룹 이름이 달라도 번호만 맞으면 된다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>3. compose 파일 쓰고 띄우기</h3>
+
+<pre><code># ~/cicd/jenkins-docker/compose.yaml
+services:
+  jenkins:
+    build: .                       # 같은 폴더의 Dockerfile 로 이미지를 만든다
+    image: my-jenkins:dood         # 만든 이미지에 붙일 이름
+    container_name: jenkins
+    ports:
+      - "8090:8080"                # 바깥 8090 → 안 8080
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock   # DooD: 바깥 도커 소켓 빌려 쓰기
+    group_add:
+      - "${DOCKER_GID}"            # 젠킨스 사용자를 소켓 그룹에 넣기
+    restart: unless-stopped        # PC 를 껐다 켜도 다시 뜬다 (직접 stop 하기 전까지)
+
+volumes:
+  jenkins_home:</code></pre>
+
+<pre><code>docker compose up -d --build
+docker compose ps</code></pre>
+
+<pre><code><span style="color:var(--ink-soft)">NAME      IMAGE             ...   STATUS          PORTS
+jenkins   my-jenkins:dood   ...   Up 20 seconds   0.0.0.0:8090-&gt;8080/tcp, 50000/tcp</span></code></pre>
+
+    <p>처음에는 이미지를 받고 만드느라 몇 분 걸린다. <code>STATUS</code> 가 <code>Up</code> 이면 된다.</p>
+
+    <p class="gloss">
+      <b>-d (detached)</b> — 뒤에서 띄우고 터미널을 돌려준다. 빼면 로그가 화면을 차지하고, Ctrl+C 에 꺼진다.<br>
+      <b>--build</b> — Dockerfile 이 바뀌었으면 이미지를 새로 만들고 띄운다.<br>
+      <b>50000/tcp</b> — 젠킨스가 다른 컴퓨터(에이전트)와 이야기하는 포트. 이번엔 안 쓰니 바깥에 열지 않았다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>4. 초기 비밀번호로 들어가기</h3>
+
+    <p>젠킨스는 처음 뜰 때 관리자 비밀번호를 하나 만들어 로그와 파일에 남긴다. 둘 중 편한 쪽으로 본다.</p>
+
+<pre><code>docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+# 또는
+docker compose logs jenkins | grep -A 2 "following password"</code></pre>
+
+<pre><code><span style="color:var(--ink-soft)">jenkins  | [LF]&gt; Please use the following password to proceed to installation:
+jenkins  | [LF]&gt;
+jenkins  | [LF]&gt; 3f1c0e…(32자리 영숫자)</span></code></pre>
+
+    <p>로그 쪽에 붙는 <code>[LF]&gt;</code> 는 젠킨스가 여러 줄짜리 메시지를 표시하는 방식이라 신경 쓰지 않는다. 비밀번호는 맨 아래 32자리만 복사한다.</p>
+
+    <ol>
+      <li>브라우저(윈도우)에서 <strong>http://localhost:8090</strong> 을 연다.</li>
+      <li><strong>Unlock Jenkins</strong> 칸에 위 비밀번호를 붙여 넣는다.</li>
+      <li><strong>Install suggested plugins</strong> 를 누른다. Git, Pipeline, Credentials Binding, Timestamper 같은 기본 플러그인이 깔린다(몇 분).</li>
+      <li>관리자 계정을 만든다. 4번 글의 젠킨스와는 <strong>완전히 따로</strong>라 다시 만든다.</li>
+      <li>Jenkins URL 은 <code>http://localhost:8090/</code> 그대로 두고 저장.</li>
+    </ol>
+
+    <h4>Docker Pipeline 플러그인 (선택)</h4>
+    <p>
+      9번 글의 파이프라인은 <code>sh 'docker build …'</code> 처럼 셸 명령으로 도커를 부르므로 추가 플러그인이 없어도 된다.
+      그래도 <strong>Manage Jenkins → Plugins → Available plugins</strong> 에서 <strong>Docker Pipeline</strong> 을 깔아 두면 Jenkinsfile 에서 <code>docker.build(…)</code>, <code>agent { docker { image 'python:3.12' } }</code> 같은 문법을 쓸 수 있다.
+      단계 그림이 안 보이면 같은 곳에서 <strong>Pipeline Stage View</strong>(또는 Pipeline Graph View)를 깐다.
+    </p>
+
+    <p class="gloss">
+      <b>플러그인(plugin)</b> — 젠킨스에 기능을 더하는 확장. 젠킨스 본체는 작고, Git 연동·파이프라인 문법·도커 연동이 전부 플러그인이다. 플러그인도 <code>jenkins_home</code> 에 깔린다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>5. 젠킨스 안에서 도커가 되는지 확인</h3>
+
+<pre><code>docker exec jenkins id
+docker exec jenkins docker ps --format 'table {{.Names}}\t{{.Image}}'</code></pre>
+
+<pre><code><span style="color:var(--ink-soft)">uid=1000(jenkins) gid=1000(jenkins) groups=1000(jenkins),0(root)
+NAMES     IMAGE
+jenkins   my-jenkins:dood</span></code></pre>
+
+    <p>
+      <code>groups</code> 에 소켓 그룹(여기선 0)이 붙어 있고, <code>docker ps</code> 에 <strong>젠킨스 자기 자신</strong>이 보인다. 바깥 데몬을 빌려 쓰고 있다는 뜻이다.
+      (이 글의 Dockerfile·compose 파일 그대로 Docker Desktop 29.6.1 에서 띄워 위 두 줄과 초기 비밀번호, 백업 명령까지 확인했다. 그때 이미지 안의 자바는 21.0.13, 도커 CLI 는 29.9.3 이었다.)
+    </p>
+    <p>
+      화면에서도 확인할 수 있다. <strong>New Item → 이름 <code>docker-check</code> → Pipeline</strong>, 아래 Script 칸에 이걸 넣고 <strong>Build Now</strong>.
+    </p>
+
+<pre><code>pipeline {
+  agent any
+  stages {
+    stage('docker') {
+      steps {
+        sh 'docker version'
+        sh 'docker ps'
+      }
+    }
+  }
+}</code></pre>
+
+    <p><strong>Console Output</strong> 에 Client 와 Server 버전이 둘 다 나오고 <code>Finished: SUCCESS</code> 면 된다. Server 쪽이 permission denied 면 2번(.env) 으로 돌아간다.</p>
+
+    <!-- ============================================================ -->
+    <h3>6. 자격 증명 등록 — dockerhub, github-token</h3>
+
+    <p>
+      9번 글에서 이미지를 Docker Hub 에 올리려면 로그인 정보가 필요하다. 파이프라인 파일에 쓰지 않고 젠킨스에 맡긴다.
+    </p>
+
+    <h4>Docker Hub 액세스 토큰 만들기</h4>
+    <ol>
+      <li>hub.docker.com 로그인 → 오른쪽 위 프로필 → <strong>Account settings</strong> → <strong>Personal access tokens</strong> → <strong>Generate new token</strong></li>
+      <li>이름 <code>jenkins</code>, 권한 <strong>Read &amp; Write</strong> → 만들기. 토큰은 이 화면에서만 보이니 바로 복사한다.</li>
+    </ol>
+    <p class="gloss">
+      <b>액세스 토큰(access token)</b> — 비밀번호 대신 쓰는 열쇠. 권한을 좁힐 수 있고, 새면 그것만 지우면 된다. 계정 비밀번호를 젠킨스에 넣지 않는다.
+    </p>
+
+    <h4>젠킨스에 넣기</h4>
+    <ol>
+      <li><strong>Manage Jenkins → Credentials → System → Global credentials (unrestricted) → Add Credentials</strong></li>
+      <li>Kind: <strong>Username with password</strong></li>
+      <li>Username: 도커허브 아이디, Password: 방금 복사한 토큰</li>
+      <li>ID: <code>dockerhub</code> (9번 Jenkinsfile 이 이 이름으로 찾는다. 철자 그대로)</li>
+      <li>같은 방법으로 ID <code>github-token</code>: Username 은 GitHub 아이디, Password 는 3번 글에서 만든 GitHub 토큰(PAT). 공개 저장소를 읽기만 할 땐 없어도 되지만, 13번 글에서 젠킨스가 매니페스트 저장소에 push 할 때 필요하다.</li>
+    </ol>
+
+    <p>
+      저장한 뒤 목록에는 <code>dockerhub</code> 와 아이디만 보이고 비밀번호는 다시 볼 수 없다. 이 값도 <code>jenkins_home</code> 안에 암호화되어 저장된다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>7. 백업과 복원 — 볼륨을 tar 로</h3>
+
+    <p>
+      젠킨스의 모든 것은 볼륨 하나에 있으니 백업도 그것 하나다. 볼륨 이름은 <code>폴더이름_볼륨이름</code> 이 된다.
+    </p>
+
+<pre><code>docker volume ls | grep jenkins_home</code></pre>
+<pre><code><span style="color:var(--ink-soft)">local     jenkins-docker_jenkins_home</span></code></pre>
+
+<pre><code># 백업: 볼륨을 잠깐 다른 컨테이너에 붙여 압축한다 (일관성을 위해 젠킨스는 잠시 멈춤)
+docker compose stop
+docker run --rm \
+  -v jenkins-docker_jenkins_home:/data:ro \
+  -v "$PWD":/backup \
+  alpine tar czf /backup/jenkins_home-$(date +%F).tgz -C /data .
+docker compose start
+ls -lh jenkins_home-*.tgz</code></pre>
+
+<pre><code># 복원: 빈 볼륨에 풀기 (새 서버라면 compose 파일과 이 tgz 만 옮기면 된다)
+docker compose down
+docker volume create jenkins-docker_jenkins_home
+docker run --rm \
+  -v jenkins-docker_jenkins_home:/data \
+  -v "$PWD":/backup \
+  alpine sh -c "cd /data &amp;&amp; tar xzf /backup/jenkins_home-2026-11-10.tgz"
+docker compose up -d</code></pre>
+
+    <p>
+      여기서 <code>-v "$PWD":/backup</code> 는 우분투 터미널에서 친 명령이라 문제없다. 7번 글의 함정은 <em>컨테이너 안에서</em> <code>-v</code> 를 쓸 때다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>8. 업그레이드 — 이미지만 새로</h3>
+
+<pre><code>docker compose build --pull      # 새 lts-jdk21 을 받아 이미지 다시 만들기
+docker compose up -d             # 바뀐 이미지로 컨테이너만 갈아 끼우기
+docker exec jenkins java -jar /usr/share/jenkins/jenkins.war --version</code></pre>
+<pre><code><span style="color:var(--ink-soft)">2.580.2</span>        # 2026-11-10 에 받은 lts-jdk21 기준. 받는 날에 따라 다르다</code></pre>
+
+    <p>
+      컨테이너는 새것이 되지만 볼륨은 그대로라 작업·기록·플러그인이 남는다. 올리기 전에 위 백업을 먼저 한다. 플러그인 업데이트는 젠킨스 화면의 <strong>Manage Jenkins → Plugins → Updates</strong> 에서 따로 한다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>9. 한 걸음 더 — 플러그인까지 이미지에 굽기</h3>
+
+    <p>
+      화면에서 플러그인을 고르면, 서버를 새로 만들 때 또 골라야 한다. 플러그인 목록을 파일로 두고 이미지 만들 때 같이 깔 수 있다.
+    </p>
+
+<pre><code># plugins.txt
+workflow-aggregator
+git
+docker-workflow
+credentials-binding
+timestamper
+pipeline-stage-view</code></pre>
+
+<pre><code># Dockerfile 맨 아래 USER jenkins 다음에 추가
+COPY --chown=jenkins:jenkins plugins.txt /usr/share/jenkins/ref/plugins.txt
+RUN jenkins-plugin-cli -f /usr/share/jenkins/ref/plugins.txt</code></pre>
+
+    <p>
+      <code>jenkins-plugin-cli</code> 는 공식 이미지에 들어 있는 플러그인 설치 도구다. 이름은 화면 이름이 아니라 플러그인 ID(<code>docker-workflow</code> = Docker Pipeline)다.
+      더 나아가면 설정 마법사와 화면 설정까지 YAML 로 적는 <strong>JCasC</strong>(Configuration as Code 플러그인)가 있다. 이번 실습은 화면으로 충분하다.
+    </p>
+
+    <p class="gloss">
+      <b>JCasC (Jenkins Configuration as Code)</b> — 젠킨스 설정(보안, 자격 증명 자리, 에이전트 등)을 YAML 파일로 적어 두고 시작할 때 읽게 하는 플러그인. 서버를 여러 대 같은 모양으로 만들 때 쓴다. 11번 글에서 헬름으로 깔 젠킨스가 이 방식을 쓴다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>직접 설치(4번)와 비교</h3>
+
+    <table>
+      <tr><th></th><th>직접 설치 (apt)</th><th>컨테이너 (이번 글)</th></tr>
+      <tr><td>설치</td><td>자바·저장소 키·서비스 등록</td><td>파일 두 장 + <code>docker compose up</code></td></tr>
+      <tr><td>데이터</td><td><code>/var/lib/jenkins</code></td><td>볼륨 <code>jenkins_home</code></td></tr>
+      <tr><td>업그레이드</td><td><code>apt upgrade</code>, 자바 버전도 따로 신경</td><td>이미지 다시 만들기. 자바는 이미지에 포함</td></tr>
+      <tr><td>서버 옮기기</td><td>설치부터 다시 + 데이터 복사</td><td>compose 파일 + 백업 tgz</td></tr>
+      <tr><td>빌드 도구</td><td>서버에 직접 깐다 (python3-venv 등)</td><td>이미지에 넣거나, 빌드를 도커 이미지 안에서</td></tr>
+      <tr><td>도커 사용</td><td>jenkins 사용자를 docker 그룹에</td><td>소켓 마운트 + <code>group_add</code></td></tr>
+      <tr><td>시작</td><td>systemd 서비스</td><td><code>restart: unless-stopped</code></td></tr>
+    </table>
+
+    <!-- ============================================================ -->
+    <h3>자주 걸리는 것</h3>
+
+    <table>
+      <tr><th>증상</th><th>원인</th><th>해결</th></tr>
+      <tr><td>localhost:8090 이 안 열림</td><td>아직 뜨는 중, 또는 포트 충돌</td><td><code>docker compose logs -f jenkins</code> 에서 <code>Jenkins is fully up and running</code> 을 기다림. 충돌이면 왼쪽 숫자를 바꿈</td></tr>
+      <tr><td>파이프라인에서 <code>docker: not found</code></td><td>공식 이미지 그대로 씀</td><td>1번 Dockerfile 로 만든 이미지인지 확인 (<code>docker compose up --build</code>)</td></tr>
+      <tr><td><code>permission denied … docker.sock</code></td><td><code>.env</code> 가 없거나 번호가 틀림</td><td>2번을 다시 하고 <code>docker compose up -d</code> (group_add 는 컨테이너를 새로 만들어야 적용)</td></tr>
+      <tr><td><code>.env</code> 경고: DOCKER_GID variable is not set</td><td>다른 폴더에서 compose 를 실행</td><td><code>cd ~/cicd/jenkins-docker</code> 에서 실행</td></tr>
+      <tr><td>지웠다 다시 띄웠더니 설정이 사라짐</td><td><code>docker compose down -v</code> 로 볼륨까지 지움</td><td><code>-v</code> 는 쓰지 않는다. 백업 tgz 로 복원</td></tr>
+      <tr><td>apt 단계에서 빌드 실패</td><td>네트워크, 또는 도커 저장소 주소 변경</td><td>다시 시도. 바뀌었으면 docs.docker.com 의 Debian 설치 페이지에서 최신 줄을 쓴다</td></tr>
+    </table>
+
+    <!-- ============================================================ -->
+    <h3>다음 단계로 가기 전 정리</h3>
+    <ul>
+      <li><strong>남겨 둘 것</strong>: jenkins 컨테이너(8090), 자격 증명 <code>dockerhub</code>·<code>github-token</code>. 9번 글에서 바로 쓴다.</li>
+      <li><strong>꺼도 되는 것</strong>: 4번의 직접 설치 젠킨스(<code>sudo systemctl stop jenkins</code>), <code>docker-check</code> 작업(지워도 됨).</li>
+    </ul>
+
+    <p class="gloss">
+      <b>이 글의 용어 정리</b><br>
+      <b>compose 파일</b> — 컨테이너 띄우는 방법을 적은 YAML. <code>up -d</code> 로 띄우고 <code>down</code> 으로 내린다.<br>
+      <b>볼륨</b> — 컨테이너가 사라져도 남는 저장 공간. 젠킨스 데이터의 집.<br>
+      <b>group_add</b> — 컨테이너 사용자를 추가 그룹에 넣는 설정. 소켓 권한을 이걸로 푼다.<br>
+      <b>restart: unless-stopped</b> — 꺼지면 다시 켜되, 내가 직접 멈춘 건 그대로 둔다.<br>
+      <b>자격 증명(credentials)</b> — 젠킨스가 대신 보관하는 아이디·토큰. 파이프라인에서는 ID 로만 부른다.
+    </p>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 볼 것</p>
+      <ul>
+        <li><a href="/learn/cicd-dind-dood/">← 7. DinD 와 DooD</a> — 왜 소켓을 붙이나</li>
+        <li><a href="/learn/cicd-docker-pipeline/">9. 젠킨스로 이미지 빌드·푸시·배포 자동화 →</a></li>
+        <li><a href="/learn/cicd-jenkins-install/">4. 온프레미스 서버에 젠킨스 설치하기</a> — 직접 설치와 비교</li>
+        <li><a href="/learn/cicd-setup/">2. 실습 환경 준비</a> — Docker Desktop 과 WSL integration</li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

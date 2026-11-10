@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>쿠버네티스 최소 기초 — kind 에 앱 손으로 배포하기 · gangmin</title>
+<meta name="description" content="CI/CD 실습 10편. 쿠버네티스를 처음 만지는 사람을 위해 kind 로 내 컴퓨터에 클러스터를 만들고, Deployment·Service YAML 로 cicd-hello 를 손으로 배포한다. 자가 치유, 늘리기, 롤링 업데이트, 되돌리기까지.">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="쿠버네티스 최소 기초 — kind 에 앱 손으로 배포하기">
+<meta property="og:description" content="kind 클러스터, Pod·Deployment·Service, 자가 치유와 롤링 업데이트를 손으로 해 본다.">
+<meta property="og:url" content="https://gangmini.com/learn/cicd-k8s-basics/">
+<meta property="og:image" content="https://gangmini.com/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../../notes/note.css?v=20261028">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/learn/">← 이론/용어</a>
+    <p class="eyebrow">PRACTICE · CI/CD 10/13</p>
+    <h2 class="masthead__title">쿠버네티스 최소 기초<br>— kind 에 앱 손으로 배포하기</h2>
+    <div class="doc__meta">
+      <span class="tag">실습</span>
+      <span class="tag">Kubernetes</span>
+      <span class="tag">kind</span>
+      <span class="tag">kubectl</span>
+      <span class="tag">Deployment</span>
+      <span class="tag">롤링 업데이트</span>
+      <time class="note__date">2026.11.10</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      9편까지는 서버 한 대에서 <code>docker run</code> 으로 컨테이너를 띄웠다. 서버가 한 대면 이걸로 충분하다.
+      그런데 서버가 열 대가 되면 "이 컨테이너는 어느 서버에 띄우지?", "서버 하나가 죽으면 거기 있던 컨테이너는 누가 다시 띄우지?", "새 버전으로 바꾸는 동안 서비스가 끊기면?" 같은 질문이 생긴다.
+      이걸 대신 해 주는 것이 <strong>쿠버네티스(Kubernetes)</strong>다.
+    </p>
+    <p>
+      11~13편은 쿠버네티스 위에서 CI/CD 를 한다. 그 전에 이 글에서 쿠버네티스를 <strong>딱 필요한 만큼만</strong> 손으로 만져 본다.
+      여기서 손으로 하는 일(YAML 을 고쳐서 <code>kubectl apply</code>)을 13편에서는 ArgoCD 가 대신 하게 된다.
+    </p>
+
+    <h4>이번 단계에서 할 것</h4>
+    <ol>
+      <li>kind 로 내 컴퓨터에 쿠버네티스 클러스터 하나 만들기</li>
+      <li>cicd-hello 를 Deployment·Service YAML 로 배포하고 접속하기</li>
+      <li>파드를 지워 보고(자가 치유), 늘려 보고(스케일), 새 버전으로 바꿔 보고(롤링 업데이트), 되돌려 보기</li>
+    </ol>
+    <p><strong>끝나면:</strong> <code>curl localhost:8200/health</code> 가 쿠버네티스 안의 파드에서 답하고, <code>kubectl rollout undo</code> 로 이전 버전으로 돌아갈 수 있다.</p>
+
+    <!-- ============================================================ -->
+    <h3>쿠버네티스 한눈에</h3>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 280" role="img" aria-label="왼쪽 우분투 터미널의 kubectl 이 YAML 을 kind 클러스터의 API 서버로 보낸다. 클러스터 안 컨트롤 플레인에는 API 서버, etcd, 스케줄러, 컨트롤러가 있고, 워커 쪽 cicd-hello 네임스페이스에는 Service 하나가 Deployment 가 만든 파드 두 개로 요청을 나눠 준다.">
+          <rect class="d-box" x="16" y="100" width="120" height="80" rx="4"/>
+          <text class="d-t" x="76" y="128" text-anchor="middle">우분투 터미널</text>
+          <text class="d-t-m" x="76" y="150" text-anchor="middle">kubectl apply -f</text>
+          <text class="d-t-s" x="76" y="168" text-anchor="middle">YAML 을 보낸다</text>
+
+          <rect class="d-box" x="168" y="16" width="456" height="248" rx="5"/>
+          <text class="d-t" x="184" y="38">kind 클러스터 (이름: cicd) — 도커 컨테이너 하나가 노드 하나</text>
+
+          <rect class="d-box-m" x="184" y="52" width="140" height="196" rx="4"/>
+          <text class="d-t" x="254" y="76" text-anchor="middle">컨트롤 플레인</text>
+          <text class="d-t-s" x="200" y="104">API 서버 — 창구</text>
+          <text class="d-t-s" x="200" y="128">etcd — 상태 저장</text>
+          <text class="d-t-s" x="200" y="152">스케줄러 — 자리 배정</text>
+          <text class="d-t-s" x="200" y="176">컨트롤러 — 감시</text>
+          <text class="d-t-s" x="254" y="214" text-anchor="middle">원하는 상태를</text>
+          <text class="d-t-s" x="254" y="230" text-anchor="middle">지키는 두뇌</text>
+
+          <rect class="d-box" x="352" y="52" width="256" height="196" rx="4"/>
+          <text class="d-t-s" x="480" y="72" text-anchor="middle">네임스페이스 cicd-hello</text>
+
+          <rect class="d-box" x="368" y="84" width="224" height="36" rx="3"/>
+          <text class="d-t" x="480" y="107" text-anchor="middle">Service  :80 → 파드 :8000</text>
+
+          <rect class="d-box" x="368" y="136" width="224" height="100" rx="3"/>
+          <text class="d-t-s" x="480" y="154" text-anchor="middle">Deployment cicd-hello (replicas: 2)</text>
+          <rect class="d-box-m" x="384" y="166" width="92" height="56" rx="3"/>
+          <text class="d-t" x="430" y="190" text-anchor="middle">Pod</text>
+          <text class="d-t-m" x="430" y="208" text-anchor="middle">cicd-hello</text>
+          <rect class="d-box-m" x="484" y="166" width="92" height="56" rx="3"/>
+          <text class="d-t" x="530" y="190" text-anchor="middle">Pod</text>
+          <text class="d-t-m" x="530" y="208" text-anchor="middle">cicd-hello</text>
+
+          <path class="d-line" d="M480,120 V129"/><polygon points="480,136 476,129 484,129" fill="#1A1D18"/>
+          <path class="d-line" d="M136,140 H161"/><polygon points="168,140 161,136 161,144" fill="#1A1D18"/>
+          <path class="d-line" d="M324,150 H345"/><polygon points="352,150 345,146 345,154" fill="#1A1D18"/>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        우리는 "파드 2개를 이 이미지로" 라고 <strong>원하는 상태</strong>만 적어 보낸다. 어느 노드에 띄울지, 죽으면 다시 띄울지는 컨트롤 플레인이 알아서 한다.
+      </figcaption>
+    </figure>
+
+    <p class="gloss">
+      <b>클러스터(cluster)</b> — 쿠버네티스가 관리하는 컴퓨터(노드)들의 묶음. 실무에서는 서버 수십 대, 이 실습에서는 도커 컨테이너 한 개다.<br>
+      <b>노드(node)</b> — 클러스터에 속한 컴퓨터 한 대. 컨테이너가 실제로 도는 곳.<br>
+      <b>컨트롤 플레인(control plane)</b> — 클러스터의 두뇌. 명령을 받는 API 서버, 상태를 적어 두는 저장소 etcd, 파드를 어느 노드에 둘지 정하는 스케줄러, 원하는 상태와 현재 상태를 계속 비교하는 컨트롤러로 이뤄진다.<br>
+      <b>kubectl</b> — 쿠버네티스에 명령하는 CLI. "큐브 컨트롤" 또는 "큐브 씨티엘"이라고 읽는다. 결국 API 서버에 HTTP 요청을 보내는 프로그램이다.<br>
+      <b>kind</b> — Kubernetes IN Docker. 도커 컨테이너를 노드로 삼아 쿠버네티스를 내 컴퓨터에 몇십 초 만에 띄우는 도구. 연습·테스트용이다.
+    </p>
+
+    <h4>꼭 알아야 할 오브젝트 넷</h4>
+    <table>
+      <tr><th>이름</th><th>한 줄 뜻</th><th>비유</th></tr>
+      <tr><td>Pod (파드)</td><td>컨테이너를 띄우는 가장 작은 단위. 보통 컨테이너 하나 = 파드 하나. IP 를 하나 받는다</td><td>컨테이너를 담은 그릇</td></tr>
+      <tr><td>Deployment</td><td>"이 이미지로 파드를 N 개 유지해라" 라는 주문서. 파드가 죽으면 새로 만들고, 이미지가 바뀌면 하나씩 갈아 끼운다</td><td>현장 반장</td></tr>
+      <tr><td>Service</td><td>파드 여러 개 앞에 서는 고정 주소. 파드는 죽고 살면서 IP 가 바뀌지만 Service 이름은 그대로다</td><td>대표 전화번호</td></tr>
+      <tr><td>Namespace</td><td>클러스터 안을 나누는 폴더. 이름이 같아도 네임스페이스가 다르면 다른 것</td><td>층(floor)</td></tr>
+    </table>
+
+    <p class="gloss">
+      <b>ReplicaSet</b> — Deployment 가 실제로 파드 개수를 맞추려고 만드는 중간 오브젝트. 직접 만질 일은 거의 없지만 <code>kubectl get all</code> 에 보이니 이름만 알아 둔다. 버전이 바뀔 때마다 새 ReplicaSet 이 생기고, 되돌리기는 이전 ReplicaSet 을 다시 키우는 것이다.<br>
+      <b>매니페스트(manifest)</b> — 오브젝트를 적은 YAML 파일. "명세서"라는 뜻. 12·13편에서 이 파일들을 Git 저장소에 넣는다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>1. 준비 확인</h3>
+
+    <p>2편에서 깐 도구가 있는지 우분투 터미널에서 확인한다. Docker Desktop 이 켜져 있어야 한다.</p>
+
+<pre><code>docker version --format '{{.Server.Version}}'
+kind version
+kubectl version --client</code></pre>
+
+    <p>
+      세 줄 모두 버전이 나오면 된다. 쿠버네티스는 메모리를 꽤 먹는다. 11편(젠킨스)과 12편(ArgoCD)까지 같은 클러스터에 올리므로
+      Docker Desktop 의 <strong>Settings → Resources</strong>(WSL2 백엔드면 <code>.wslconfig</code> 의 <code>memory</code>)에서 메모리를 <strong>6GB 이상</strong> 잡아 두는 게 좋다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>2. 클러스터 만들기</h3>
+
+<pre><code>kind create cluster --name cicd</code></pre>
+
+<pre><code><span style="color:var(--ink-soft)">Creating cluster "cicd" ...
+ ✓ Ensuring node image (kindest/node:v1.xx.x) 🖼
+ ✓ Preparing nodes 📦
+ ✓ Writing configuration 📜
+ ✓ Starting control-plane 🕹️
+ ✓ Installing CNI 🔌
+ ✓ Installing StorageClass 💾
+Set kubectl context to "kind-cicd"</span></code></pre>
+
+    <p>
+      처음엔 노드 이미지(수백 MB)를 받느라 1~3분 걸린다. 마지막 줄이 중요하다. kind 가 kubectl 의 대상(<strong>컨텍스트</strong>)을 방금 만든 클러스터로 바꿔 놓았다.
+    </p>
+
+<pre><code>kubectl get nodes</code></pre>
+
+<pre><code><span style="color:var(--ink-soft)">NAME                 STATUS   ROLES           AGE   VERSION
+cicd-control-plane   Ready    control-plane   40s   v1.xx.x</span></code></pre>
+
+<pre><code>docker ps --format '{{.Names}}'     # 노드의 정체는 도커 컨테이너다
+<span style="color:var(--ink-soft)">cicd-control-plane</span></code></pre>
+
+    <p class="gloss">
+      <b>컨텍스트(context)</b> — kubectl 이 "지금 어느 클러스터에, 누구로" 명령할지 적어 둔 설정. <code>~/.kube/config</code> 파일에 들어 있다. 회사에서 클러스터가 여러 개면 <code>kubectl config get-contexts</code> 로 보고 <code>kubectl config use-context 이름</code> 으로 바꾼다. 엉뚱한 클러스터(운영!)에 명령하는 사고가 여기서 난다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>3. 띄울 이미지 정하기</h3>
+
+    <p>파드는 이미지를 <strong>레지스트리에서 받아서</strong> 띄운다. 두 가지 중 하나를 고른다.</p>
+
+    <h4>(가) 9편에서 Docker Hub 에 올린 이미지를 쓴다 — 권장</h4>
+    <p>
+      Docker Hub 의 내 저장소 <code>&lt;도커허브아이디&gt;/cicd-hello</code> → <strong>Tags</strong> 에서 태그 하나를 고른다(예: <code>12-a1b2c3d</code>).
+      Docker Hub 무료 저장소는 기본이 공개라 쿠버네티스가 로그인 없이 받을 수 있다.
+    </p>
+
+    <h4>(나) 9편을 건너뛰었다면 — 내 컴퓨터에서 만들어 kind 에 넣는다</h4>
+
+<pre><code>cd ~/cicd/cicd-hello
+docker build --build-arg APP_VERSION=local-1 -t cicd-hello:local-1 .
+kind load docker-image cicd-hello:local-1 --name cicd</code></pre>
+
+    <p>
+      kind 노드는 내 컴퓨터의 도커 이미지 목록을 모른다. <code>kind load</code> 가 이미지를 노드 안으로 복사해 준다.
+      이 경우 아래 YAML 의 <code>image:</code> 를 <code>cicd-hello:local-1</code> 로 쓴다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>4. 매니페스트 쓰기</h3>
+
+    <p>실습 폴더에 <code>k8s</code> 폴더를 만들고 파일 셋을 쓴다. 12편에서 이 폴더를 그대로 Git 저장소로 옮긴다.</p>
+
+<pre><code>mkdir -p ~/cicd/k8s-practice/k8s
+cd ~/cicd/k8s-practice</code></pre>
+
+<pre><code># k8s/namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cicd-hello</code></pre>
+
+<pre><code># k8s/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cicd-hello
+  namespace: cicd-hello
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cicd-hello
+  template:
+    metadata:
+      labels:
+        app: cicd-hello
+    spec:
+      containers:
+        - name: app
+          image: &lt;도커허브아이디&gt;/cicd-hello:12-a1b2c3d   # ← 3번에서 고른 것
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi</code></pre>
+
+<pre><code># k8s/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: cicd-hello
+  namespace: cicd-hello
+spec:
+  selector:
+    app: cicd-hello
+  ports:
+    - port: 80
+      targetPort: 8000</code></pre>
+
+    <table>
+      <tr><th>줄</th><th>뜻</th></tr>
+      <tr><td><code>apiVersion</code>, <code>kind</code></td><td>무슨 종류의 오브젝트인가. Deployment 는 <code>apps/v1</code>, Service·Namespace 는 <code>v1</code></td></tr>
+      <tr><td><code>metadata.name</code></td><td>이름. 같은 네임스페이스 안에서 겹치면 안 된다</td></tr>
+      <tr><td><code>replicas: 2</code></td><td>파드를 항상 두 개 유지</td></tr>
+      <tr><td><code>selector</code> / <code>labels</code></td><td>"<code>app: cicd-hello</code> 라벨이 붙은 파드가 내 것" 이라는 약속. Deployment 와 Service 가 파드를 찾는 방법이다. 셋이 같은 글자여야 한다</td></tr>
+      <tr><td><code>template</code></td><td>파드를 찍어 낼 틀. 이미지가 여기 있다</td></tr>
+      <tr><td><code>readinessProbe</code></td><td>"이 파드에 손님을 보내도 되나" 검사. <code>/health</code> 가 200 을 줘야 Service 가 요청을 보낸다</td></tr>
+      <tr><td><code>livenessProbe</code></td><td>"살아 있나" 검사. 계속 실패하면 컨테이너를 재시작한다</td></tr>
+      <tr><td><code>resources</code></td><td><code>requests</code> 는 자리 잡을 때 보장받는 양, <code>limits</code> 는 넘으면 안 되는 상한. <code>50m</code> = CPU 0.05 개, <code>64Mi</code> = 64MB 정도</td></tr>
+      <tr><td><code>port: 80</code> / <code>targetPort: 8000</code></td><td>Service 는 80 으로 받아서 파드의 8000 으로 넘긴다</td></tr>
+    </table>
+
+    <p class="gloss">
+      <b>라벨(label)</b> — 오브젝트에 붙이는 이름표(키: 값). 쿠버네티스는 이름이 아니라 라벨로 서로를 찾는다.<br>
+      <b>프로브(probe)</b> — 쿠버네티스가 주기적으로 컨테이너를 찔러 보는 검사. 그래서 앱에 <code>/health</code> 같은 주소를 만들어 둔다(3편에서 만든 이유가 여기 있다).
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>5. 배포하고 접속하기</h3>
+
+<pre><code>kubectl apply -f k8s/</code></pre>
+
+<pre><code><span style="color:var(--ink-soft)">namespace/cicd-hello created
+deployment.apps/cicd-hello created
+service/cicd-hello created</span></code></pre>
+
+    <p>폴더를 통째로 주면 안의 YAML 을 다 적용한다. 파드가 뜨는 걸 지켜본다(<code>-w</code> = 바뀔 때마다 새 줄, 멈추려면 Ctrl+C).</p>
+
+<pre><code>kubectl -n cicd-hello get pods -w</code></pre>
+
+<pre><code><span style="color:var(--ink-soft)">NAME                          READY   STATUS              RESTARTS   AGE
+cicd-hello-6d9f7c8b5d-4xk2p   0/1     ContainerCreating   0          3s
+cicd-hello-6d9f7c8b5d-9mjzt   0/1     ContainerCreating   0          3s
+cicd-hello-6d9f7c8b5d-4xk2p   1/1     Running             0          12s
+cicd-hello-6d9f7c8b5d-9mjzt   1/1     Running             0          13s</span></code></pre>
+
+    <p>
+      둘 다 <code>1/1 Running</code> 이면 된다. 파드 이름 뒤의 무작위 글자는 ReplicaSet 과 파드마다 붙는 것이라 사람마다 다르다.
+      Service 는 클러스터 <strong>안</strong>의 주소라 내 컴퓨터에서 바로 못 들어간다. 연습할 땐 <strong>port-forward</strong> 로 구멍을 하나 뚫는다.
+    </p>
+
+<pre><code>kubectl -n cicd-hello port-forward svc/cicd-hello 8200:80</code></pre>
+
+    <p>이 터미널은 열어 둔 채로, <strong>새 우분투 터미널</strong>을 하나 더 열어서:</p>
+
+<pre><code>curl localhost:8200/
+curl localhost:8200/health</code></pre>
+
+<pre><code><span style="color:var(--ink-soft)">Hello, Docker CI/CD! version=12-a1b2c3d
+{"status":"ok","version":"12-a1b2c3d"}</span></code></pre>
+
+    <p class="gloss">
+      <b>port-forward</b> — 내 컴퓨터의 포트(8200)를 클러스터 안의 Service·파드 포트로 잠깐 이어 주는 터널. 명령을 끄면 끊긴다. 연습·디버깅용이고, 실제 서비스는 Ingress 나 LoadBalancer 로 바깥에 연다.<br>
+      <b>Ingress</b> — 도메인·경로별로 바깥 요청을 Service 에 나눠 주는 입구 설정. 이 시리즈에서는 쓰지 않는다.
+    </p>
+
+    <p>인사말은 9편 5단계에서 바꾼 문구다. 그 단계를 건너뛰었거나 (나) 방식이면 <code>Hello, CI/CD!</code> 로 나온다.</p>
+
+    <h4>상태 보는 명령 넷</h4>
+<pre><code>kubectl -n cicd-hello get all                  # 한 번에 훑기
+kubectl -n cicd-hello describe pod &lt;파드이름&gt;    # 자세히 + 맨 아래 Events (문제는 대개 여기 있다)
+kubectl -n cicd-hello logs deploy/cicd-hello    # 앱 로그 (파드 중 하나)
+kubectl -n cicd-hello get pods -o wide         # 파드 IP·노드까지</code></pre>
+
+    <!-- ============================================================ -->
+    <h3>6. 일부러 망가뜨려 보기 — 자가 치유</h3>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 150" role="img" aria-label="원하는 상태(YAML 에 파드 2개)와 현재 상태(파드 1개)를 컨트롤러가 비교하고, 모자란 1개를 새로 띄워 다시 2개를 맞춘다. 이 비교는 멈추지 않고 계속 돈다.">
+          <rect class="d-box" x="16" y="40" width="128" height="70" rx="4"/>
+          <text class="d-t" x="80" y="66" text-anchor="middle">원하는 상태</text>
+          <text class="d-t-m" x="80" y="88" text-anchor="middle">replicas: 2</text>
+
+          <rect class="d-box-m" x="176" y="40" width="128" height="70" rx="4"/>
+          <text class="d-t" x="240" y="66" text-anchor="middle">컨트롤러</text>
+          <text class="d-t-s" x="240" y="88" text-anchor="middle">둘을 비교</text>
+
+          <rect class="d-box" x="336" y="40" width="128" height="70" rx="4"/>
+          <text class="d-t" x="400" y="66" text-anchor="middle">현재 상태</text>
+          <text class="d-t-s" x="400" y="88" text-anchor="middle">파드 1개 (하나 죽음)</text>
+
+          <rect class="d-box" x="496" y="40" width="128" height="70" rx="4"/>
+          <text class="d-t" x="560" y="66" text-anchor="middle">맞추기</text>
+          <text class="d-t-s" x="560" y="88" text-anchor="middle">1개 새로 띄움</text>
+
+          <path class="d-line" d="M144,75 H169"/><polygon points="176,75 169,71 169,79" fill="#1A1D18"/>
+          <path class="d-line" d="M304,75 H329"/><polygon points="336,75 329,71 329,79" fill="#1A1D18"/>
+          <path class="d-line" d="M464,75 H489"/><polygon points="496,75 489,71 489,79" fill="#1A1D18"/>
+          <path class="d-dash" d="M560,110 V132 H240 V117"/><polygon points="240,110 236,117 244,117" fill="#1A1D18"/>
+          <text class="d-t-s" x="400" y="128" text-anchor="middle">계속 반복 (조정 루프)</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        "무엇을 하라"가 아니라 "어떤 상태여야 한다"를 적는 방식을 <strong>선언형</strong>이라고 한다. 13편의 ArgoCD 도 똑같은 생각을 Git 까지 넓힌 것이다.
+      </figcaption>
+    </figure>
+
+    <p>파드 하나를 지운다. 이름은 <code>get pods</code> 에서 복사한다.</p>
+
+<pre><code>kubectl -n cicd-hello delete pod &lt;파드이름 하나&gt;
+kubectl -n cicd-hello get pods</code></pre>
+
+<pre><code><span style="color:var(--ink-soft)">NAME                          READY   STATUS    RESTARTS   AGE
+cicd-hello-6d9f7c8b5d-9mjzt   1/1     Running   0          5m
+cicd-hello-6d9f7c8b5d-r7wq2   1/1     Running   0          4s     ← 새로 생김</span></code></pre>
+
+    <p>지웠는데 몇 초 만에 다른 이름의 파드가 생겼다. Deployment 가 "2개여야 하는데 1개네" 하고 채운 것이다. 서버 한 대의 <code>docker run</code> 에는 없던 능력이다.</p>
+
+    <p class="gloss">
+      <b>선언형(declarative)</b> — 결과 상태를 적고 방법은 시스템에 맡기는 방식. 반대는 명령형(imperative): "컨테이너 하나 띄워, 하나 더 띄워" 처럼 할 일을 하나씩 시키는 방식.<br>
+      <b>조정 루프(reconciliation loop)</b> — 원하는 상태와 현재 상태를 계속 비교해 차이를 메우는 반복. 쿠버네티스 컨트롤러와 ArgoCD 의 핵심 동작이다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>7. 늘리기 — 스케일</h3>
+
+<pre><code>kubectl -n cicd-hello scale deploy/cicd-hello --replicas=4
+kubectl -n cicd-hello get pods</code></pre>
+
+    <p>
+      네 개가 된다. 그런데 이건 <strong>명령으로 바꾼 것</strong>이라 <code>k8s/deployment.yaml</code> 에는 여전히 <code>replicas: 2</code> 라고 적혀 있다.
+      누가 나중에 <code>kubectl apply -f k8s/</code> 를 다시 하면 2개로 돌아간다. 파일과 클러스터가 어긋난 상태 — 이걸 <strong>드리프트(drift)</strong>라고 부르고, 12편에서 ArgoCD 가 잡아내는 장면을 본다.
+      지금은 파일대로 되돌려 둔다.
+    </p>
+
+<pre><code>kubectl apply -f k8s/
+<span style="color:var(--ink-soft)">deployment.apps/cicd-hello configured</span></code></pre>
+
+    <!-- ============================================================ -->
+    <h3>8. 새 버전으로 바꾸기 — 롤링 업데이트</h3>
+
+    <p>
+      Docker Hub 에 태그가 둘 이상 있으면 다른 태그를 고른다(9편에서 두 번 이상 빌드했다면 있다).
+      (나)를 골랐다면 <code>APP_VERSION=local-2</code> 로 하나 더 만들어 <code>kind load</code> 한다.
+      그리고 <code>deployment.yaml</code> 의 <code>image:</code> 줄 태그를 바꿔 다시 적용한다.
+    </p>
+
+<pre><code># k8s/deployment.yaml 의 image 태그를 새 것으로 고친 뒤
+kubectl apply -f k8s/
+kubectl -n cicd-hello rollout status deploy/cicd-hello</code></pre>
+
+<pre><code><span style="color:var(--ink-soft)">Waiting for deployment "cicd-hello" rollout to finish: 1 out of 2 new replicas have been updated...
+Waiting for deployment "cicd-hello" rollout to finish: 1 old replicas are pending termination...
+deployment "cicd-hello" successfully rolled out</span></code></pre>
+
+    <p>
+      새 파드를 하나 띄워 readiness 검사가 통과하면 옛 파드를 하나 내리고, 다시 하나 띄우고… 를 반복한다. 그래서 바꾸는 동안에도 항상 파드가 떠 있다.
+      port-forward 를 다시 켜고(Deployment 가 바뀌면 끊길 수 있다) <code>curl localhost:8200/</code> 로 버전이 바뀐 걸 확인한다.
+    </p>
+
+    <p class="gloss">
+      <b>롤링 업데이트(rolling update)</b> — 옛 버전을 한꺼번에 끄지 않고 새 버전과 하나씩 바꿔 끼우는 배포 방식. Deployment 의 기본값이다.<br>
+      <b>무중단 배포</b> — 배포하는 동안 사용자가 끊김을 못 느끼게 하는 것. readinessProbe 가 있어야 "준비 안 된 새 파드"로 요청이 가지 않는다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>9. 되돌리기 — rollout undo</h3>
+
+<pre><code>kubectl -n cicd-hello rollout history deploy/cicd-hello
+<span style="color:var(--ink-soft)">REVISION  CHANGE-CAUSE
+1         &lt;none&gt;
+2         &lt;none&gt;</span>
+
+kubectl -n cicd-hello rollout undo deploy/cicd-hello
+kubectl -n cicd-hello rollout status deploy/cicd-hello</code></pre>
+
+    <p>
+      이전 ReplicaSet 을 다시 키워서 1분도 안 걸려 옛 버전으로 돌아간다. 이미지를 다시 빌드하지 않는다는 게 핵심이다.
+      다만 이것도 7번처럼 <strong>파일과 어긋난다</strong>(파일은 새 태그, 클러스터는 옛 태그). GitOps 에서는 되돌리기도 Git 에서 한다(13편).
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>일부러 틀려 보기 — 자주 보는 상태</h3>
+
+    <p>image 태그를 없는 값(<code>:nope</code>)으로 바꿔 적용해 보면 아래 첫 줄을 직접 볼 수 있다. 본 뒤에는 원래 태그로 되돌린다.</p>
+
+    <table>
+      <tr><th>STATUS</th><th>뜻</th><th>어디를 보나</th></tr>
+      <tr><td><code>ImagePullBackOff</code> / <code>ErrImagePull</code></td><td>이미지를 못 받았다. 태그 오타, 비공개 저장소, (나)인데 <code>kind load</code> 를 안 함</td><td><code>describe pod</code> 맨 아래 Events</td></tr>
+      <tr><td><code>CrashLoopBackOff</code></td><td>컨테이너가 떴다가 바로 죽기를 반복. 앱 에러</td><td><code>logs &lt;파드&gt; --previous</code></td></tr>
+      <tr><td><code>Pending</code></td><td>들어갈 노드가 없다. 대개 메모리·CPU 부족</td><td><code>describe pod</code> 의 Events (Insufficient memory 등)</td></tr>
+      <tr><td><code>0/1 Running</code></td><td>떴지만 readiness 검사 실패. 손님을 안 받는다</td><td><code>describe pod</code> 의 Readiness probe failed</td></tr>
+    </table>
+
+    <!-- ============================================================ -->
+    <h3>자주 걸리는 것</h3>
+
+    <table>
+      <tr><th>증상</th><th>원인과 해결</th></tr>
+      <tr><td><code>kind create cluster</code> 가 도커 에러</td><td>Docker Desktop 이 꺼져 있거나, WSL integration 이 꺼져 있다. 우분투에서 <code>docker ps</code> 부터 되게 한다</td></tr>
+      <tr><td><code>The connection to the server localhost:xxxx was refused</code></td><td>컨텍스트가 다른 곳을 가리키거나 클러스터가 멈췄다. <code>kubectl config current-context</code> 가 <code>kind-cicd</code> 인지, <code>docker ps</code> 에 <code>cicd-control-plane</code> 이 있는지</td></tr>
+      <tr><td>port-forward 가 갑자기 끊김</td><td>파드가 바뀌면 끊긴다. 다시 실행한다. 포트가 이미 쓰이면 <code>8200</code> 대신 다른 번호</td></tr>
+      <tr><td>YAML 에러 (<code>error converting YAML</code>)</td><td>들여쓰기. 탭 금지, 공백 2칸. <code>- name:</code> 의 하이픈 위치</td></tr>
+      <tr><td>컴퓨터를 껐다 켰더니 클러스터가 없다?</td><td>Docker Desktop 을 켜면 <code>cicd-control-plane</code> 컨테이너도 다시 뜬다. 안 뜨면 <code>docker start cicd-control-plane</code></td></tr>
+    </table>
+
+    <h4>다음 단계로 가기 전 정리</h4>
+    <ul>
+      <li><strong>클러스터는 지우지 않는다.</strong> 11~13편에서 계속 쓴다.</li>
+      <li>손으로 배포한 앱은 지운다. 12편에서 ArgoCD 가 처음부터 다시 배포하게 하려는 것이다: <code>kubectl delete namespace cicd-hello</code></li>
+      <li><code>~/cicd/k8s-practice/k8s/</code> 의 YAML 세 개는 남겨 둔다. 12편에서 매니페스트 저장소로 옮긴다.</li>
+      <li>9편의 도커 젠킨스(8090)·앱 컨테이너(8100)는 메모리가 빠듯하면 꺼 둔다: 젠킨스 폴더에서 <code>docker compose stop</code>, <code>docker stop cicd-hello</code></li>
+    </ul>
+
+    <p class="gloss">
+      <b>이 글의 용어 정리</b><br>
+      <b>Pod</b> 컨테이너 그릇 · <b>Deployment</b> 파드 N 개 유지 주문서 · <b>ReplicaSet</b> 버전별 파드 묶음 · <b>Service</b> 고정 주소 · <b>Namespace</b> 칸막이 ·
+      <b>매니페스트</b> 오브젝트를 적은 YAML · <b>컨텍스트</b> kubectl 의 대상 클러스터 · <b>프로브</b> 상태 검사 ·
+      <b>롤링 업데이트</b> 하나씩 바꿔 끼우기 · <b>드리프트</b> 파일과 실제가 어긋남 · <b>조정 루프</b> 원하는 상태로 계속 맞추기
+    </p>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 볼 것</p>
+      <ul>
+        <li><a href="/learn/cicd-docker-pipeline/">← 9. 젠킨스로 이미지 빌드·푸시·배포 자동화</a> — 여기서 쓴 이미지를 만든 곳</li>
+        <li><a href="/learn/cicd-k8s-build/">11. 쿠버네티스 안에서 이미지 빌드 →</a> — 젠킨스를 이 클러스터에 올리고, 빌드를 파드에서 한다</li>
+        <li><a href="/learn/cicd-overview/">1. CI/CD 한눈에</a> — 시리즈 전체 지도</li>
+        <li><a href="/learn/team-system-map/">시스템의 큰 그림</a> — 버그가 어느 층에 있나</li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

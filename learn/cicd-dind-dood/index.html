@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>DinD 와 DooD — 컨테이너 안에서 도커를 쓰는 두 방법 · gangmin</title>
+<meta name="description" content="젠킨스를 컨테이너로 띄우면 그 안에서 docker build 를 어떻게 하나. 도커 안에 도커를 하나 더 띄우는 DinD 와, 바깥 도커의 소켓을 빌려 쓰는 DooD 를 직접 띄워 비교하고, 볼륨 경로 함정과 보안 문제까지 본다.">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="DinD 와 DooD — 컨테이너 안에서 도커를 쓰는 두 방법">
+<meta property="og:description" content="도커 안의 도커(DinD)와 바깥 도커 빌려 쓰기(DooD)를 직접 띄워 비교한다.">
+<meta property="og:url" content="https://gangmini.com/learn/cicd-dind-dood/">
+<meta property="og:image" content="https://gangmini.com/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../../notes/note.css?v=20261028">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/learn/">← 이론/용어</a>
+    <p class="eyebrow">THEORY · CI/CD 07/13</p>
+    <h2 class="masthead__title">DinD 와 DooD<br>— 컨테이너 안에서 도커를 쓰는 두 방법</h2>
+    <div class="doc__meta">
+      <span class="tag">이론</span>
+      <span class="tag">Docker</span>
+      <span class="tag">DinD</span>
+      <span class="tag">DooD</span>
+      <span class="tag">docker.sock</span>
+      <span class="tag">보안</span>
+      <time class="note__date">2026.11.10</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      4~6번에서는 젠킨스를 우분투에 <strong>직접</strong> 깔았다. 이제부터는 젠킨스도 <strong>컨테이너</strong>로 띄우고, 그 젠킨스가 앱을 <strong>도커 이미지</strong>로 만들어 배포하게 할 것이다.
+      그런데 여기서 문제가 하나 생긴다. 젠킨스가 컨테이너 안에 갇혀 있는데, 그 안에서 <code>docker build</code> 를 어떻게 치나?
+    </p>
+    <p>
+      답은 두 가지다. 컨테이너 안에 도커를 <strong>하나 더</strong> 띄우거나(DinD), 바깥에 이미 있는 도커를 <strong>빌려 쓰거나</strong>(DooD). 이 글은 두 방법을 직접 띄워 차이를 눈으로 보고, 다음 글(8번)에서 어느 쪽을 쓸지 정한다.
+    </p>
+
+    <p><strong>이번 단계에서 할 것</strong></p>
+    <ol>
+      <li>도커가 어떻게 생겼는지 다시 보기 — 클라이언트, 데몬, 소켓</li>
+      <li>DinD 를 띄워 보고, 안에서 보이는 것 확인</li>
+      <li>DooD 를 띄워 보고, 안에서 보이는 것 확인</li>
+      <li>DooD 의 볼륨 경로 함정 직접 겪어 보기</li>
+      <li>보안 문제와 비교표 정리</li>
+    </ol>
+    <p><strong>끝나면</strong> — "DinD 안에서는 바깥 컨테이너가 안 보이고, DooD 안에서는 보인다"를 내 터미널에서 확인했고, 왜 그런지 그림으로 설명할 수 있다.</p>
+
+    <!-- ============================================================ -->
+    <h3>먼저 — 도커는 두 프로그램이다</h3>
+
+    <p>
+      우리가 치는 <code>docker</code> 명령은 사실 <strong>심부름꾼</strong>이다. 진짜 일(이미지 만들기, 컨테이너 띄우기)은 뒤에서 늘 돌고 있는 <strong>도커 데몬</strong>이 한다.
+      둘은 <strong>소켓</strong>이라는 파일 하나(<code>/var/run/docker.sock</code>)로 말을 주고받는다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 210" role="img" aria-label="터미널에서 친 docker 명령(클라이언트)이 /var/run/docker.sock 소켓을 통해 도커 데몬(dockerd)에 부탁하고, 데몬이 이미지와 컨테이너를 실제로 만든다. 이미지는 레지스트리(Docker Hub)에서 받거나 올린다.">
+          <rect class="d-box" x="16" y="70" width="130" height="70" rx="4"/>
+          <text class="d-t" x="81" y="98" text-anchor="middle">docker 명령</text>
+          <text class="d-t-s" x="81" y="118" text-anchor="middle">클라이언트 (심부름꾼)</text>
+
+          <rect class="d-box-m" x="180" y="80" width="120" height="50" rx="4"/>
+          <text class="d-t-m" x="240" y="102" text-anchor="middle">docker.sock</text>
+          <text class="d-t-s" x="240" y="120" text-anchor="middle">소켓 (말하는 구멍)</text>
+
+          <rect class="d-box" x="334" y="20" width="170" height="170" rx="4"/>
+          <text class="d-t" x="419" y="44" text-anchor="middle">도커 데몬 (dockerd)</text>
+          <text class="d-t-s" x="419" y="62" text-anchor="middle">진짜 일을 하는 쪽</text>
+          <rect class="d-box" x="350" y="78" width="138" height="40" rx="3"/>
+          <text class="d-t" x="419" y="103" text-anchor="middle">이미지들</text>
+          <rect class="d-box" x="350" y="130" width="138" height="40" rx="3"/>
+          <text class="d-t" x="419" y="155" text-anchor="middle">컨테이너들</text>
+
+          <rect class="d-box" x="536" y="70" width="88" height="70" rx="4"/>
+          <text class="d-t" x="580" y="98" text-anchor="middle">레지스트리</text>
+          <text class="d-t-s" x="580" y="118" text-anchor="middle">Docker Hub</text>
+
+          <path class="d-line" d="M146,105 H173"/><polygon points="180,105 173,101 173,109" fill="#1A1D18"/>
+          <path class="d-line" d="M300,105 H327"/><polygon points="334,105 327,101 327,109" fill="#1A1D18"/>
+          <path class="d-line" d="M504,105 H529"/><polygon points="536,105 529,101 529,109" fill="#1A1D18"/>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        <code>docker ps</code> 를 치면 클라이언트가 소켓에 "컨테이너 목록 줘"라고 쓰고, 데몬이 답을 돌려준다. 그래서 <strong>어느 데몬의 소켓에 붙었느냐</strong>가 곧 "무엇이 보이느냐"다.
+      </figcaption>
+    </figure>
+
+    <p class="gloss">
+      <b>이미지(image)</b> — 앱과 앱이 돌 환경(파이썬, 패키지)을 통째로 얼려 둔 꾸러미. 붕어빵 틀.<br>
+      <b>컨테이너(container)</b> — 이미지를 실제로 띄운 것. 틀에서 찍어 낸 붕어빵. 한 이미지로 여러 개를 띄울 수 있다.<br>
+      <b>레지스트리(registry)</b> — 이미지를 올려 두고 받아 가는 창고. Docker Hub 가 가장 흔하다.<br>
+      <b>데몬(daemon)</b> — 화면 없이 뒤에서 계속 돌며 부탁을 기다리는 프로그램. 도커 데몬의 이름은 <code>dockerd</code>.<br>
+      <b>소켓(socket)</b> — 같은 컴퓨터 안의 두 프로그램이 말을 주고받는 통로. 리눅스에서는 파일처럼 생겼다(<code>/var/run/docker.sock</code>). 이 파일에 쓸 수 있으면 데몬에게 무엇이든 시킬 수 있다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>왜 이게 문제가 되나</h3>
+
+    <p>
+      젠킨스를 컨테이너로 띄우면 젠킨스는 자기 컨테이너 안만 볼 수 있다. 그 안에는 도커 데몬이 없다. 그래서 파이프라인에서 <code>docker build</code> 를 치면 이렇게 끝난다.
+    </p>
+
+<pre><code><span style="color:var(--ink-soft)">docker: command not found</span>               # 도커 클라이언트조차 없을 때
+<span style="color:var(--ink-soft)">Cannot connect to the Docker daemon at unix:///var/run/docker.sock.
+Is the docker daemon running?</span>                # 클라이언트는 있는데 붙을 데몬이 없을 때</code></pre>
+
+    <p>
+      클라이언트는 이미지에 깔면 된다(8번에서 한다). 남는 질문은 <strong>"어느 데몬에 붙나"</strong>다. 그 답이 DinD 와 DooD 다.
+    </p>
+
+    <p class="gloss">
+      <b>DinD (Docker in Docker)</b> — 컨테이너 안에 도커 데몬을 <em>하나 더</em> 띄운다. 안쪽 도커는 바깥과 완전히 따로 논다.<br>
+      <b>DooD (Docker outside of Docker)</b> — 컨테이너 안에는 클라이언트만 두고, 바깥(호스트) 데몬의 소켓을 컨테이너 안으로 연결해 빌려 쓴다. "Docker-out-of-Docker", 또는 그냥 "소켓 마운트 방식"이라고도 부른다.<br>
+      <b>호스트(host)</b> — 컨테이너를 띄워 준 바깥 컴퓨터. 이 실습에서는 Docker Desktop 이 띄운 리눅스, 실서버라면 그 서버.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>그림으로 — 두 방법의 차이</h3>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 300" role="img" aria-label="왼쪽 DinD: 호스트 데몬 위에 dind 컨테이너가 있고, 그 안에 데몬이 하나 더 있어 안쪽 컨테이너들은 그 안에만 생긴다. 오른쪽 DooD: 호스트 데몬 위에 젠킨스 컨테이너가 있고, 소켓이 연결되어 있어 젠킨스가 만든 컨테이너는 젠킨스 옆(형제)에 생긴다.">
+          <!-- DinD -->
+          <text class="d-t" x="160" y="22" text-anchor="middle">DinD — 도커 안에 도커</text>
+          <rect class="d-box" x="16" y="34" width="288" height="250" rx="4"/>
+          <text class="d-t-s" x="30" y="54">호스트 데몬</text>
+          <rect class="d-box-m" x="32" y="66" width="256" height="160" rx="4"/>
+          <text class="d-t" x="46" y="88">dind 컨테이너 (--privileged)</text>
+          <rect class="d-box" x="48" y="100" width="224" height="112" rx="3"/>
+          <text class="d-t-s" x="62" y="120">안쪽 데몬 (두 번째 dockerd)</text>
+          <rect class="d-box" x="62" y="134" width="96" height="62" rx="3"/>
+          <text class="d-t" x="110" y="162" text-anchor="middle">안쪽</text>
+          <text class="d-t" x="110" y="180" text-anchor="middle">컨테이너</text>
+          <rect class="d-box" x="164" y="134" width="96" height="62" rx="3"/>
+          <text class="d-t" x="212" y="162" text-anchor="middle">안쪽</text>
+          <text class="d-t" x="212" y="180" text-anchor="middle">이미지 캐시</text>
+          <rect class="d-box" x="32" y="236" width="256" height="36" rx="3"/>
+          <text class="d-t-s" x="160" y="258" text-anchor="middle">바깥 컨테이너들 — 안에서는 안 보인다</text>
+
+          <!-- DooD -->
+          <text class="d-t" x="480" y="22" text-anchor="middle">DooD — 바깥 도커 빌려 쓰기</text>
+          <rect class="d-box" x="336" y="34" width="288" height="250" rx="4"/>
+          <text class="d-t-s" x="350" y="54">호스트 데몬 (하나뿐)</text>
+          <rect class="d-box-m" x="352" y="66" width="256" height="40" rx="3"/>
+          <text class="d-t-m" x="480" y="90" text-anchor="middle">/var/run/docker.sock</text>
+          <rect class="d-box" x="352" y="146" width="120" height="70" rx="3"/>
+          <text class="d-t" x="412" y="174" text-anchor="middle">젠킨스</text>
+          <text class="d-t-s" x="412" y="194" text-anchor="middle">클라이언트만</text>
+          <rect class="d-box" x="488" y="146" width="120" height="70" rx="3"/>
+          <text class="d-t" x="548" y="174" text-anchor="middle">cicd-hello</text>
+          <text class="d-t-s" x="548" y="194" text-anchor="middle">젠킨스가 띄움</text>
+          <path class="d-line" d="M412,146 V113"/><polygon points="412,106 408,113 416,113" fill="#1A1D18"/>
+          <path class="d-dash" d="M548,106 V146"/>
+          <text class="d-t-s" x="480" y="250" text-anchor="middle">젠킨스와 앱이 나란히 — "형제 컨테이너"</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        DinD 는 데몬이 둘이라 안과 밖이 따로 논다. DooD 는 데몬이 하나라, 젠킨스가 띄운 컨테이너가 젠킨스 <strong>안</strong>이 아니라 <strong>옆</strong>에 생긴다.
+      </figcaption>
+    </figure>
+
+    <!-- ============================================================ -->
+    <h3>1. 준비 — 비교용 컨테이너 하나 띄우기</h3>
+
+    <p>
+      우분투 터미널에서 친다. "바깥에 무엇이 떠 있는지"를 알아보기 쉽게, 3번 글에서 만든 <code>cicd-hello</code> 를 이미지로 만들어 하나 띄워 둔다.
+      이미지는 저장소 폴더에서 만든다.
+    </p>
+
+<pre><code>cd ~/cicd/cicd-hello
+docker build -t cicd-hello:local .
+docker run -d --name hello-outside -p 8100:8000 cicd-hello:local
+docker ps --format 'table {{.Names}}\t{{.Image}}'</code></pre>
+
+<pre><code><span style="color:var(--ink-soft)">NAMES           IMAGE
+hello-outside   cicd-hello:local</span></code></pre>
+
+    <p>지금 바깥(호스트 데몬)에는 컨테이너가 하나 있다. 이걸 기준으로 DinD 와 DooD 안에서 무엇이 보이는지 본다.</p>
+
+    <!-- ============================================================ -->
+    <h3>2. DinD — 안에 데몬을 하나 더</h3>
+
+    <p>
+      도커 회사가 DinD 용 이미지(<code>docker:dind</code>)를 직접 낸다. 안에 데몬을 돌리려면 컨테이너에 거의 모든 권한을 줘야 해서 <code>--privileged</code> 가 필요하다.
+    </p>
+
+<pre><code>docker run -d --name dind --privileged docker:dind
+sleep 10                                     # 안쪽 데몬이 뜰 때까지
+docker exec dind docker ps                   # dind 안에서 docker ps
+docker exec dind docker images</code></pre>
+
+    <p>대략 이렇게 나온다. 머리줄만 있고 내용이 없다.</p>
+<pre><code><span style="color:var(--ink-soft)">CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+REPOSITORY   TAG       IMAGE ID   CREATED   SIZE</span></code></pre>
+
+    <p>
+      <strong>둘 다 비어 있다.</strong> 바깥에 <code>hello-outside</code> 도, <code>cicd-hello:local</code> 이미지도 있는데 안에서는 안 보인다. 안쪽 데몬은 갓 태어난 별개의 도커이기 때문이다.
+      그래서 DinD 안에서 빌드하면 <code>python:3.12-slim</code> 같은 바탕 이미지를 <strong>처음부터 다시 받는다</strong>. 컨테이너를 지우면 그 캐시도 같이 사라진다.
+    </p>
+
+    <p>
+      <code>--privileged</code> 를 빼면 어떻게 되는지도 본다.
+    </p>
+
+<pre><code>docker run -d --name dind-noprv docker:dind
+sleep 5
+docker ps -a --filter name=dind-noprv --format '{{.Status}}'
+docker logs dind-noprv 2&gt;&amp;1 | tail -3</code></pre>
+
+    <p>대략 이렇게 나온다. 에러 문구는 도커 버전마다 조금씩 다르다.</p>
+<pre><code><span style="color:var(--ink-soft)">Exited (1) 3 seconds ago
+... (마운트·권한 관련 에러로 데몬이 못 뜬다)</span></code></pre>
+
+    <p>
+      데몬을 띄우려면 커널 기능을 직접 만져야 하는데, 보통 컨테이너에는 그 권한이 없다. 그래서 DinD 는 <code>--privileged</code> 없이는 안 된다. 이게 DinD 의 가장 큰 약점이다(아래 보안 절).
+    </p>
+
+    <p class="gloss">
+      <b>--privileged</b> — 컨테이너에 호스트 커널의 거의 모든 기능과 장치 접근을 열어 주는 옵션. 컨테이너가 "격리된 상자"가 아니게 된다.<br>
+      <b>TLS 2376</b> — <code>docker:dind</code> 는 다른 컨테이너가 네트워크로 붙을 수 있게 2376 포트를 TLS(암호화 연결)로 연다. 젠킨스 컨테이너를 따로 두고 <code>DOCKER_HOST=tcp://dind:2376</code> 로 붙게 하는 구성이 젠킨스 공식 문서의 DinD 예시다. 인증서는 볼륨으로 나눠 갖는다.
+    </p>
+
+<pre><code>docker rm -f dind dind-noprv                 # 정리</code></pre>
+
+    <!-- ============================================================ -->
+    <h3>3. DooD — 바깥 소켓을 빌려 쓰기</h3>
+
+    <p>
+      이번엔 데몬 없이 <strong>클라이언트만</strong> 든 이미지(<code>docker:cli</code>)를 띄우고, 바깥 소켓 파일을 <code>-v</code> 로 연결한다.
+    </p>
+
+<pre><code>docker run --rm \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  docker:cli docker ps --format 'table {{.Names}}\t{{.Image}}'</code></pre>
+
+    <p>대략 이렇게 나온다. 첫 줄 이름은 도커가 무작위로 붙인다.</p>
+<pre><code><span style="color:var(--ink-soft)">NAMES            IMAGE
+quirky_feynman   docker:cli          ← 방금 띄운 자기 자신
+hello-outside    cicd-hello:local</span></code></pre>
+
+    <p>
+      <strong>바깥 컨테이너가 보인다.</strong> 심지어 자기 자신도 목록에 있다. 안에서 친 <code>docker</code> 가 바깥 데몬에게 그대로 전달되기 때문이다.
+      (같은 실험을 8번 글의 젠킨스 이미지로 해 봤을 때도, 컨테이너 안의 <code>docker ps</code> 에 바깥에서 띄운 앱 컨테이너가 그대로 보였다.)
+      이 컨테이너 안에서 <code>docker run</code> 을 하면 새 컨테이너는 이 컨테이너 안이 아니라 <strong>옆</strong>에 생긴다(형제 컨테이너). 캐시도 바깥 것을 그대로 쓰니 빌드가 빠르다.
+    </p>
+
+    <p class="gloss">
+      <b>마운트(mount)</b> — 바깥의 파일이나 폴더를 컨테이너 안의 어떤 경로에 "붙여 보이게" 하는 것. <code>-v 바깥경로:안경로</code>.<br>
+      <b>형제 컨테이너(sibling container)</b> — DooD 에서 컨테이너 안의 명령으로 만든 컨테이너. 같은 데몬이 만들었으니 부모·자식이 아니라 나란히 선 형제다.
+    </p>
+
+    <h4>젠킨스 사용자라면 — 권한 거부</h4>
+    <p>
+      <code>docker:cli</code> 는 root 로 돌아서 바로 됐다. 젠킨스 이미지는 <code>jenkins</code>(uid 1000) 사용자로 돈다. 그대로 소켓만 붙이면 이렇게 된다.
+    </p>
+
+<pre><code><span style="color:var(--ink-soft)">permission denied while trying to connect to the docker API at unix:///var/run/docker.sock</span></code></pre>
+
+    <p>
+      소켓 파일은 아무나 쓸 수 없게 그룹 권한이 걸려 있다. 컨테이너 안에서 소켓을 보면 주인과 그룹 <strong>번호</strong>가 나온다.
+    </p>
+
+<pre><code>docker run --rm -v /var/run/docker.sock:/var/run/docker.sock alpine \
+  stat -c '%A %u %g' /var/run/docker.sock</code></pre>
+
+<pre><code><span style="color:var(--ink-soft)">srw-rw---- 0 0</span>        # Docker Desktop: 주인 root(0), 그룹 root(0)
+<span style="color:var(--ink-soft)">srw-rw---- 0 999</span>      # 리눅스 Docker Engine 예: 그룹이 docker(번호는 서버마다 다름)</code></pre>
+
+    <p>
+      그룹이 읽고 쓸 수 있으니(<code>rw-</code> 가운데 칸), 젠킨스 사용자를 그 <strong>그룹 번호</strong>에 넣어 주면 된다. <code>docker run --group-add 0 …</code> 처럼. 8번 글에서 compose 파일에 이걸 넣는다.
+      Docker Desktop(29.6.1)에서 직접 해 보니, <code>--group-add</code> 없이는 위 permission denied 가 나고 <code>--group-add 0</code> 을 주면 <code>docker ps</code> 가 됐다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>4. DooD 의 함정 — 볼륨 경로는 바깥 기준이다</h3>
+
+    <p>
+      DooD 를 쓰다 거의 모두 한 번은 걸리는 문제다. 컨테이너 안에서 <code>-v $PWD:/app</code> 처럼 <strong>현재 폴더를 붙이면</strong>, 그 경로를 해석하는 건 <strong>바깥 데몬</strong>이다.
+      바깥에는 그 경로가 없거나, 다른 내용이 있다.
+    </p>
+
+<pre><code># 컨테이너 안에 /work/hello.txt 를 만들고, 그 폴더를 새 컨테이너에 붙여 본다
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock docker:cli sh -c '
+  mkdir -p /work &amp;&amp; echo "안에서 만든 파일" &gt; /work/hello.txt
+  ls /work
+  echo "--- 형제 컨테이너에서 본 /work:"
+  docker run --rm -v /work:/data alpine ls -la /data
+'</code></pre>
+
+<pre><code><span style="color:var(--ink-soft)">hello.txt
+--- 형제 컨테이너에서 본 /work:
+total 4
+drwxr-xr-x    2 root     root            40 Nov 10 08:48 .
+drwxr-xr-x    1 root     root          4096 Nov 10 08:48 ..</span></code></pre>
+
+    <p>
+      <strong>비어 있다.</strong> 바깥 데몬은 "호스트의 <code>/work</code>"를 붙였고, 그건 (없어서) 새로 만든 빈 폴더다. 우리가 만든 파일은 docker:cli 컨테이너 안에만 있다.
+    </p>
+    <p>
+      젠킨스로 치면, 젠킨스 작업 폴더(<code>/var/jenkins_home/workspace/…</code>)를 <code>-v</code> 로 다른 컨테이너에 넘기려 할 때 이렇게 된다. 피하는 법은 두 가지다.
+    </p>
+    <ul>
+      <li><strong>파일을 <code>-v</code> 로 넘기지 않는다.</strong> <code>docker build .</code> 는 괜찮다. 클라이언트가 폴더 내용을 묶어서(빌드 컨텍스트) 데몬에게 <em>보내기</em> 때문이다. 그래서 테스트도 <code>-v</code> 로 코드를 붙여 돌리는 대신 <code>docker build --target test</code> 로 한다(9번 글).</li>
+      <li>꼭 붙여야 하면 젠킨스 홈을 바깥과 <strong>같은 경로</strong>로 마운트한다(예: 바깥 <code>/var/jenkins_home</code> ↔ 안 <code>/var/jenkins_home</code>). 이름 있는 볼륨을 쓸 땐 <code>--volumes-from</code> 도 방법이다.</li>
+    </ul>
+
+    <p class="gloss">
+      <b>빌드 컨텍스트(build context)</b> — <code>docker build .</code> 의 마지막 <code>.</code>. 이 폴더 내용을 통째로 묶어 데몬에게 보낸다. 그래서 DooD 에서도 빌드는 잘 된다. <code>.dockerignore</code> 에 적은 건 빠진다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>5. 보안 — 둘 다 "사실상 root"</h3>
+
+    <ul>
+      <li>
+        <strong>DooD: 소켓에 쓸 수 있다 = 호스트의 root.</strong> 소켓으로 <code>docker run -v /:/host --privileged …</code> 를 시키면 호스트 디스크 전체를 열 수 있다.
+        젠킨스에 소켓을 줬다는 건, 젠킨스에서 파이프라인을 고칠 수 있는 사람 모두에게 서버 열쇠를 준 것과 같다. 그래서 젠킨스 로그인·권한 관리가 중요해진다.
+      </li>
+      <li>
+        <strong>DinD: --privileged 자체가 위험.</strong> 격리가 거의 풀린 컨테이너라 안에서 호스트로 빠져나갈 길이 많다. 대신 안쪽 도커가 바깥 컨테이너를 건드릴 수는 없다.
+      </li>
+      <li>
+        완전히 안전하게 하려면 빌드 전용 서버(젠킨스 에이전트)를 따로 두거나, 데몬 없이 이미지를 만드는 도구(Kaniko, BuildKit rootless, Buildah)를 쓴다. 11번 글에서 쿠버네티스와 Kaniko 로 이어진다.
+      </li>
+    </ul>
+
+    <p class="gloss">
+      <b>root</b> — 리눅스에서 모든 것을 할 수 있는 관리자 계정. uid 0.<br>
+      <b>에이전트(agent)</b> — 젠킨스가 빌드를 맡기는 일꾼 컴퓨터. 젠킨스 본체(컨트롤러)는 지시만 하고, 위험한 빌드는 에이전트에서 돌리는 게 원칙이다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>한 장 비교</h3>
+
+    <table>
+      <tr><th></th><th>DinD</th><th>DooD</th></tr>
+      <tr><td>데몬</td><td>컨테이너 안에 하나 더</td><td>호스트 것 하나를 같이 씀</td></tr>
+      <tr><td>필요한 것</td><td><code>--privileged</code></td><td>소켓 마운트 + 그룹 권한</td></tr>
+      <tr><td>바깥 컨테이너가 보이나</td><td>안 보임 (격리)</td><td>다 보임, 지울 수도 있음</td></tr>
+      <tr><td>이미지 캐시</td><td>따로. 컨테이너 지우면 사라짐 → 빌드 느림</td><td>호스트 캐시 공유 → 빠름</td></tr>
+      <tr><td>만든 컨테이너 위치</td><td>안쪽</td><td>호스트에 형제로</td></tr>
+      <tr><td><code>-v</code> 경로</td><td>안쪽 기준</td><td>호스트 기준 (함정)</td></tr>
+      <tr><td>보안</td><td>privileged 라 위험</td><td>소켓 = 호스트 root</td></tr>
+      <tr><td>쓰는 곳</td><td>매번 깨끗한 도커가 필요한 CI, 도커 자체를 테스트할 때</td><td>혼자·작은 팀의 젠킨스 서버, 빌드한 이미지를 바로 같은 서버에 띄울 때</td></tr>
+    </table>
+
+    <p>
+      이 시리즈는 <strong>DooD</strong> 로 간다. 이유는 두 가지다. 빌드한 이미지를 <strong>같은 서버에 바로 띄우는 것</strong>(9번의 배포)이 목표인데, DinD 로 하면 앱이 안쪽 데몬에 떠서 바깥에서 접속하기 번거롭다.
+      그리고 캐시를 공유하니 빌드가 빠르다. 대신 보안 약점을 알고 쓴다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>쿠버네티스에서는 — 둘 다 곤란하다</h3>
+
+    <p>
+      쿠버네티스 노드에는 보통 도커 데몬이 <strong>없다</strong>(1.24 부터 쿠버네티스는 도커 대신 containerd 같은 런타임을 직접 쓴다). 그래서 DooD 로 빌릴 소켓이 없다.
+      DinD 는 되긴 하지만 파드에 privileged 를 줘야 해서, 많은 클러스터가 정책으로 막는다. 그래서 쿠버네티스 안에서는 <strong>데몬 없이 이미지를 만드는 도구</strong>(Kaniko 등)를 쓴다. 11번 글의 주제다.
+    </p>
+
+    <p class="gloss">
+      <b>컨테이너 런타임</b> — 컨테이너를 실제로 띄우는 프로그램. 도커도 내부적으로 containerd 를 쓴다. 쿠버네티스는 도커를 거치지 않고 containerd 를 바로 부른다.<br>
+      <b>Kaniko</b> — 데몬 없이 Dockerfile 을 읽어 이미지를 만들고 레지스트리에 올리는 도구. 일반 권한 컨테이너에서 돈다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>정리하기</h3>
+
+<pre><code>docker rm -f hello-outside                   # 비교용 컨테이너 지우기
+docker ps -a                                  # 남은 것 확인</code></pre>
+
+    <!-- ============================================================ -->
+    <h3>자주 걸리는 것</h3>
+
+    <table>
+      <tr><th>증상</th><th>원인</th><th>해결</th></tr>
+      <tr><td><code>Cannot connect to the Docker daemon</code></td><td>컨테이너 안에 데몬이 없고 소켓도 안 붙였다</td><td><code>-v /var/run/docker.sock:/var/run/docker.sock</code></td></tr>
+      <tr><td><code>permission denied … docker.sock</code></td><td>컨테이너 사용자가 소켓 그룹에 없다</td><td>소켓 그룹 번호를 재서 <code>--group-add</code></td></tr>
+      <tr><td>dind 컨테이너가 바로 꺼짐</td><td><code>--privileged</code> 빠짐</td><td>붙인다 (그리고 위험을 안다)</td></tr>
+      <tr><td><code>-v</code> 로 붙인 폴더가 비어 있음</td><td>DooD 에서 경로를 호스트 기준으로 해석</td><td><code>-v</code> 대신 <code>docker build</code> 로 보내거나 같은 경로로 마운트</td></tr>
+      <tr><td>DinD 빌드가 매번 느림</td><td>안쪽 캐시가 비어 있음</td><td>안쪽 <code>/var/lib/docker</code> 를 볼륨으로 남기거나 DooD 로</td></tr>
+      <tr><td>우분투에서 <code>docker</code> 가 없다고 나옴</td><td>Docker Desktop 의 WSL integration 이 꺼짐</td><td>Docker Desktop → Settings → Resources → WSL integration → Ubuntu 켜기</td></tr>
+    </table>
+
+    <p class="gloss">
+      <b>이 글의 용어 정리</b><br>
+      <b>클라이언트 / 데몬</b> — 명령을 받아 전달하는 쪽 / 실제로 일하는 쪽.<br>
+      <b>docker.sock</b> — 둘이 말하는 통로. 여기에 쓸 수 있으면 도커 전체를 쓸 수 있다.<br>
+      <b>DinD</b> — 안에 데몬을 하나 더. 격리되지만 privileged 와 느린 캐시.<br>
+      <b>DooD</b> — 바깥 데몬 빌려 쓰기. 빠르고 간단하지만 소켓이 곧 root, <code>-v</code> 는 바깥 경로.<br>
+      <b>형제 컨테이너</b> — DooD 안에서 만든 컨테이너가 호스트에 나란히 생기는 것.
+    </p>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 볼 것</p>
+      <ul>
+        <li><a href="/learn/cicd-jenkinsfile/">← 6. Jenkinsfile 로 파이프라인 만들기</a></li>
+        <li><a href="/learn/cicd-jenkins-docker/">8. 도커로 젠킨스 띄우기 →</a> — 여기서 고른 DooD 로 젠킨스 컨테이너를 만든다</li>
+        <li><a href="/learn/cicd-k8s-build/">11. 쿠버네티스 안에서 이미지 빌드</a> — 데몬이 없을 때의 방법</li>
+        <li><a href="/learn/arch-test-cicd/">테스트와 CI/CD</a> — 이미지에 버전을 붙여 내보내는 이유</li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

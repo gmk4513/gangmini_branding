@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>쿠버네티스 안에서 이미지 빌드 — 젠킨스 에이전트 파드와 Kaniko · gangmin</title>
+<meta name="description" content="CI/CD 실습 11편. 헬름으로 젠킨스를 쿠버네티스에 올리고, 빌드마다 에이전트 파드를 새로 띄워 pytest 를 돌린 뒤, 도커 데몬 없이 Kaniko 로 이미지를 빌드해 Docker Hub 에 올린다.">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="쿠버네티스 안에서 이미지 빌드 — 젠킨스 에이전트 파드와 Kaniko">
+<meta property="og:description" content="헬름으로 젠킨스 설치, 빌드마다 뜨는 에이전트 파드, 도커 없이 이미지 빌드하는 Kaniko.">
+<meta property="og:url" content="https://gangmini.com/learn/cicd-k8s-build/">
+<meta property="og:image" content="https://gangmini.com/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../../notes/note.css?v=20261028">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/learn/">← 이론/용어</a>
+    <p class="eyebrow">PRACTICE · CI/CD 11/13</p>
+    <h2 class="masthead__title">쿠버네티스 안에서 이미지 빌드<br>— 젠킨스 에이전트 파드와 Kaniko</h2>
+    <div class="doc__meta">
+      <span class="tag">실습</span>
+      <span class="tag">Jenkins</span>
+      <span class="tag">Helm</span>
+      <span class="tag">Kubernetes plugin</span>
+      <span class="tag">Kaniko</span>
+      <span class="tag">Docker Hub</span>
+      <time class="note__date">2026.11.10</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      9편에서는 젠킨스 컨테이너가 호스트의 도커 소켓을 빌려(DooD) <code>docker build</code> 를 했다.
+      회사가 쿠버네티스로 옮겨 가면 젠킨스도 쿠버네티스 안에 들어간다. 그런데 거기서는 이 방법이 막힌다.
+      요즘 쿠버네티스 노드에는 <strong>도커 데몬이 없기</strong> 때문이다(컨테이너는 containerd 가 돌린다). 빌려 쓸 소켓 자체가 없다.
+    </p>
+    <p>
+      그래서 쿠버네티스에서는 두 가지를 바꾼다. 빌드를 젠킨스 컨트롤러가 아니라 <strong>빌드마다 새로 뜨는 에이전트 파드</strong>에서 하고,
+      이미지는 도커 데몬 없이 이미지를 만드는 도구 <strong>Kaniko</strong> 로 만든다.
+    </p>
+
+    <h4>이번 단계에서 할 것</h4>
+    <ol>
+      <li>헬름으로 젠킨스를 10편의 kind 클러스터에 설치하기</li>
+      <li>Docker Hub 로그인 정보를 쿠버네티스 Secret 으로 넣기</li>
+      <li><code>Jenkinsfile.k8s</code> — 에이전트 파드에서 pytest → Kaniko 로 빌드·푸시</li>
+      <li>빌드하는 동안 파드가 생겼다 사라지는 걸 직접 보기</li>
+    </ol>
+    <p><strong>끝나면:</strong> 젠킨스 잡 <code>cicd-hello-k8s</code> 가 초록이고, Docker Hub 에 <code>&lt;빌드번호&gt;-&lt;커밋&gt;</code> 태그가 새로 생겨 있다.</p>
+
+    <!-- ============================================================ -->
+    <h3>어떻게 도나</h3>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 260" role="img" aria-label="젠킨스 컨트롤러 파드가 GitHub 의 변경을 감지하면, 빌드마다 에이전트 파드를 새로 만든다. 에이전트 파드 안에는 jnlp, python, kaniko 세 컨테이너가 작업 폴더를 함께 쓴다. jnlp 가 코드를 받고, python 이 테스트하고, kaniko 가 이미지를 빌드해 Docker Hub 에 올린다. 빌드가 끝나면 파드는 지워진다.">
+          <rect class="d-box" x="16" y="92" width="108" height="66" rx="4"/>
+          <text class="d-t" x="70" y="118" text-anchor="middle">GitHub</text>
+          <text class="d-t-m" x="70" y="138" text-anchor="middle">cicd-hello</text>
+
+          <rect class="d-box" x="148" y="92" width="132" height="66" rx="4"/>
+          <text class="d-t" x="214" y="114" text-anchor="middle">젠킨스 컨트롤러</text>
+          <text class="d-t-m" x="214" y="132" text-anchor="middle">ns jenkins</text>
+          <text class="d-t-s" x="214" y="148" text-anchor="middle">지휘만 한다</text>
+
+          <rect class="d-box-m" x="304" y="16" width="200" height="228" rx="5"/>
+          <text class="d-t" x="404" y="38" text-anchor="middle">에이전트 파드</text>
+          <text class="d-t-s" x="404" y="54" text-anchor="middle">빌드마다 새로 · 끝나면 삭제</text>
+
+          <rect class="d-box" x="320" y="66" width="168" height="42" rx="3"/>
+          <text class="d-t-m" x="334" y="85">jnlp</text>
+          <text class="d-t-s" x="334" y="100">젠킨스와 연결 · git 받기</text>
+
+          <rect class="d-box" x="320" y="116" width="168" height="42" rx="3"/>
+          <text class="d-t-m" x="334" y="135">python</text>
+          <text class="d-t-s" x="334" y="150">pytest 돌리기</text>
+
+          <rect class="d-box" x="320" y="166" width="168" height="42" rx="3"/>
+          <text class="d-t-m" x="334" y="185">kaniko</text>
+          <text class="d-t-s" x="334" y="200">이미지 빌드 · 푸시</text>
+
+          <text class="d-t-s" x="404" y="230" text-anchor="middle">셋이 작업 폴더를 같이 쓴다</text>
+
+          <rect class="d-box" x="528" y="154" width="96" height="66" rx="4"/>
+          <text class="d-t" x="576" y="182" text-anchor="middle">Docker Hub</text>
+          <text class="d-t-s" x="576" y="200" text-anchor="middle">이미지:태그</text>
+
+          <path class="d-line" d="M124,125 H141"/><polygon points="148,125 141,121 141,129" fill="#1A1D18"/>
+          <path class="d-line" d="M280,125 H297"/><polygon points="304,125 297,121 297,129" fill="#1A1D18"/>
+          <path class="d-line" d="M488,187 H521"/><polygon points="528,187 521,183 521,191" fill="#1A1D18"/>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        컨트롤러는 계속 떠 있고, 실제 일은 빌드마다 새로 뜨는 파드가 한다. 빌드가 열 개 몰리면 파드가 열 개 뜬다. 끝나면 흔적 없이 사라지니 "지난 빌드가 남긴 파일 때문에 이번 빌드가 깨지는" 일이 없다.
+      </figcaption>
+    </figure>
+
+    <p class="gloss">
+      <b>에이전트(agent)</b> — 젠킨스에서 실제로 빌드를 실행하는 쪽. 4편에서는 컨트롤러가 직접 했고(실무에선 권하지 않는다), 여기서는 쿠버네티스 파드가 에이전트가 된다.<br>
+      <b>Kubernetes plugin</b> — 젠킨스가 빌드할 때마다 쿠버네티스에 파드를 만들어 달라고 해서 에이전트로 쓰고, 끝나면 지우게 해 주는 플러그인.<br>
+      <b>jnlp 컨테이너</b> — 에이전트 파드에 항상 들어가는 컨테이너. 젠킨스 컨트롤러와 연결을 맺고, 코드(git)를 받는다. 이름은 옛 연결 방식(Java Network Launch Protocol)에서 왔다.<br>
+      <b>containerd</b> — 컨테이너를 실제로 돌리는 프로그램(컨테이너 런타임). 쿠버네티스 1.24 부터 도커 대신 이것을 직접 쓰는 게 표준이 됐다. 도커 엔진도 속에서는 containerd 를 쓴다.
+    </p>
+
+    <h4>왜 Kaniko 인가 — 쿠버네티스에서 이미지 만드는 방법 비교</h4>
+    <table>
+      <tr><th>방법</th><th>쿠버네티스에서</th><th>문제</th></tr>
+      <tr><td>DooD (소켓 빌려 쓰기)</td><td>노드에 도커 데몬이 없어서 안 된다</td><td>있다 해도 노드 전체 권한을 빌드에 넘기는 셈</td></tr>
+      <tr><td>DinD (도커 안에 도커)</td><td><code>privileged</code> 파드로 가능</td><td>privileged 는 노드를 탈취할 수 있는 권한. 공용 클러스터에선 대개 금지</td></tr>
+      <tr><td><strong>Kaniko</strong></td><td>평범한 컨테이너 하나로 된다</td><td>데몬 없이 Dockerfile 을 한 줄씩 직접 실행해 레이어를 만들고 바로 레지스트리에 올린다</td></tr>
+      <tr><td>BuildKit(rootless), Buildah</td><td>된다</td><td>Kaniko 의 대안. 설정이 조금 더 든다</td></tr>
+    </table>
+
+    <p>
+      <strong>알아 둘 것:</strong> Kaniko 의 원래 저장소(구글의 GoogleContainerTools/kaniko)는 2025년에 보관(archive) 처리되어 더 이상 새 기능이 나오지 않는다.
+      공개 이미지는 지금도 받을 수 있어 실습에는 문제없고, 구조를 익히기에 가장 단순해서 여기서 쓴다. 실무에서 새로 고른다면 BuildKit·Buildah 나 다른 곳이 이어 관리하는 Kaniko 포크도 같이 검토한다.
+    </p>
+
+    <p class="gloss">
+      <b>privileged</b> — 컨테이너에 호스트 장치와 커널 기능을 거의 다 열어 주는 옵션. 컨테이너 격리를 사실상 없앤다.<br>
+      <b>레이어(layer)</b> — 이미지를 이루는 층. Dockerfile 의 명령 한 줄(<code>RUN</code>, <code>COPY</code>)이 대략 층 하나가 된다. Kaniko 는 한 줄 실행할 때마다 바뀐 파일을 찍어(스냅샷) 층으로 만든다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>1. 준비 확인</h3>
+
+<pre><code>kubectl config current-context      # kind-cicd 여야 한다
+kubectl get nodes                   # Ready
+helm version --short                # 2편에서 설치</code></pre>
+
+    <p>젠킨스 컨트롤러는 메모리를 1~2GB 쓴다. 10편 끝에서 말한 대로 9편의 도커 젠킨스는 꺼 두는 게 좋다.</p>
+
+    <p class="gloss">
+      <b>헬름(Helm)</b> — 쿠버네티스용 패키지 관리자. 우분투의 <code>apt</code> 처럼 <code>helm install</code> 한 줄로 젠킨스에 필요한 YAML 수십 개(StatefulSet, Service, 권한, 설정)를 한꺼번에 깐다. 이 YAML 묶음을 <b>차트(chart)</b>, 설치된 하나를 <b>릴리스(release)</b>, 설정을 바꾸는 파일을 <b>values 파일</b>이라고 한다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>2. 헬름으로 젠킨스 설치</h3>
+
+<pre><code>mkdir -p ~/cicd/k8s-jenkins &amp;&amp; cd ~/cicd/k8s-jenkins</code></pre>
+
+    <p>설정 파일 <code>jenkins-values.yaml</code> 을 만든다. 차트의 기본값은 대부분 그대로 두고 필요한 것만 덮어쓴다.</p>
+
+<pre><code># jenkins-values.yaml
+controller:
+  # port-forward 로 들어올 주소. 젠킨스가 링크를 만들 때 쓴다
+  jenkinsUrl: http://localhost:8095
+  # 차트가 기본으로 까는 플러그인(kubernetes, workflow-aggregator, git,
+  # configuration-as-code)에 더해서 깔 것
+  additionalPlugins:
+    - junit
+    - pipeline-stage-view
+persistence:
+  size: 8Gi</code></pre>
+
+<pre><code>helm repo add jenkins https://charts.jenkins.io
+helm repo update
+kubectl create namespace jenkins
+helm install jenkins jenkins/jenkins -n jenkins -f jenkins-values.yaml</code></pre>
+
+    <p>플러그인을 받으며 뜨느라 2~5분 걸린다. 지켜본다.</p>
+
+<pre><code>kubectl -n jenkins get pods -w</code></pre>
+
+<pre><code><span style="color:var(--ink-soft)">NAME        READY   STATUS     RESTARTS   AGE
+jenkins-0   0/2     Init:0/1   0          20s     ← 플러그인 설치 중
+jenkins-0   0/2     PodInitializing   0   2m
+jenkins-0   1/2     Running    0          2m20s
+jenkins-0   2/2     Running    0          3m</span></code></pre>
+
+    <p>
+      <code>2/2</code> 는 젠킨스 본체와, 설정이 바뀌면 다시 읽게 해 주는 보조 컨테이너(config-reload) 두 개다.
+      관리자 비밀번호는 차트가 무작위로 만들어 Secret 에 넣어 두었다.
+    </p>
+
+<pre><code>kubectl -n jenkins get secret jenkins -o jsonpath="{.data.jenkins-admin-password}" | base64 -d; echo</code></pre>
+
+<pre><code>kubectl -n jenkins port-forward svc/jenkins 8095:8080</code></pre>
+
+    <p>
+      이 터미널은 열어 둔다. 브라우저에서 <code>http://localhost:8095</code>, 아이디 <code>admin</code>, 비밀번호는 위에서 본 값.
+      4편과 달리 설치 마법사가 없다. 차트가 설정 코드(JCasC)로 미리 끝내 놓았기 때문이다.
+    </p>
+
+    <p class="gloss">
+      <b>StatefulSet</b> — 이름과 저장 공간이 고정된 파드를 만드는 오브젝트. 젠킨스는 설정·빌드 기록을 디스크에 두므로 Deployment 대신 이걸 쓴다. 그래서 파드 이름이 무작위가 아니라 <code>jenkins-0</code> 이다.<br>
+      <b>PVC(PersistentVolumeClaim)</b> — "디스크 8GB 주세요" 라는 요청. 파드가 다시 떠도 같은 디스크가 붙어서 젠킨스 설정이 남는다. kind 는 노드 안의 폴더를 디스크로 내준다.<br>
+      <b>Secret</b> — 비밀번호·토큰을 담는 쿠버네티스 오브젝트. 값은 base64 로 적혀 있을 뿐 암호화된 게 아니다. 그래서 <code>base64 -d</code> 로 바로 풀린다. 권한 관리가 핵심이다.<br>
+      <b>JCasC(Jenkins Configuration as Code)</b> — 젠킨스 설정을 화면 클릭 대신 YAML 로 적는 플러그인. 차트가 이걸로 관리자 계정과 쿠버네티스 연결을 미리 넣어 둔다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>3. 쿠버네티스 연결 확인</h3>
+
+    <p>
+      <strong>Manage Jenkins → Clouds</strong> 에 <code>kubernetes</code> 라는 항목이 이미 있다. 눌러 보면 쿠버네티스 주소와 네임스페이스 <code>jenkins</code>,
+      젠킨스 주소(<code>http://jenkins.jenkins.svc.cluster.local:8080</code>)가 차 있다. 에이전트 파드가 이 주소로 컨트롤러를 찾아온다.
+      <strong>Test Connection</strong> 을 눌러 <code>Connected to Kubernetes</code> 가 나오면 된다.
+    </p>
+
+    <p class="gloss">
+      <b><code>이름.네임스페이스.svc.cluster.local</code></b> — 클러스터 안에서 Service 를 부르는 주소(DNS 이름). 클러스터 안에서만 통한다. 같은 네임스페이스면 <code>jenkins</code> 처럼 이름만 써도 된다.<br>
+      <b>서비스 어카운트(ServiceAccount)</b> — 파드가 쿠버네티스 API 를 부를 때 쓰는 신분증. 차트가 젠킨스에 "jenkins 네임스페이스에 파드를 만들고 지울 권한"만 준 계정을 만들어 붙였다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>4. Docker Hub 로그인 정보를 Secret 으로</h3>
+
+    <p>
+      Kaniko 는 <code>docker login</code> 을 하지 않는다. 대신 <code>/kaniko/.docker/config.json</code> 파일에서 로그인 정보를 읽는다.
+      그 파일을 쿠버네티스 Secret 으로 만들어 두고 Kaniko 컨테이너에 끼워 준다. 토큰은 2편에서 만든 Docker Hub <strong>Access Token</strong>(Read &amp; Write)을 쓴다.
+    </p>
+
+<pre><code>kubectl -n jenkins create secret docker-registry dockerhub-cred \
+  --docker-server=https://index.docker.io/v1/ \
+  --docker-username=&lt;도커허브아이디&gt; \
+  --docker-password=&lt;도커허브 Access Token&gt;</code></pre>
+
+<pre><code><span style="color:var(--ink-soft)">secret/dockerhub-cred created</span></code></pre>
+
+    <p>
+      명령에 토큰을 직접 치면 셸 기록(<code>~/.bash_history</code>)에 남는다. 연습이 끝나면 Docker Hub 에서 토큰을 지우거나,
+      명령 앞에 공백을 하나 넣어 기록에 안 남게 한다(우분투 bash 기본 설정에서 동작).
+    </p>
+
+    <p class="gloss">
+      <b>docker-registry 형 Secret</b> — 레지스트리 로그인 정보를 도커의 <code>config.json</code> 모양 그대로 담는 Secret. 키 이름이 <code>.dockerconfigjson</code> 이다. 비공개 이미지를 받을 때(<code>imagePullSecrets</code>)도 같은 형식을 쓴다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>5. Jenkinsfile.k8s 쓰기</h3>
+
+    <p>
+      cicd-hello 저장소에 <strong>새 파일</strong> <code>Jenkinsfile.k8s</code> 를 만든다. 6편·9편의 Jenkinsfile 은 그대로 둔다(젠킨스 잡마다 읽을 파일을 따로 지정한다).
+      <code>&lt;도커허브아이디&gt;</code> 는 내 것으로 바꾼다.
+    </p>
+
+<pre><code>// Jenkinsfile.k8s — 쿠버네티스 에이전트 파드에서 테스트하고 Kaniko 로 빌드·푸시
+pipeline {
+  agent {
+    kubernetes {
+      // 이 빌드를 위해 띄울 파드. jnlp 컨테이너는 플러그인이 알아서 더한다
+      yaml '''
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+    - name: python
+      image: python:3.12-slim
+      command: ["sleep"]
+      args: ["infinity"]
+    - name: kaniko
+      image: gcr.io/kaniko-project/executor:debug
+      command: ["/busybox/cat"]
+      tty: true
+      volumeMounts:
+        - name: docker-config
+          mountPath: /kaniko/.docker
+  volumes:
+    - name: docker-config
+      secret:
+        secretName: dockerhub-cred
+        items:
+          - key: .dockerconfigjson
+            path: config.json
+'''
+    }
+  }
+
+  environment {
+    IMAGE = '&lt;도커허브아이디&gt;/cicd-hello'
+  }
+
+  options {
+    timeout(time: 20, unit: 'MINUTES')
+    buildDiscarder(logRotator(numToKeepStr: '20'))
+  }
+
+  triggers {
+    pollSCM('H/2 * * * *')
+  }
+
+  stages {
+    stage('Tag') {
+      steps {
+        script {
+          def shortSha = sh(script: 'git rev-parse --short=7 HEAD', returnStdout: true).trim()
+          env.IMAGE_TAG = "${env.BUILD_NUMBER}-${shortSha}"
+        }
+        echo "이번 이미지: ${env.IMAGE}:${env.IMAGE_TAG}"
+      }
+    }
+
+    stage('Test') {
+      steps {
+        container('python') {
+          sh '''
+            python -m venv /tmp/venv
+            . /tmp/venv/bin/activate
+            pip install -q -r requirements-dev.txt
+            python -m pytest -q --junitxml=test-results.xml
+          '''
+        }
+      }
+      post {
+        always { junit 'test-results.xml' }
+      }
+    }
+
+    stage('Build &amp; Push') {
+      steps {
+        container(name: 'kaniko', shell: '/busybox/sh') {
+          sh '''#!/busybox/sh
+            /kaniko/executor \
+              --context="$WORKSPACE" \
+              --dockerfile="$WORKSPACE/Dockerfile" \
+              --build-arg "APP_VERSION=$IMAGE_TAG" \
+              --destination="$IMAGE:$IMAGE_TAG" \
+              --skip-unused-stages
+          '''
+        }
+      }
+    }
+  }
+
+  post {
+    success { echo "푸시 완료: ${env.IMAGE}:${env.IMAGE_TAG}" }
+    failure { echo '실패한 단계의 로그를 위에서 확인하세요' }
+  }
+}</code></pre>
+
+    <table>
+      <tr><th>부분</th><th>뜻</th></tr>
+      <tr><td><code>agent { kubernetes { yaml … } }</code></td><td>"이 모양의 파드를 띄워서 거기서 빌드해라." 6편의 <code>agent any</code> 자리다</td></tr>
+      <tr><td><code>command: ["sleep"]</code> / <code>["/busybox/cat"]</code></td><td>컨테이너가 바로 끝나 버리지 않고 기다리게 하는 장치. 젠킨스가 그 안에 들어가 명령을 친다</td></tr>
+      <tr><td><code>executor:debug</code></td><td>Kaniko 이미지 중 셸(busybox)이 들어 있는 판. 젠킨스의 <code>sh</code> 를 쓰려면 셸이 있어야 한다</td></tr>
+      <tr><td><code>volumes: … dockerhub-cred</code></td><td>4번의 Secret 을 <code>/kaniko/.docker/config.json</code> 파일로 끼워 넣는다</td></tr>
+      <tr><td><code>container('python') { … }</code></td><td>이 블록의 명령은 python 컨테이너 안에서. 블록 밖의 <code>sh</code>(Tag 단계)는 jnlp 컨테이너에서 돈다</td></tr>
+      <tr><td><code>/tmp/venv</code></td><td>가상환경을 작업 폴더 밖에 만든다. 작업 폴더에 만들면 Kaniko 빌드 재료에 섞인다</td></tr>
+      <tr><td><code>shell: '/busybox/sh'</code>, <code>#!/busybox/sh</code></td><td>Kaniko 이미지에는 <code>/bin/sh</code> 가 없다. 셸 위치를 알려 준다</td></tr>
+      <tr><td><code>--context</code>, <code>--dockerfile</code></td><td>빌드 재료 폴더와 Dockerfile. <code>docker build .</code> 의 <code>.</code> 자리</td></tr>
+      <tr><td><code>--destination</code></td><td>빌드가 끝나면 바로 이 이름으로 레지스트리에 올린다. 로컬에 이미지를 남기지 않는다</td></tr>
+      <tr><td><code>--skip-unused-stages</code></td><td>Dockerfile 의 test 단계는 건너뛴다. 테스트는 이미 python 컨테이너에서 했으니까. 빼면 Kaniko 가 test 단계도 빌드한다(그것도 한 번 더 검사하는 셈이라 나쁘진 않다)</td></tr>
+    </table>
+
+<pre><code>git add Jenkinsfile.k8s
+git commit -m "쿠버네티스 에이전트 + Kaniko 빌드 파이프라인"
+git push</code></pre>
+
+    <!-- ============================================================ -->
+    <h3>6. 잡 만들고 돌리기</h3>
+
+    <ol>
+      <li><strong>New Item</strong> → 이름 <code>cicd-hello-k8s</code> → <strong>Pipeline</strong> → OK</li>
+      <li><strong>Pipeline</strong> 칸: Definition 을 <strong>Pipeline script from SCM</strong>, SCM <strong>Git</strong>, Repository URL <code>https://github.com/&lt;내아이디&gt;/cicd-hello.git</code></li>
+      <li>Branch Specifier <code>*/main</code>, <strong>Script Path</strong> 를 <code>Jenkinsfile.k8s</code> 로 바꾼다 (이걸 안 바꾸면 6편의 Jenkinsfile 을 읽는다)</li>
+      <li>Save → <strong>Build Now</strong></li>
+    </ol>
+
+    <p>빌드를 누르자마자 다른 터미널에서 파드를 지켜본다. 이게 이 글에서 가장 볼만한 장면이다.</p>
+
+<pre><code>kubectl -n jenkins get pods -w</code></pre>
+
+<pre><code><span style="color:var(--ink-soft)">NAME                             READY   STATUS              AGE
+jenkins-0                        2/2     Running             20m
+cicd-hello-k8s-1-xxxxx-yyyyy     0/3     ContainerCreating   2s     ← 빌드용 파드 등장
+cicd-hello-k8s-1-xxxxx-yyyyy     3/3     Running             25s    ← jnlp + python + kaniko
+cicd-hello-k8s-1-xxxxx-yyyyy     3/3     Terminating         1m40s  ← 빌드 끝, 삭제
+</span></code></pre>
+
+    <p>
+      첫 빌드는 python·kaniko 이미지를 받느라 몇 분 걸린다. 두 번째부터는 노드에 이미지가 남아 있어 빠르다.
+      젠킨스 화면의 Console Output 에서 Kaniko 부분은 대략 이렇게 흐른다.
+    </p>
+
+<pre><code><span style="color:var(--ink-soft)">[Pipeline] container
+INFO Retrieving image manifest python:3.12-slim
+INFO Skipping unused stage 1 (test)        ← --skip-unused-stages
+INFO Executing 0 build triggers
+INFO RUN pip install --no-cache-dir -r requirements.txt
+INFO Taking snapshot of full filesystem...
+INFO COPY app.py .
+INFO ENV APP_VERSION=${APP_VERSION}
+INFO Pushing image to &lt;도커허브아이디&gt;/cicd-hello:1-a1b2c3d
+INFO Pushed index.docker.io/&lt;도커허브아이디&gt;/cicd-hello@sha256:…
+[Pipeline] }
+...
+푸시 완료: &lt;도커허브아이디&gt;/cicd-hello:1-a1b2c3d
+Finished: SUCCESS</span></code></pre>
+
+    <p>
+      Docker Hub 의 내 저장소 → Tags 에 <code>1-a1b2c3d</code> 같은 새 태그가 생겼으면 성공이다.
+      이 젠킨스는 9편의 젠킨스와 다른 젠킨스라 빌드 번호가 1 부터 다시 시작한다. 태그 뒤에 커밋 해시를 붙여 둔 덕에 9편의 태그와 겹치지 않는다.
+    </p>
+
+    <h4>정말 그 이미지인지 확인 — 클러스터에서 한 번 띄워 보기</h4>
+<pre><code>kubectl run try-hello --rm -it --restart=Never \
+  --image=&lt;도커허브아이디&gt;/cicd-hello:1-a1b2c3d -- \
+  python -c "import os; print(os.environ['APP_VERSION'])"
+<span style="color:var(--ink-soft)">1-a1b2c3d
+pod "try-hello" deleted</span></code></pre>
+
+    <!-- ============================================================ -->
+    <h3>7. 일부러 실패시켜 보기</h3>
+
+    <p>
+      <code>app.py</code> 의 인사말(9편을 따라 했다면 <code>"Hello, Docker CI/CD!"</code>)을 <code>"Hi"</code> 로 바꿔 push 한다. 테스트는 그대로 둔다. 2분 안에(Poll SCM) 빌드가 돌고 <strong>Test</strong> 에서 빨갛게 멈춘다.
+      Build &amp; Push 는 실행되지 않으므로 Docker Hub 에 깨진 이미지가 올라가지 않는다. 테스트 결과 화면(Test Result)에서 어느 테스트가 왜 실패했는지 본다. 확인했으면 되돌려 push 한다.
+    </p>
+
+    <h4>더 해 볼 것 — 캐시</h4>
+    <p>
+      에이전트 파드는 매번 새것이라 pip 설치 같은 층을 매번 다시 만든다. Kaniko 에 <code>--cache=true --cache-repo=&lt;도커허브아이디&gt;/cicd-hello-cache</code> 를 더하면
+      만든 층을 레지스트리에 저장해 두고 다음 빌드에서 재사용한다. 두 번째 빌드 로그에 <code>Using caching version of cmd</code> 가 보이면 캐시가 먹은 것이다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>자주 걸리는 것</h3>
+
+    <table>
+      <tr><th>증상</th><th>원인과 해결</th></tr>
+      <tr><td>빌드가 <code>Waiting for next available executor</code> 에서 멈춤, 파드가 <code>Pending</code></td><td>클러스터 메모리 부족. <code>kubectl -n jenkins describe pod &lt;파드&gt;</code> 의 Events 확인. Docker Desktop 메모리를 늘리거나 다른 컨테이너를 끈다</td></tr>
+      <tr><td>파드가 생겼다 바로 사라지기를 반복</td><td>jnlp 가 컨트롤러에 못 붙는다. Clouds → kubernetes 의 Jenkins URL·tunnel 값을 손대지 않았는지, <code>kubectl -n jenkins get svc</code> 에 <code>jenkins-agent</code> 가 있는지</td></tr>
+      <tr><td><code>ImagePullBackOff</code> (kaniko)</td><td>이미지 이름 오타. <code>gcr.io/kaniko-project/executor:debug</code> 그대로인지</td></tr>
+      <tr><td><code>UNAUTHORIZED</code>, <code>error checking push permissions</code></td><td>Secret 의 아이디·토큰이 틀렸거나 토큰 권한이 Read-only. Secret 을 지우고(<code>kubectl -n jenkins delete secret dockerhub-cred</code>) 다시 만든다. <code>IMAGE</code> 의 아이디가 Secret 의 아이디와 같은지도</td></tr>
+      <tr><td><code>sh: not found</code> / <code>/bin/sh: no such file</code></td><td>kaniko 블록에 <code>shell: '/busybox/sh'</code> 를 빠뜨렸다</td></tr>
+      <tr><td>6편의 Jenkinsfile 이 돈다</td><td>잡의 Script Path 가 <code>Jenkinsfile</code> 그대로다. <code>Jenkinsfile.k8s</code> 로</td></tr>
+      <tr><td>port-forward 를 껐더니 젠킨스가 안 열림</td><td>정상이다. 젠킨스는 클러스터 안에서 계속 돌고 있다. 볼 때만 다시 port-forward</td></tr>
+    </table>
+
+    <h4>다음 단계로 가기 전 정리</h4>
+    <ul>
+      <li>젠킨스(ns <code>jenkins</code>)와 <code>dockerhub-cred</code> 는 그대로 둔다. 13편에서 이 파이프라인을 늘린다.</li>
+      <li>방금 올린 태그 하나(예: <code>1-a1b2c3d</code>)를 적어 둔다. 12편의 매니페스트에 넣는다.</li>
+    </ul>
+
+    <p class="gloss">
+      <b>이 글의 용어 정리</b><br>
+      <b>에이전트 파드</b> 빌드마다 뜨고 사라지는 일꾼 · <b>jnlp</b> 젠킨스와 연결하는 기본 컨테이너 · <b>Kaniko</b> 도커 데몬 없이 이미지를 빌드·푸시 ·
+      <b>헬름 / 차트 / values</b> 쿠버네티스 패키지 관리자 / 설치 묶음 / 설정 파일 · <b>StatefulSet</b> 이름·디스크 고정 파드 ·
+      <b>PVC</b> 디스크 요청 · <b>Secret</b> 비밀값 오브젝트(base64, 암호화 아님) · <b>JCasC</b> 젠킨스 설정을 YAML 로 · <b>containerd</b> 컨테이너 런타임 · <b>privileged</b> 격리 해제 옵션
+    </p>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 볼 것</p>
+      <ul>
+        <li><a href="/learn/cicd-k8s-basics/">← 10. 쿠버네티스 최소 기초</a> — 이 클러스터를 만든 곳</li>
+        <li><a href="/learn/cicd-argocd/">12. ArgoCD 설치와 사용법 →</a> — 만든 이미지를 Git 기준으로 배포한다</li>
+        <li><a href="/learn/cicd-dind-dood/">7. DinD 와 DooD</a> — 쿠버네티스에서 둘 다 곤란한 이유</li>
+        <li><a href="/learn/cicd-jenkinsfile/">6. Jenkinsfile 로 파이프라인 만들기</a> — 선언형 문법 기초</li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>ArgoCD 설치와 사용법 — GitOps 첫걸음 · gangmin</title>
+<meta name="description" content="CI/CD 실습 12편. Git 저장소를 정답지로 삼아 클러스터를 맞추는 GitOps. ArgoCD 를 kind 클러스터에 설치하고, 매니페스트 저장소를 연결해 Sync·Health 상태, 드리프트 감지, 자동 동기화(prune·selfHeal), 되돌리기를 직접 해 본다.">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="ArgoCD 설치와 사용법 — GitOps 첫걸음">
+<meta property="og:description" content="ArgoCD 설치, Application 만들기, Sync·Health, 드리프트와 자동 동기화.">
+<meta property="og:url" content="https://gangmini.com/learn/cicd-argocd/">
+<meta property="og:image" content="https://gangmini.com/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../../notes/note.css?v=20261028">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/learn/">← 이론/용어</a>
+    <p class="eyebrow">PRACTICE · CI/CD 12/13</p>
+    <h2 class="masthead__title">ArgoCD 설치와 사용법<br>— GitOps 첫걸음</h2>
+    <div class="doc__meta">
+      <span class="tag">실습</span>
+      <span class="tag">ArgoCD</span>
+      <span class="tag">GitOps</span>
+      <span class="tag">Kubernetes</span>
+      <span class="tag">Sync</span>
+      <span class="tag">드리프트</span>
+      <time class="note__date">2026.11.10</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      10편에서 YAML 을 고치고 <code>kubectl apply</code> 를 손으로 쳤다. 그리고 두 번 "파일과 클러스터가 어긋났다"를 봤다(<code>kubectl scale</code>, <code>rollout undo</code>).
+      사람이 여럿이면 이런 어긋남은 매일 생긴다. 누가 언제 무엇을 바꿨는지도 남지 않는다.
+    </p>
+    <p>
+      <strong>GitOps</strong> 는 규칙을 하나 정한다. <strong>"클러스터에 있어야 할 것은 전부 Git 에 적혀 있고, 클러스터는 Git 과 똑같아야 한다."</strong>
+      바꾸고 싶으면 Git 에 커밋한다. 그러면 클러스터 안의 프로그램이 Git 을 보고 알아서 맞춘다. 그 프로그램이 <strong>ArgoCD</strong> 다.
+    </p>
+
+    <h4>이번 단계에서 할 것</h4>
+    <ol>
+      <li>ArgoCD 를 10편의 kind 클러스터에 설치하고 화면·CLI 로 로그인하기</li>
+      <li>매니페스트만 담는 Git 저장소 <code>cicd-hello-manifests</code> 만들기</li>
+      <li>ArgoCD Application 을 만들어 cicd-hello 배포하기</li>
+      <li>Git 으로 바꾸기, 손으로 바꿨을 때(드리프트) 잡아내기, 자동 동기화 켜기, 되돌리기</li>
+    </ol>
+    <p><strong>끝나면:</strong> ArgoCD 화면에서 cicd-hello 가 <code>Synced</code> · <code>Healthy</code> 이고, <code>kubectl</code> 로 몰래 바꾼 것이 몇 초 만에 Git 대로 돌아간다.</p>
+
+    <!-- ============================================================ -->
+    <h3>push 방식과 pull 방식</h3>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 250" role="img" aria-label="위: push 방식. 젠킨스가 운영 서버나 클러스터에 직접 배포 명령을 보낸다. CI 가 운영 접근 권한을 쥔다. 아래: pull 방식(GitOps). 젠킨스는 매니페스트 저장소에 커밋만 하고, 클러스터 안의 ArgoCD 가 저장소를 읽어 클러스터에 적용한다.">
+          <text class="d-t" x="16" y="22">push 방식 — CI 가 밀어 넣는다 (5·6·9편)</text>
+          <rect class="d-box" x="16" y="34" width="150" height="52" rx="4"/>
+          <text class="d-t" x="91" y="64" text-anchor="middle">젠킨스</text>
+          <rect class="d-box" x="250" y="34" width="170" height="52" rx="4"/>
+          <text class="d-t" x="335" y="58" text-anchor="middle">운영 서버 · 클러스터</text>
+          <text class="d-t-s" x="335" y="76" text-anchor="middle">docker run · kubectl apply</text>
+          <path class="d-line" d="M166,60 H243"/><polygon points="250,60 243,56 243,64" fill="#1A1D18"/>
+          <text class="d-t-s" x="208" y="52" text-anchor="middle">배포 명령</text>
+          <rect class="d-dash" x="440" y="34" width="184" height="52" rx="4"/>
+          <text class="d-t-s" x="532" y="56" text-anchor="middle">CI 가 운영 접근 권한을 쥔다</text>
+          <text class="d-t-s" x="532" y="74" text-anchor="middle">누가 뭘 바꿨는지 흩어진다</text>
+
+          <text class="d-t" x="16" y="128">pull 방식 (GitOps) — 클러스터가 Git 을 보고 맞춘다 (12·13편)</text>
+          <rect class="d-box" x="16" y="146" width="110" height="56" rx="4"/>
+          <text class="d-t" x="71" y="178" text-anchor="middle">젠킨스</text>
+          <rect class="d-box" x="170" y="146" width="150" height="56" rx="4"/>
+          <text class="d-t" x="245" y="170" text-anchor="middle">매니페스트 저장소</text>
+          <text class="d-t-m" x="245" y="190" text-anchor="middle">image: …:태그</text>
+          <rect class="d-dash" x="356" y="136" width="276" height="100" rx="5"/>
+          <rect class="d-box-m" x="364" y="146" width="120" height="56" rx="4"/>
+          <text class="d-t" x="424" y="170" text-anchor="middle">ArgoCD</text>
+          <text class="d-t-s" x="424" y="190" text-anchor="middle">Git 과 계속 비교</text>
+          <rect class="d-box" x="528" y="146" width="96" height="56" rx="4"/>
+          <text class="d-t" x="576" y="170" text-anchor="middle">cicd-hello</text>
+          <text class="d-t-s" x="576" y="190" text-anchor="middle">파드</text>
+          <text class="d-t-s" x="494" y="228" text-anchor="middle">같은 클러스터 안</text>
+          <path class="d-line" d="M126,174 H163"/><polygon points="170,174 163,170 163,178" fill="#1A1D18"/>
+          <text class="d-t-s" x="148" y="166" text-anchor="middle">커밋</text>
+          <path class="d-line" d="M320,174 H357"/><polygon points="364,174 357,170 357,178" fill="#1A1D18"/>
+          <text class="d-t-s" x="338" y="166" text-anchor="middle">읽기</text>
+          <path class="d-line" d="M484,174 H521"/><polygon points="528,174 521,170 521,178" fill="#1A1D18"/>
+          <text class="d-t-s" x="506" y="166" text-anchor="middle">적용</text>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        pull 방식에서는 바깥의 CI 가 클러스터 열쇠를 가질 필요가 없다. 클러스터 안의 ArgoCD 가 Git 을 읽을 권한만 있으면 된다. 그리고 모든 변경이 Git 커밋으로 남는다.
+      </figcaption>
+    </figure>
+
+    <p class="gloss">
+      <b>GitOps</b> — Git 저장소를 "운영 환경의 정답지(단일 진실 공급원)"로 삼는 운영 방식. 바꾸는 방법은 커밋 하나뿐이고, 되돌리기는 <code>git revert</code> 다.<br>
+      <b>단일 진실 공급원(Single Source of Truth)</b> — "정답은 여기 하나에만 있다"는 원칙. 클러스터, 누군가의 노트북, 위키에 서로 다른 설정이 흩어지지 않게 한다.<br>
+      <b>ArgoCD</b> — 쿠버네티스 안에서 도는 GitOps 도구. Git 의 매니페스트와 클러스터의 실제 상태를 계속 비교하고, 다르면 알려 주거나 맞춘다. CNCF(쿠버네티스를 관리하는 재단)의 졸업(graduated) 프로젝트다.<br>
+      <b>CD 도구와 CI 도구의 분리</b> — 젠킨스는 테스트하고 이미지를 만드는 데까지(CI), 배포는 ArgoCD 가(CD). 13편에서 둘을 잇는다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>1. ArgoCD 설치</h3>
+
+    <p>10편의 클러스터인지 먼저 확인하고(<code>kubectl config current-context</code> → <code>kind-cicd</code>), 공식 설치 파일을 그대로 적용한다.</p>
+
+<pre><code>kubectl create namespace argocd
+kubectl apply -n argocd --server-side --force-conflicts \
+  -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml</code></pre>
+
+    <p>
+      <code>--server-side</code> 는 ArgoCD 의 CRD 가 커서 붙인다. 이게 없으면 버전에 따라 <code>metadata.annotations: Too long</code> 에러가 난다.
+      설치 줄은 바뀔 수 있으니 안 되면 <a href="https://argo-cd.readthedocs.io/en/stable/getting_started/">공식 Getting Started</a> 의 최신 줄을 쓴다.
+    </p>
+
+<pre><code>kubectl -n argocd wait --for=condition=Ready pods --all --timeout=300s
+kubectl -n argocd get pods</code></pre>
+
+<pre><code><span style="color:var(--ink-soft)">NAME                                                READY   STATUS
+argocd-application-controller-0                     1/1     Running
+argocd-applicationset-controller-xxxxx              1/1     Running
+argocd-dex-server-xxxxx                             1/1     Running
+argocd-notifications-controller-xxxxx               1/1     Running
+argocd-redis-xxxxx                                  1/1     Running
+argocd-repo-server-xxxxx                            1/1     Running
+argocd-server-xxxxx                                 1/1     Running</span></code></pre>
+
+    <table>
+      <tr><th>구성 요소</th><th>하는 일</th></tr>
+      <tr><td><code>argocd-server</code></td><td>웹 화면과 API. 우리가 접속하는 곳</td></tr>
+      <tr><td><code>argocd-repo-server</code></td><td>Git 저장소를 받아 매니페스트(YAML)를 만들어 낸다</td></tr>
+      <tr><td><code>argocd-application-controller</code></td><td>Git 의 매니페스트와 클러스터 실제 상태를 계속 비교하고, 동기화한다. ArgoCD 의 심장</td></tr>
+      <tr><td><code>argocd-redis</code></td><td>계산 결과를 잠깐 담아 두는 캐시</td></tr>
+      <tr><td><code>dex-server</code>, <code>notifications</code>, <code>applicationset</code></td><td>사내 로그인 연동, 슬랙 알림 등, 앱 여러 개 찍어 내기. 이 실습에서는 안 쓴다</td></tr>
+    </table>
+
+    <p class="gloss">
+      <b>CRD(Custom Resource Definition)</b> — 쿠버네티스에 새 오브젝트 종류를 더하는 방법. ArgoCD 를 깔면 <code>Application</code> 이라는 종류가 생겨서, Deployment 처럼 YAML 로 만들 수 있다.<br>
+      <b>server-side apply</b> — 합치는 계산을 kubectl 이 아니라 API 서버가 하게 하는 apply 방식. 마지막 적용 내용을 거대한 주석(annotation)에 적어 두지 않아서 큰 CRD 도 들어간다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>2. 화면에 로그인</h3>
+
+<pre><code>kubectl -n argocd port-forward svc/argocd-server 8443:443</code></pre>
+
+    <p>
+      열어 둔 채로 브라우저에서 <code>https://localhost:8443</code>. "연결이 비공개로 설정되어 있지 않습니다" 경고가 나온다. ArgoCD 가 스스로 만든 인증서라 그렇다.
+      <strong>고급 → localhost(안전하지 않음)로 이동</strong>. 연습용 로컬 주소라서 괜찮다.
+      아이디는 <code>admin</code>, 첫 비밀번호는 새 터미널에서:
+    </p>
+
+<pre><code>kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath="{.data.password}" | base64 -d; echo</code></pre>
+
+    <p class="gloss">
+      <b>자체 서명 인증서(self-signed certificate)</b> — 공인 기관이 아니라 프로그램이 스스로 발급한 HTTPS 인증서. 암호화는 되지만 "누구인지"를 보증하지 못해 브라우저가 경고한다. 실서버에서는 도메인을 붙이고 정식 인증서를 쓴다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>3. CLI 설치와 비밀번호 바꾸기</h3>
+
+    <p>화면으로 다 할 수 있지만 CLI 가 있으면 13편에서 상태를 빠르게 본다.</p>
+
+<pre><code>curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+sudo install -m 555 argocd /usr/local/bin/argocd
+rm argocd
+argocd version --client
+
+argocd login localhost:8443 --username admin --password '&lt;위 비밀번호&gt;' --insecure
+argocd account update-password</code></pre>
+
+    <p>
+      <code>--insecure</code> 는 2번의 인증서 경고를 CLI 에서 넘기는 옵션이다. 비밀번호를 바꿨으면 첫 비밀번호 Secret 은 지워도 된다(공식 문서도 권한다):
+      <code>kubectl -n argocd delete secret argocd-initial-admin-secret</code>
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>4. 매니페스트 저장소 만들기</h3>
+
+    <p>
+      앱 코드 저장소(cicd-hello)와 <strong>따로</strong> 배포용 YAML 만 담는 저장소를 만든다. 왜 따로인지는 13편에서 자세히 보고, 지금은 짧게:
+      앱 코드의 커밋 기록과 "운영에 무엇이 언제 나갔나" 기록이 섞이지 않고, 권한도 따로 줄 수 있다.
+    </p>
+
+<pre><code>mkdir -p ~/cicd/cicd-hello-manifests/k8s
+cd ~/cicd/cicd-hello-manifests
+cp ~/cicd/k8s-practice/k8s/deployment.yaml ~/cicd/k8s-practice/k8s/service.yaml k8s/</code></pre>
+
+    <p>
+      <code>k8s/deployment.yaml</code> 의 <code>image:</code> 를 11편에서 올린 태그로 맞춘다(예: <code>&lt;도커허브아이디&gt;/cicd-hello:1-a1b2c3d</code>).
+      <code>namespace.yaml</code> 은 가져오지 않는다. 네임스페이스는 ArgoCD 가 만들게 한다(5번의 <code>CreateNamespace=true</code>).
+    </p>
+
+<pre><code>printf '# cicd-hello-manifests\n\ncicd-hello 의 쿠버네티스 배포 설정. ArgoCD 가 이 저장소의 k8s/ 를 보고 배포한다.\n' &gt; README.md
+git init -b main
+git add .
+git commit -m "cicd-hello 배포 매니페스트"
+gh repo create cicd-hello-manifests --public --source . --push</code></pre>
+
+    <p>공개 저장소라 ArgoCD 가 따로 로그인하지 않고 읽는다. 비공개로 하려면 아래 "비공개 저장소라면" 을 본다.</p>
+
+    <!-- ============================================================ -->
+    <h3>5. Application 만들기</h3>
+
+    <p>
+      ArgoCD 에서 배포 단위 하나를 <strong>Application</strong> 이라고 한다. "이 Git 저장소의 이 폴더를 → 이 클러스터의 이 네임스페이스에" 라는 연결 하나다.
+      화면에서 <strong>+ NEW APP</strong> 으로 칸을 채워도 되지만, 이것도 YAML 로 쓰면 기록이 남는다.
+      이 파일은 매니페스트 저장소의 <code>k8s/</code> <strong>밖</strong>에 둔다(<code>k8s/</code> 안에 두면 ArgoCD 가 자기 설정까지 배포하려 든다).
+    </p>
+
+<pre><code>mkdir -p ~/cicd/cicd-hello-manifests/argocd</code></pre>
+
+<pre><code># argocd/application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cicd-hello
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/&lt;내아이디&gt;/cicd-hello-manifests.git
+    targetRevision: main
+    path: k8s
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cicd-hello
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true</code></pre>
+
+    <table>
+      <tr><th>줄</th><th>뜻</th></tr>
+      <tr><td><code>metadata.namespace: argocd</code></td><td>Application 오브젝트 자체는 argocd 네임스페이스에 둔다. 앱이 배포될 곳(<code>destination</code>)과 다르다</td></tr>
+      <tr><td><code>finalizers</code></td><td>이 Application 을 지우면 배포했던 Deployment·Service 도 같이 지운다. 없으면 Application 만 사라지고 앱은 남는다</td></tr>
+      <tr><td><code>project: default</code></td><td>권한 묶음. 팀이 여럿이면 프로젝트별로 "어느 저장소에서, 어느 네임스페이스로" 를 제한한다</td></tr>
+      <tr><td><code>source</code></td><td>정답지 위치: 저장소, 브랜치(<code>targetRevision</code>), 폴더(<code>path</code>)</td></tr>
+      <tr><td><code>destination.server</code></td><td><code>https://kubernetes.default.svc</code> = "ArgoCD 가 깔린 바로 이 클러스터". 다른 클러스터도 등록해서 배포할 수 있다</td></tr>
+      <tr><td><code>syncPolicy</code></td><td>지금은 자동 동기화 없음(손으로 Sync). 8번에서 켠다</td></tr>
+    </table>
+
+<pre><code>kubectl apply -f argocd/application.yaml
+git add argocd &amp;&amp; git commit -m "ArgoCD Application 정의" &amp;&amp; git push</code></pre>
+
+    <p>
+      화면에 <code>cicd-hello</code> 카드가 생긴다. 상태는 <strong>OutOfSync</strong> · <strong>Missing</strong>. "Git 에는 있는데 클러스터엔 아직 없다"는 뜻이다.
+      카드를 열고 <strong>SYNC → SYNCHRONIZE</strong>. 몇 초 뒤 <strong>Synced</strong> · <strong>Healthy</strong> 가 되고,
+      Application → Deployment → ReplicaSet → Pod 두 개, Service 로 이어지는 나무 그림이 그려진다.
+    </p>
+
+<pre><code>argocd app get cicd-hello</code></pre>
+
+    <p>대략 이런 모양이 나온다(버전에 따라 줄이 더 있다).</p>
+
+<pre><code><span style="color:var(--ink-soft)">Name:               argocd/cicd-hello
+Sync Status:        Synced to main (3f2a9c1)
+Health Status:      Healthy
+
+KIND        NAMESPACE   NAME        STATUS  HEALTH
+Service     cicd-hello  cicd-hello  Synced  Healthy
+Deployment  cicd-hello  cicd-hello  Synced  Healthy</span></code></pre>
+
+<pre><code>kubectl -n cicd-hello port-forward svc/cicd-hello 8200:80     # 다른 터미널에서 curl localhost:8200/</code></pre>
+
+    <h4>두 가지 상태를 따로 읽는다</h4>
+    <table>
+      <tr><th>Sync 상태 — Git 과 같은가</th><th>Health 상태 — 잘 돌고 있나</th></tr>
+      <tr><td><code>Synced</code> Git 과 똑같다</td><td><code>Healthy</code> 파드가 다 준비됨</td></tr>
+      <tr><td><code>OutOfSync</code> Git 과 다르다 (Git 이 바뀌었거나 누가 클러스터를 바꿨다)</td><td><code>Progressing</code> 배포 중, 파드 뜨는 중</td></tr>
+      <tr><td><code>Unknown</code> 비교 자체를 못 함 (저장소 주소 오류 등)</td><td><code>Degraded</code> 실패. 대개 ImagePullBackOff·CrashLoopBackOff</td></tr>
+      <tr><td></td><td><code>Missing</code> 아직 클러스터에 없음</td></tr>
+    </table>
+    <p>둘은 따로 논다. <code>Synced</code> 인데 <code>Degraded</code> 일 수 있다 — "Git 대로 정확히 배포했는데, Git 에 적힌 이미지 태그가 틀렸다" 같은 경우다.</p>
+
+    <p class="gloss">
+      <b>Sync(동기화)</b> — Git 의 매니페스트를 클러스터에 적용해 둘을 같게 만드는 일. 속으로는 <code>kubectl apply</code> 와 비슷한 일을 한다.<br>
+      <b>Refresh</b> — Git 을 지금 다시 읽어 비교만 하는 것(적용은 안 함). ArgoCD 는 기본으로 약 3분마다 저장소를 다시 읽는다. 기다리기 싫으면 화면의 REFRESH 를 누른다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>6. Git 으로 바꾸기</h3>
+
+    <p><code>k8s/deployment.yaml</code> 의 <code>replicas: 2</code> 를 <code>3</code> 으로 고쳐 커밋·푸시한다.</p>
+
+<pre><code>sed -i 's/replicas: 2/replicas: 3/' k8s/deployment.yaml
+git commit -am "파드 3개로" &amp;&amp; git push</code></pre>
+
+    <p>
+      화면에서 REFRESH 를 누르면(또는 3분 안에) <strong>OutOfSync</strong> 로 바뀐다. <strong>APP DIFF</strong> 를 누르면 <code>replicas: 2 → 3</code> 차이가 보인다.
+      SYNC 하면 파드가 세 개가 된다. 바꾼 기록은 GitHub 커밋 목록에 그대로 남았다. 이게 GitOps 의 일하는 방식이다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>7. 몰래 바꾸기 — 드리프트 잡아내기</h3>
+
+    <p>누군가 Git 을 거치지 않고 클러스터를 직접 바꿨다고 해 보자.</p>
+
+<pre><code>kubectl -n cicd-hello scale deploy/cicd-hello --replicas=5</code></pre>
+
+    <p>
+      ArgoCD 화면이 곧 <strong>OutOfSync</strong> 가 되고, DIFF 에 "Git 은 3, 실제는 5" 가 보인다. 10편에서 "파일과 어긋난다"고만 했던 것을 ArgoCD 는 <strong>보여 준다</strong>.
+      지금은 자동 동기화가 꺼져 있어 알려 주기만 한다. SYNC 를 누르면 Git 대로 3 개로 돌아간다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>8. 자동 동기화 켜기 — automated · prune · selfHeal</h3>
+
+    <p><code>argocd/application.yaml</code> 의 <code>syncPolicy</code> 를 이렇게 바꾼다.</p>
+
+<pre><code>  syncPolicy:
+    automated:
+      prune: true      # Git 에서 지운 것은 클러스터에서도 지운다
+      selfHeal: true   # 누가 클러스터를 손으로 바꾸면 Git 대로 되돌린다
+    syncOptions:
+      - CreateNamespace=true</code></pre>
+
+<pre><code>kubectl apply -f argocd/application.yaml
+git commit -am "자동 동기화 켜기" &amp;&amp; git push</code></pre>
+
+    <table>
+      <tr><th>옵션</th><th>켜면</th><th>꺼져 있으면</th></tr>
+      <tr><td><code>automated</code></td><td>Git 이 바뀌면 SYNC 를 누르지 않아도 적용</td><td>OutOfSync 로 알려만 줌</td></tr>
+      <tr><td><code>prune</code></td><td>Git 에서 파일을 지우면 그 오브젝트도 클러스터에서 지움</td><td>Git 에서 지워도 클러스터에 남음 (화면에 "지워야 함" 표시)</td></tr>
+      <tr><td><code>selfHeal</code></td><td>클러스터를 손으로 바꾸면 몇 초 안에 Git 대로 되돌림</td><td>Git 이 바뀔 때만 맞춤</td></tr>
+    </table>
+
+    <p>7번을 다시 해 본다.</p>
+
+<pre><code>kubectl -n cicd-hello scale deploy/cicd-hello --replicas=5
+kubectl -n cicd-hello get deploy cicd-hello -w</code></pre>
+
+<pre><code><span style="color:var(--ink-soft)">NAME         READY   UP-TO-DATE   AVAILABLE
+cicd-hello   3/5     5            3
+cicd-hello   3/3     3            3        ← ArgoCD 가 Git 대로 되돌림</span></code></pre>
+
+    <p>
+      prune 도 확인해 본다. <code>git rm k8s/service.yaml</code> → 커밋·푸시 → 잠시 뒤 <code>kubectl -n cicd-hello get svc</code> 가 비어 있다.
+      확인했으면 <code>git revert HEAD</code> → 푸시로 되살린다. Service 가 다시 생긴다 — 이게 GitOps 의 되돌리기다.
+    </p>
+
+    <p class="gloss">
+      <b>selfHeal(자가 치유)</b> — 10편의 쿠버네티스 자가 치유(죽은 파드 다시 띄우기)를 한 층 위로 올린 것. 쿠버네티스는 "Deployment 에 적힌 대로", ArgoCD 는 "Git 에 적힌 대로" 맞춘다.<br>
+      <b>prune(가지치기)</b> — 정답지에 없는 것을 정리하는 것. 켜 두지 않으면 Git 에서 지운 옛 오브젝트가 클러스터에 쌓인다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>9. 되돌리기 — 두 가지 방법</h3>
+
+    <table>
+      <tr><th>방법</th><th>어떻게</th><th>언제</th></tr>
+      <tr><td><strong>git revert</strong> (권장)</td><td>매니페스트 저장소에서 문제 커밋을 revert → push. ArgoCD 가 따라간다</td><td>평소. 되돌린 기록도 Git 에 남는다</td></tr>
+      <tr><td>ArgoCD 화면의 HISTORY AND ROLLBACK</td><td>지난 동기화 목록에서 하나 골라 ROLLBACK</td><td>급할 때. <strong>자동 동기화가 꺼져 있어야</strong> 된다(켜져 있으면 곧 Git 대로 다시 덮인다). 끝나면 Git 도 맞춰 둬야 한다</td></tr>
+    </table>
+
+    <!-- ============================================================ -->
+    <h3>비공개 저장소라면</h3>
+
+    <p>
+      실무의 매니페스트 저장소는 대개 비공개다. ArgoCD 에 읽기 권한을 준다. 화면 <strong>Settings → Repositories → + CONNECT REPO</strong>
+      → 방식 HTTPS, 저장소 주소, 사용자 이름(GitHub 아이디), 비밀번호 칸에 <strong>읽기 전용</strong> PAT(Contents: Read-only). CLI 로는:
+    </p>
+
+<pre><code>argocd repo add https://github.com/&lt;내아이디&gt;/cicd-hello-manifests.git \
+  --username &lt;내아이디&gt; --password &lt;읽기 전용 PAT&gt;</code></pre>
+
+    <!-- ============================================================ -->
+    <h3>자주 걸리는 것</h3>
+
+    <table>
+      <tr><th>증상</th><th>원인과 해결</th></tr>
+      <tr><td><code>Too long: must have at most 262144 bytes</code></td><td>설치할 때 <code>--server-side</code> 를 빠뜨렸다. 붙여서 다시 apply</td></tr>
+      <tr><td>상태 <code>Unknown</code>, <code>ComparisonError … repository not found</code></td><td>저장소 주소 오타, 또는 비공개 저장소인데 연결을 안 했다</td></tr>
+      <tr><td><code>app path does not exist</code></td><td><code>path: k8s</code> 인데 저장소에 그 폴더가 없다(푸시 안 함, 폴더 이름 다름)</td></tr>
+      <tr><td><code>Synced</code> 인데 <code>Degraded</code></td><td>Git 의 이미지 태그가 Docker Hub 에 없다(오타). 파드를 눌러 EVENTS 를 본다</td></tr>
+      <tr><td><code>namespaces "cicd-hello" not found</code></td><td><code>CreateNamespace=true</code> 를 빠뜨렸다</td></tr>
+      <tr><td>Git 을 바꿨는데 반응이 없다</td><td>최대 약 3분 기다리거나 REFRESH. 다른 브랜치에 푸시하지 않았는지 (<code>targetRevision: main</code>)</td></tr>
+      <tr><td>10편에서 손으로 만든 앱과 섞임</td><td>10편 끝에서 <code>kubectl delete namespace cicd-hello</code> 를 안 했다. ArgoCD 가 덮어쓰긴 하지만 헷갈리면 지우고 다시 SYNC</td></tr>
+    </table>
+
+    <h4>다음 단계로 가기 전 정리</h4>
+    <ul>
+      <li>ArgoCD, Application <code>cicd-hello</code>(자동 동기화 켜 둔 채), 매니페스트 저장소는 그대로 둔다.</li>
+      <li>replicas 는 2 로 돌려 둬도 된다(메모리 아끼기): Git 에서 고쳐 푸시.</li>
+    </ul>
+
+    <p class="gloss">
+      <b>이 글의 용어 정리</b><br>
+      <b>GitOps</b> Git 이 운영의 정답지 · <b>pull 방식</b> 클러스터가 Git 을 읽어 맞춤 · <b>Application</b> 저장소 폴더 → 클러스터 네임스페이스 연결 하나 ·
+      <b>Sync / Refresh</b> 적용 / 다시 읽어 비교만 · <b>Synced·OutOfSync</b> Git 과 같은가 · <b>Healthy·Degraded</b> 잘 도는가 ·
+      <b>드리프트</b> Git 과 실제가 어긋남 · <b>automated · prune · selfHeal</b> 자동 적용 · 지운 것 정리 · 손댄 것 되돌림 · <b>CRD</b> 새 오브젝트 종류 · <b>finalizer</b> 지울 때 같이 할 정리
+    </p>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 볼 것</p>
+      <ul>
+        <li><a href="/learn/cicd-k8s-build/">← 11. 쿠버네티스 안에서 이미지 빌드</a> — 여기서 배포한 이미지를 만든 곳</li>
+        <li><a href="/learn/cicd-gitops/">13. ArgoCD 로 배포 자동화 →</a> — 젠킨스가 매니페스트를 고치게 해서, 커밋 하나가 운영까지 가게 한다</li>
+        <li><a href="/learn/cicd-k8s-basics/">10. 쿠버네티스 최소 기초</a> — 드리프트를 처음 본 곳</li>
+        <li><a href="/learn/git-undo/">되돌리기 — 실수했을 때 쓰는 명령 6개</a> — revert 를 자세히</li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

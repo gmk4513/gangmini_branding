@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>Jenkinsfile 로 파이프라인 만들기 · gangmin</title>
+<meta name="description" content="Freestyle 잡의 설정을 Jenkinsfile 이라는 코드 파일로 옮겨 저장소에 함께 넣는다. 선언형 파이프라인 문법 해부, Pipeline script from SCM, Stage View, 실패시켜 로그 읽기, Replay, Snippet Generator, 자격 증명 쓰기, 멀티브랜치까지.">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="Jenkinsfile 로 파이프라인 만들기">
+<meta property="og:description" content="빌드 설정을 코드로. 선언형 파이프라인을 처음부터. CI/CD 실습 6/13.">
+<meta property="og:url" content="https://gangmini.com/learn/cicd-jenkinsfile/">
+<meta property="og:image" content="https://gangmini.com/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../../notes/note.css?v=20261028">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/learn/">← 이론/용어</a>
+    <p class="eyebrow">PRACTICE · CI/CD 06/13</p>
+    <h2 class="masthead__title">Jenkinsfile 로<br>— 파이프라인 만들기</h2>
+    <div class="doc__meta">
+      <span class="tag">실습</span>
+      <span class="tag">Jenkins</span>
+      <span class="tag">Jenkinsfile</span>
+      <span class="tag">선언형 파이프라인</span>
+      <span class="tag">Pipeline as Code</span>
+      <span class="tag">멀티브랜치</span>
+      <time class="note__date">2026.11.10</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      <a href="/learn/cicd-jenkins-job/">앞 글</a>의 Freestyle 잡은 잘 돌았다. 그런데 그 설정은 젠킨스 화면 안에만 있다. 누가 배포 명령 한 줄을 바꿔도 기록이 남지 않고, 리뷰도 없고, 젠킨스 서버가 날아가면 설정도 같이 사라진다.
+    </p>
+    <p>
+      그래서 요즘 회사에서는 빌드 설정을 <strong>코드 파일로 써서 앱 저장소에 같이 넣는다.</strong> 파일 이름은 <code>Jenkinsfile</code> 이다. 앱 코드처럼 커밋하고, PR 로 리뷰하고, 되돌릴 수 있다. 이걸 <strong>Pipeline as Code</strong> 라고 부른다.
+      이번 글에서는 앞 글의 잡과 <strong>똑같은 일</strong>을 하는 Jenkinsfile 을 쓰고, 젠킨스가 그 파일을 읽어 돌게 만든다.
+    </p>
+
+    <h4>이번 단계에서 할 것</h4>
+    <ol>
+      <li>선언형(Declarative) 파이프라인 문법을 블록 하나씩 뜯어보기</li>
+      <li><code>cicd-hello</code> 저장소에 Jenkinsfile 넣기</li>
+      <li>Pipeline 잡 <code>cicd-hello-pipeline</code> 을 "Pipeline script from SCM" 으로 만들기</li>
+      <li>Stage View 로 단계별 결과 보기, 일부러 실패시켜 로그 읽기</li>
+      <li>Replay, Snippet Generator, 자격 증명 쓰기, 멀티브랜치 맛보기</li>
+    </ol>
+    <p><strong>끝나면:</strong> 젠킨스 화면에 Checkout · Test · Deploy · Health check 네 칸이 초록으로 서고, <code>curl localhost:8000/</code> 이 이 잡의 빌드 번호를 말한다.</p>
+
+    <p class="gloss">
+      <b>파이프라인(pipeline)</b> — 코드를 받아서 운영에 내보내기까지의 단계를 순서대로 이은 것. 젠킨스에서는 그걸 표현하는 잡 종류의 이름이기도 하다.<br>
+      <b>Jenkinsfile</b> — 파이프라인을 적은 텍스트 파일. 저장소 맨 위에 둔다. 확장자는 없다.<br>
+      <b>Pipeline as Code</b> — 빌드·배포 절차를 화면 설정이 아니라 코드로 관리하는 방식. 변경 기록, 리뷰, 되돌리기, 복사가 앱 코드와 똑같이 된다.<br>
+      <b>Groovy</b> — Jenkinsfile 이 쓰는 언어. Java 와 비슷한 문법의 스크립트 언어인데, 선언형 파이프라인은 정해진 블록만 채우면 돼서 Groovy 를 몰라도 쓸 수 있다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>한눈에 — 파일이 화면이 되기까지</h3>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 250" role="img" aria-label="GitHub 의 cicd-hello 저장소 안에 Jenkinsfile 이 앱 코드와 같이 있다. 젠킨스의 Pipeline 잡은 저장소에서 이 파일을 읽어 그 안의 stages 를 차례로 실행한다. 화면의 Stage View 에는 Checkout, Test, Deploy, Health check 가 칸으로 나타나고, 끝나면 post 블록이 성공 또는 실패 메시지를 남긴다.">
+          <rect class="d-box" x="16" y="30" width="170" height="190" rx="4"/>
+          <text class="d-t" x="101" y="52" text-anchor="middle">GitHub · cicd-hello</text>
+          <text class="d-t-m" x="32" y="80">app.py</text>
+          <text class="d-t-m" x="32" y="98">test_app.py</text>
+          <text class="d-t-m" x="32" y="116">requirements*.txt</text>
+          <text class="d-t-m" x="32" y="134">Dockerfile</text>
+          <rect class="d-box-m" x="26" y="146" width="150" height="58" rx="3"/>
+          <text class="d-t" x="101" y="168" text-anchor="middle">Jenkinsfile</text>
+          <text class="d-t-s" x="101" y="188" text-anchor="middle">빌드 절차 = 코드</text>
+
+          <rect class="d-box" x="226" y="140" width="110" height="70" rx="4"/>
+          <text class="d-t" x="281" y="166" text-anchor="middle">Pipeline 잡</text>
+          <text class="d-t-s" x="281" y="186" text-anchor="middle">파일 읽어서 실행</text>
+
+          <rect class="d-box" x="376" y="30" width="248" height="190" rx="4"/>
+          <text class="d-t" x="500" y="52" text-anchor="middle">Stage View</text>
+          <rect class="d-box-m" x="388" y="70" width="52" height="48" rx="2"/>
+          <text class="d-t-s" x="414" y="98" text-anchor="middle">Checkout</text>
+          <rect class="d-box-m" x="446" y="70" width="52" height="48" rx="2"/>
+          <text class="d-t-s" x="472" y="98" text-anchor="middle">Test</text>
+          <rect class="d-box-m" x="504" y="70" width="52" height="48" rx="2"/>
+          <text class="d-t-s" x="530" y="98" text-anchor="middle">Deploy</text>
+          <rect class="d-box-m" x="562" y="70" width="52" height="48" rx="2"/>
+          <text class="d-t-s" x="588" y="92" text-anchor="middle">Health</text>
+          <text class="d-t-s" x="588" y="106" text-anchor="middle">check</text>
+          <text class="d-t-s" x="500" y="140" text-anchor="middle">stage 하나 = 칸 하나</text>
+          <text class="d-t-s" x="500" y="158" text-anchor="middle">칸을 누르면 그 단계 로그</text>
+          <rect class="d-box" x="388" y="172" width="226" height="36" rx="2"/>
+          <text class="d-t-m" x="501" y="194" text-anchor="middle">post: success / failure / always</text>
+
+          <path class="d-line" d="M186,175 H219"/><polygon points="226,175 219,171 219,179" fill="#1A1D18"/>
+          <path class="d-line" d="M336,175 H369"/><polygon points="376,175 369,171 369,179" fill="#1A1D18"/>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        잡 설정에는 "어느 저장소의 어느 파일을 읽어라"만 남는다. 무엇을 할지는 전부 저장소 안의 Jenkinsfile 에 있다.
+      </figcaption>
+    </figure>
+
+    <!-- ============================================================ -->
+    <h3>1. 선언형 파이프라인 문법 해부</h3>
+
+    <p>Jenkinsfile 은 정해진 블록을 정해진 자리에 채우는 형식이다. 뼈대만 보면 이렇다.</p>
+
+<pre><code>pipeline {                 // 전체를 감싸는 블록. 반드시 하나
+    agent any              // 어디서 돌릴까
+
+    options { ... }        // 잡 전체 옵션 (시간 제한, 기록 보관 개수 …)
+    triggers { ... }       // 언제 저절로 돌까
+    parameters { ... }     // 돌릴 때 받을 값
+    environment { ... }    // 환경 변수
+
+    stages {               // 단계들. 위에서부터 차례로
+        stage('이름') {
+            when { ... }   // 이 단계를 할지 말지 조건 (선택)
+            steps {        // 실제로 할 일
+                sh '셸 명령'
+            }
+            post { ... }   // 이 단계가 끝난 뒤 (선택)
+        }
+    }
+
+    post { ... }           // 파이프라인 전체가 끝난 뒤
+}</code></pre>
+
+    <table>
+      <tr><th>블록</th><th>뜻</th><th>이번 파일에서</th></tr>
+      <tr><td><code>agent</code></td><td>어느 노드(컴퓨터)에서 돌릴지. <code>any</code> 는 "아무 데나 빈 곳". 9번 글에서는 도커 컨테이너, 11번에서는 쿠버네티스 파드가 된다</td><td><code>agent any</code> → 젠킨스 서버 자신</td></tr>
+      <tr><td><code>options</code></td><td>잡 전체에 거는 설정</td><td>10분 제한, 기록 20개, 동시 실행 금지, 시각 표시</td></tr>
+      <tr><td><code>triggers</code></td><td>저절로 도는 조건. 앞 글 Poll SCM 칸과 같다</td><td><code>pollSCM('H/2 * * * *')</code></td></tr>
+      <tr><td><code>parameters</code></td><td>Build with Parameters 화면에 뜰 입력 칸</td><td><code>DEPLOY</code> 체크박스</td></tr>
+      <tr><td><code>environment</code></td><td>모든 단계에서 쓸 환경 변수. 셸에서는 <code>$이름</code>, Groovy 에서는 <code>env.이름</code></td><td>배포 폴더, 헬스 체크 주소</td></tr>
+      <tr><td><code>stages</code> / <code>stage</code></td><td>단계 묶음 / 단계 하나. 화면에 칸으로 보인다</td><td>네 단계</td></tr>
+      <tr><td><code>steps</code></td><td>단계 안에서 실제로 실행할 것. <code>sh</code>(셸 명령), <code>echo</code>, <code>junit</code>, <code>checkout</code>, <code>retry</code> 같은 <strong>스텝</strong>을 나열</td><td></td></tr>
+      <tr><td><code>when</code></td><td>조건이 참일 때만 그 단계를 한다. 거짓이면 회색 "건너뜀"으로 표시</td><td><code>params.DEPLOY</code> 가 참일 때만 배포</td></tr>
+      <tr><td><code>post</code></td><td>끝난 뒤 결과에 따라. <code>always</code>(항상), <code>success</code>, <code>failure</code>, <code>unstable</code>, <code>changed</code>(지난번과 결과가 달라졌을 때) 등. 파일에 적은 순서와 상관없이 <code>always</code> 가 먼저 돈다</td><td>테스트 결과 게시, 성공·실패 메시지</td></tr>
+    </table>
+
+    <p class="gloss">
+      <b>스텝(step)</b> — 파이프라인에서 쓸 수 있는 명령 하나. <code>sh</code>, <code>echo</code>, <code>junit</code> 처럼 플러그인이 제공한다. 플러그인을 깔면 쓸 수 있는 스텝이 늘어난다.<br>
+      <b>params / env</b> — Groovy 안에서 파라미터 값과 환경 변수를 읽는 이름. <code>params.DEPLOY</code>, <code>env.BUILD_NUMBER</code>.
+    </p>
+
+    <h4>선언형 vs 스크립트형</h4>
+    <p>
+      Jenkinsfile 에는 두 가지 문법이 있다. 처음부터 <code>pipeline { }</code> 으로 시작하는 게 <strong>선언형(Declarative)</strong>, <code>node { }</code> 으로 시작해 Groovy 코드를 자유롭게 쓰는 게 <strong>스크립트형(Scripted)</strong>이다.
+    </p>
+    <table>
+      <tr><th></th><th>선언형</th><th>스크립트형</th></tr>
+      <tr><td>시작</td><td><code>pipeline { agent … stages { … } }</code></td><td><code>node { stage('…') { … } }</code></td></tr>
+      <tr><td>자유도</td><td>정해진 블록만. 대신 읽기 쉽고 실수가 적다</td><td>Groovy 의 if·for·함수를 마음대로. 그만큼 복잡해지기 쉽다</td></tr>
+      <tr><td>문법 검사</td><td>돌리기 전에 구조를 검사해서 틀린 곳을 알려 준다</td><td>돌려 봐야 안다</td></tr>
+      <tr><td>지금 추천</td><td>새로 쓰는 건 거의 다 이쪽</td><td>예전 파일, 아주 특수한 흐름</td></tr>
+    </table>
+    <p>
+      선언형 안에서도 복잡한 로직이 꼭 필요하면 <code>script { }</code> 블록을 열어 그 안에서만 Groovy 를 쓴다. 이 시리즈는 선언형만 쓴다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>2. Jenkinsfile 넣기</h3>
+
+    <p>우분투 터미널에서 실습 저장소로 간다(<a href="/learn/cicd-git-repo/">3번 글</a>에서 <code>~/cicd/cicd-hello</code> 로 받아 두었다).</p>
+
+<pre><code>cd ~/cicd/cicd-hello
+git pull                 # 앞 글에서 GitHub 웹으로 고친 커밋을 받아 온다
+nano Jenkinsfile</code></pre>
+
+    <p>아래 전체를 붙여 넣는다. 주석(<code>//</code>)은 지워도 된다.</p>
+
+<pre><code>// cicd-hello 파이프라인: 받기 → 테스트 → 배포 → 확인
+pipeline {
+    agent any
+
+    options {
+        skipDefaultCheckout(true)          // 받기는 Checkout 단계에서 직접 한다
+        timeout(time: 10, unit: 'MINUTES') // 10분 넘으면 강제 종료
+        buildDiscarder(logRotator(numToKeepStr: '20'))
+        disableConcurrentBuilds()          // 같은 잡이 동시에 두 번 배포하지 않게
+        timestamps()                       // 로그 줄마다 시각
+    }
+
+    triggers {
+        pollSCM('H/2 * * * *')             // 2분마다 새 커밋 확인
+    }
+
+    parameters {
+        booleanParam(name: 'DEPLOY', defaultValue: true, description: '테스트 통과 후 배포할지')
+    }
+
+    environment {
+        APP_DIR    = '/opt/cicd-hello'
+        HEALTH_URL = 'http://localhost:8000/health'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+                sh 'git log -1 --oneline'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                sh '''
+                    python3 -m venv venv
+                    venv/bin/pip install -q -r requirements-dev.txt
+                    venv/bin/python -m pytest -q --junitxml=test-results.xml
+                '''
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, testResults: 'test-results.xml'
+                }
+            }
+        }
+
+        stage('Deploy') {
+            when { expression { params.DEPLOY } }
+            steps {
+                sh '''
+                    cp app.py requirements.txt "$APP_DIR/"
+                    "$APP_DIR/venv/bin/pip" install -q -r "$APP_DIR/requirements.txt"
+                    echo "APP_VERSION=$BUILD_NUMBER" &gt; "$APP_DIR/version.env"
+                    sudo -n systemctl restart cicd-hello
+                '''
+            }
+        }
+
+        stage('Health check') {
+            when { expression { params.DEPLOY } }
+            steps {
+                retry(10) {
+                    sleep(time: 1, unit: 'SECONDS')
+                    sh 'curl -fsS "$HEALTH_URL"'
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "결과: ${currentBuild.currentResult}"
+        }
+        success {
+            echo "성공: 빌드 #${env.BUILD_NUMBER} (DEPLOY=${params.DEPLOY})"
+        }
+        failure {
+            echo "실패: ${env.BUILD_URL}console 에서 처음 나온 에러를 찾는다"
+        }
+    }
+}</code></pre>
+
+    <h4>앞 글의 화면과 한 줄씩 맞춰 보기</h4>
+    <table>
+      <tr><th>Freestyle 화면</th><th>Jenkinsfile</th></tr>
+      <tr><td>Discard old builds: 20</td><td><code>buildDiscarder(logRotator(numToKeepStr: '20'))</code></td></tr>
+      <tr><td>Add timestamps</td><td><code>timestamps()</code></td></tr>
+      <tr><td>Poll SCM <code>H/2 * * * *</code></td><td><code>triggers { pollSCM('H/2 * * * *') }</code></td></tr>
+      <tr><td>Boolean Parameter DEPLOY</td><td><code>parameters { booleanParam(...) }</code></td></tr>
+      <tr><td>Source Code Management: Git</td><td><code>checkout scm</code> — "잡에 설정된 저장소에서 받아라"</td></tr>
+      <tr><td>Execute shell (테스트)</td><td><code>stage('Test')</code> 의 <code>sh '''…'''</code></td></tr>
+      <tr><td>Publish JUnit test result report</td><td><code>post { always { junit … } }</code></td></tr>
+      <tr><td>Execute shell (배포) + if DEPLOY</td><td><code>stage('Deploy')</code> + <code>when { expression { params.DEPLOY } }</code></td></tr>
+      <tr><td>curl 10번 반복</td><td><code>retry(10) { sleep 1초; sh 'curl …' }</code></td></tr>
+    </table>
+
+    <p>
+      <code>'''…'''</code> 는 여러 줄 문자열이다. 젠킨스는 그 안을 셸 스크립트 하나로 실행하고, 앞 글처럼 한 줄이라도 실패하면 멈춘다.
+      <code>timeout</code>, <code>disableConcurrentBuilds</code> 는 Freestyle 화면에 없던 안전장치다. 테스트가 멈춰 서서 실행자를 영원히 붙잡거나, 커밋 두 개가 연달아 와서 배포 두 개가 엉키는 걸 막는다.
+    </p>
+
+    <p class="gloss">
+      <b>checkout scm</b> — "이 Jenkinsfile 을 가져온 바로 그 저장소·브랜치·커밋을 워크스페이스에 받아라". 저장소 주소를 Jenkinsfile 에 다시 적지 않아도 된다.<br>
+      <b>skipDefaultCheckout</b> — 선언형은 원래 맨 앞에 받기 단계를 자동으로 넣는다. 그걸 끄고 Checkout 단계에서 직접 받게 해서 화면에 단계가 또렷이 보이게 했다.<br>
+      <b>retry(n)</b> — 안쪽이 실패하면 n 번까지 다시 해 보는 스텝. 여기서는 "앱이 뜰 때까지 최대 10초 기다리기"에 썼다.
+    </p>
+
+    <p>저장하고 커밋한다.</p>
+
+<pre><code>git add Jenkinsfile
+git commit -m "Jenkinsfile: 테스트 후 8000 포트로 배포하는 파이프라인"
+git push</code></pre>
+
+    <!-- ============================================================ -->
+    <h3>3. Pipeline 잡 만들기 — Pipeline script from SCM</h3>
+
+    <p>먼저 앞 글의 Freestyle 잡 <code>cicd-hello-freestyle</code> 의 Poll SCM 이 꺼져 있는지 확인한다. 둘 다 켜져 있으면 커밋 한 번에 배포가 두 번 된다.</p>
+
+    <ol>
+      <li><strong>+ New Item</strong> → 이름 <code>cicd-hello-pipeline</code> → <strong>Pipeline</strong> → OK</li>
+      <li>설정 화면 맨 아래 <strong>Pipeline</strong> 칸으로 내려간다. 위쪽 칸들(트리거, 파라미터)은 비워 둔다. Jenkinsfile 에 다 있다</li>
+      <li>Definition: <strong>Pipeline script from SCM</strong></li>
+      <li>SCM: <strong>Git</strong> → Repository URL <code>https://github.com/&lt;내아이디&gt;/cicd-hello.git</code>, Credentials 없음</li>
+      <li>Branch Specifier: <code>*/main</code></li>
+      <li>Script Path: <code>Jenkinsfile</code> (기본값 그대로)</li>
+      <li><strong>Save</strong></li>
+    </ol>
+
+    <p>
+      Definition 의 다른 선택지인 <strong>Pipeline script</strong> 는 Jenkinsfile 내용을 화면의 칸에 직접 붙여 넣는 방식이다. 문법 연습할 때는 편하지만, 그러면 다시 "설정이 젠킨스 안에만 있는" 상태가 된다. 실제 잡은 SCM 쪽으로 한다.
+    </p>
+
+    <h4>첫 빌드는 손으로 한 번</h4>
+    <p>
+      <strong>Build Now</strong> 를 누른다. 첫 빌드가 중요한 이유가 있다. 젠킨스는 <strong>Jenkinsfile 을 한 번 읽어 봐야</strong> 그 안의 <code>triggers</code> 와 <code>parameters</code> 를 잡 설정에 등록한다.
+      그래서 첫 빌드 전에는 폴링도 안 돌고 파라미터 칸도 없다. 첫 빌드가 끝나면 왼쪽 메뉴가 <strong>Build with Parameters</strong> 로 바뀌어 있다. Configure 를 다시 열어 보면 Poll SCM 이 저절로 체크돼 있다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>4. Stage View 와 로그 읽기</h3>
+
+    <p>
+      잡 화면 가운데에 빌드마다 한 줄씩, 단계마다 한 칸씩 표가 생긴다. 이게 <strong>Stage View</strong> 다. 칸 색은 단계 결과, 칸 안 숫자는 걸린 시간이다.
+      칸에 마우스를 올려 <strong>Logs</strong> 를 누르면 그 단계의 로그만 볼 수 있다. Freestyle 처럼 긴 콘솔을 뒤질 필요가 없다.
+    </p>
+    <p>
+      표가 안 보이면 <strong>Manage Jenkins → Plugins → Available plugins</strong> 에서 <code>Pipeline: Stage View</code> 를 설치한다. 최근 젠킨스에는 같은 역할의 새 화면인 <strong>Pipeline Graph View</strong>(빌드 화면의 Pipeline Overview) 플러그인도 있다. 어느 쪽이든 "단계별로 나눠 보기"는 같다.
+    </p>
+
+    <p>전체 로그(Console Output)는 단계 이름이 표시되며 이렇게 나온다.</p>
+
+<pre><code><span style="color:var(--ink-soft)">Obtained Jenkinsfile from git https://github.com/&lt;내아이디&gt;/cicd-hello.git
+[Pipeline] Start of Pipeline
+[Pipeline] node
+Running on Jenkins in /var/lib/jenkins/workspace/cicd-hello-pipeline
+[Pipeline] { (Checkout)
+[Pipeline] checkout
+[2026-11-10T08:51:27.459Z] Checking out Revision 1a2b3c4d… (refs/remotes/origin/main)
+[Pipeline] sh
+[2026-11-10T08:51:27.831Z] + git log -1 --oneline
+[2026-11-10T08:51:27.831Z] 1a2b3c4 Jenkinsfile: 테스트 후 8000 포트로 배포하는 파이프라인
+[Pipeline] // stage
+[Pipeline] { (Test)
+[2026-11-10T08:51:30.170Z] + venv/bin/pip install -q -r requirements-dev.txt
+[2026-11-10T08:52:08.823Z] + venv/bin/python -m pytest -q --junitxml=test-results.xml
+[2026-11-10T08:52:10.679Z] 2 passed in 0.31s
+Post stage
+[Pipeline] junit
+[2026-11-10T08:52:10.965Z] Recording test results
+[Pipeline] // stage
+…
+[Pipeline] { (Health check)
+[Pipeline] retry
+[Pipeline] sleep
+Sleeping for 1 sec
+[Pipeline] sh
++ curl -fsS http://localhost:8000/health
+{"status":"ok","version":"1"}
+…
+[Pipeline] { (Declarative: Post Actions)
+결과: SUCCESS
+성공: 빌드 #1 (DEPLOY=true)
+[Pipeline] End of Pipeline
+Finished: SUCCESS</span></code></pre>
+
+    <p>
+      <code>[Pipeline] { (이름)</code> 이 단계의 시작, <code>[Pipeline] // stage</code> 가 끝이다. 줄 앞의 <code>[2026-…Z]</code> 는 <code>timestamps()</code> 가 붙인 시각인데 세계 표준시(UTC)라 한국 시각보다 9시간 이르다. 위 예에서 <code>pip install</code> 줄과 다음 줄 사이가 38초 — 처음 빌드는 패키지를 받느라 오래 걸린다는 게 시각으로 보인다.
+      실패했을 때는 앞 글과 같다. 맨 아래에서 시작해 위로, <strong>처음 나온 에러</strong>를 찾는다.
+    </p>
+
+<pre><code>curl localhost:8000/</code></pre>
+<pre><code><span style="color:var(--ink-soft)">Hello, CI/CD! version=1        ← 이 잡의 빌드 번호. Freestyle 잡과는 번호가 따로 간다</span></code></pre>
+
+    <!-- ============================================================ -->
+    <h3>5. 일부러 실패시켜 보기</h3>
+
+    <p>이번에는 내 컴퓨터에서 고쳐서 push 한다. 앞 글처럼 테스트를 깨뜨린다.</p>
+
+<pre><code>sed -i 's/Hello, CI\/CD!/Hi!/' app.py
+git commit -am "일부러 테스트 깨뜨리기"
+git push</code></pre>
+
+    <p>2분 남짓 뒤 폴링이 새 빌드를 띄운다(기다리기 싫으면 Build with Parameters → Build). Stage View 에서 보이는 것:</p>
+    <ul>
+      <li><strong>Checkout</strong> 초록, <strong>Test</strong> 빨강</li>
+      <li><strong>Deploy</strong>, <strong>Health check</strong> 는 실행되지 않고 건너뛴 칸으로 남는다. 로그에는 <code>Stage "Deploy" skipped due to earlier failure(s)</code>. (DEPLOY 체크를 끄고 돌렸을 때는 <code>skipped due to when conditional</code> 로 이유가 다르게 찍힌다)</li>
+      <li>콘솔 끝에 <code>post { failure }</code> 의 메시지 <code>실패: http://localhost:8080/job/cicd-hello-pipeline/2/console …</code></li>
+      <li>잡 화면의 테스트 결과 그래프에 빨간 구간이 생긴다</li>
+    </ul>
+    <p><code>curl localhost:8000/</code> 은 여전히 지난 성공 번호다. 되돌린다.</p>
+
+<pre><code>git revert --no-edit HEAD
+git push</code></pre>
+
+    <p class="gloss">
+      <b>git revert</b> — 지정한 커밋을 "거꾸로 하는" 새 커밋을 만든다. 기록을 지우지 않고 되돌리는 방법이라 이미 push 한 커밋에 쓴다. 자세히는 <a href="/learn/git-undo/">되돌리기</a>.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>6. Replay — 커밋 없이 한 번만 고쳐 돌리기</h3>
+
+    <p>
+      Jenkinsfile 을 고칠 때마다 커밋·push 하고 2분 기다리는 건 느리다. 빌드 화면 왼쪽의 <strong>Replay</strong> 를 누르면 그 빌드가 쓴 Jenkinsfile 이 편집 칸에 나온다.
+      고쳐서 <strong>Run</strong> 하면 <em>그 한 번만</em> 고친 내용으로 돈다. 예를 들어 Test 단계의 <code>pytest -q</code> 를 <code>pytest -v</code> 로 바꿔 테스트 이름이 다 찍히는지 본다.
+    </p>
+    <p>
+      Replay 로 고친 건 저장소에 저장되지 않는다. 마음에 들면 같은 내용을 Jenkinsfile 에 옮겨 커밋한다. 실험은 Replay, 확정은 커밋이다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>7. 문법이 생각 안 날 때 — Pipeline Syntax</h3>
+
+    <p>
+      잡 화면 왼쪽 <strong>Pipeline Syntax</strong> 를 누르면 도우미가 열린다. 두 가지를 쓴다.
+    </p>
+    <ul>
+      <li><strong>Snippet Generator</strong> — Sample Step 에서 스텝을 고르고 칸을 채운 뒤 <strong>Generate Pipeline Script</strong> 를 누르면 Jenkinsfile 에 붙여 넣을 한 줄이 나온다. 예: <code>junit</code> 을 고르고 파일 이름을 넣으면 <code>junit 'test-results.xml'</code></li>
+      <li><strong>Declarative Directive Generator</strong> — <code>options</code>, <code>triggers</code>, <code>when</code>, <code>post</code> 같은 블록을 화면으로 골라 만든다</li>
+    </ul>
+    <p>
+      같은 화면의 <strong>Global Variables Reference</strong> 에는 <code>env</code>, <code>params</code>, <code>currentBuild</code> 로 읽을 수 있는 값 목록이 있다. 내 젠킨스에 깔린 플러그인 기준으로 나오기 때문에 인터넷 예제보다 정확하다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>8. 자격 증명 쓰기 — withCredentials</h3>
+
+    <p>
+      <a href="/learn/cicd-jenkins-install/">4번 글</a>에서 등록한 <code>github-token</code> 을 Jenkinsfile 에서 꺼내 쓰는 방법이다. 13번 글에서 젠킨스가 GitHub 에 push 할 때 이대로 쓴다.
+      지금은 확인만 해 본다. Replay 로 Checkout 단계 <code>steps</code> 안에 넣고 돌려 본다.
+    </p>
+
+<pre><code>withCredentials([usernamePassword(credentialsId: 'github-token',
+                                  usernameVariable: 'GH_USER',
+                                  passwordVariable: 'GH_TOKEN')]) {
+    sh 'curl -fsS -o /dev/null -w "GitHub 인증: %{http_code}\\n" -u "$GH_USER:$GH_TOKEN" https://api.github.com/user'
+}</code></pre>
+
+<pre><code><span style="color:var(--ink-soft)">Masking supported pattern matches of $GH_TOKEN
++ curl -fsS -o /dev/null -w … -u &lt;내아이디&gt;:**** https://api.github.com/user
+GitHub 인증: 200</span></code></pre>
+
+    <ul>
+      <li>블록 안에서만 <code>GH_USER</code>, <code>GH_TOKEN</code> 환경 변수가 생기고, 블록이 끝나면 사라진다</li>
+      <li>로그에 비밀번호(토큰)가 찍히면 <code>****</code> 로 가려진다. <strong>아이디는 가리지 않는다.</strong> 그리고 가림은 "글자가 똑같을 때"만 통해서, 값을 잘라 찍거나 바꿔 찍으면 새어 나간다. 일부러 출력하지 않는다</li>
+      <li><strong><code>sh</code> 뒤 문자열은 작은따옴표</strong>로 쓴다. 큰따옴표(<code>"…$GH_TOKEN…"</code>)로 쓰면 Groovy 가 먼저 값을 끼워 넣어 버려서, 비밀값이 명령 문자열 자체에 박힌다. 젠킨스도 이때 <code>A secret was passed to "sh" using Groovy String interpolation</code> 경고를 띄운다. 작은따옴표면 셸이 실행할 때 환경 변수에서 읽는다</li>
+    </ul>
+    <p>짧게 쓰는 방법도 있다. <code>environment</code> 블록에서 <code>credentials()</code> 로 부르면 아이디·비밀번호가 <code>_USR</code>, <code>_PSW</code> 를 붙인 이름으로 들어온다.</p>
+
+<pre><code>environment {
+    GH = credentials('github-token')   // → $GH_USR, $GH_PSW
+}</code></pre>
+
+    <p class="gloss">
+      <b>withCredentials</b> — 자격 증명을 블록 안에서만 환경 변수로 꺼내 주는 스텝(Credentials Binding 플러그인). 쓰는 범위를 좁혀 새는 걸 줄인다.<br>
+      <b>문자열 끼워 넣기(interpolation)</b> — Groovy 에서 큰따옴표 문자열 안의 <code>${…}</code>·<code>$이름</code> 을 값으로 바꾸는 것. 작은따옴표 문자열은 바꾸지 않고 글자 그대로 셸에 넘긴다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>9. 멀티브랜치 파이프라인 — 브랜치마다 저절로</h3>
+
+    <p>
+      지금 잡은 <code>main</code> 하나만 본다. 회사에서는 기능 브랜치와 PR 에서도 테스트를 돌리고 싶다. 그렇다고 브랜치마다 잡을 손으로 만들 수는 없다.
+      <strong>Multibranch Pipeline</strong> 은 저장소를 훑어서 <strong>Jenkinsfile 이 있는 브랜치마다 잡을 저절로 만들고</strong>, 브랜치가 지워지면 잡도 정리한다.
+    </p>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 200" role="img" aria-label="멀티브랜치 잡이 저장소의 브랜치를 훑어 main, feature/login, feature/search 마다 하위 잡을 만든다. 모든 브랜치에서 테스트는 돌고, 배포 단계는 when branch main 조건 때문에 main 에서만 실행된다.">
+          <rect class="d-box" x="16" y="70" width="150" height="60" rx="4"/>
+          <text class="d-t" x="91" y="95" text-anchor="middle">Multibranch 잡</text>
+          <text class="d-t-s" x="91" y="114" text-anchor="middle">브랜치를 훑는다</text>
+
+          <rect class="d-box-m" x="230" y="20" width="200" height="44" rx="3"/>
+          <text class="d-t-m" x="246" y="47">main</text>
+          <text class="d-t-s" x="414" y="47" text-anchor="end">테스트 → 배포</text>
+
+          <rect class="d-box" x="230" y="78" width="200" height="44" rx="3"/>
+          <text class="d-t-m" x="246" y="105">feature/login</text>
+          <text class="d-t-s" x="414" y="105" text-anchor="end">테스트만</text>
+
+          <rect class="d-box" x="230" y="136" width="200" height="44" rx="3"/>
+          <text class="d-t-m" x="246" y="163">feature/search</text>
+          <text class="d-t-s" x="414" y="163" text-anchor="end">테스트만</text>
+
+          <path class="d-line" d="M166,100 H198 V42 H223"/><polygon points="230,42 223,38 223,46" fill="#1A1D18"/>
+          <path class="d-line" d="M198,100 H223"/><polygon points="230,100 223,96 223,104" fill="#1A1D18"/>
+          <path class="d-line" d="M198,100 V158 H223"/><polygon points="230,158 223,154 223,162" fill="#1A1D18"/>
+
+          <rect class="d-box" x="470" y="70" width="154" height="60" rx="4"/>
+          <text class="d-t-m" x="547" y="95" text-anchor="middle">when { branch 'main' }</text>
+          <text class="d-t-s" x="547" y="114" text-anchor="middle">배포 단계의 조건</text>
+          <path class="d-dash" d="M430,42 H547 V70"/>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        Jenkinsfile 은 하나다. 같은 파일이 브랜치마다 돌면서, 브랜치 이름에 따라 배포 단계를 할지 말지 스스로 정한다.
+      </figcaption>
+    </figure>
+
+    <h4>만들어 보기</h4>
+    <ol>
+      <li>먼저 <code>cicd-hello-pipeline</code> 잡의 폴링을 끈다(<strong>Disable Project</strong> 버튼으로 잡을 통째로 멈춰도 된다). 둘이 같이 main 을 배포하지 않게</li>
+      <li><strong>+ New Item</strong> → 이름 <code>cicd-hello-multi</code> → <strong>Multibranch Pipeline</strong></li>
+      <li>Branch Sources → <strong>Add source → Git</strong> → Project Repository 에 저장소 주소</li>
+      <li>Build Configuration: by Jenkinsfile, Script Path <code>Jenkinsfile</code></li>
+      <li>Scan Multibranch Pipeline Triggers → <strong>Periodically if not otherwise run</strong> → 간격 2 minutes (새 브랜치를 찾는 주기)</li>
+      <li>Save → 저절로 Scan 이 돌고, <code>main</code> 하위 잡이 생겨 빌드된다</li>
+    </ol>
+
+    <p>Jenkinsfile 의 배포 두 단계 <code>when</code> 을 바꾼다.</p>
+
+<pre><code>        stage('Deploy') {
+            when {
+                allOf {
+                    branch 'main'                       // main 브랜치일 때만
+                    expression { params.DEPLOY }        // 그리고 DEPLOY 체크일 때만
+                }
+            }
+            ...
+        stage('Health check') {
+            when {
+                allOf {
+                    branch 'main'
+                    expression { params.DEPLOY }
+                }
+            }</code></pre>
+
+    <p>
+      커밋해서 main 에 올린 뒤, 기능 브랜치를 하나 만들어 push 해 본다.
+    </p>
+
+<pre><code>git switch -c feature/greeting
+echo "# 인사말 바꿀 예정" &gt;&gt; app.py
+git commit -am "인사말 작업 시작"
+git push -u origin feature/greeting</code></pre>
+
+    <p>
+      2분쯤 뒤 <code>cicd-hello-multi</code> 안에 <code>feature/greeting</code> 잡이 생기고, Test 까지 돈 뒤 Deploy·Health check 는 <strong>회색으로 건너뛴다</strong>. 운영(8000)은 그대로다.
+      브랜치를 PR 로 합치면 main 잡이 돌아서 그때 배포된다. GitHub 소스(GitHub Branch Source 플러그인)로 연결하면 PR 마다 하위 잡이 생기고 결과가 PR 화면에 체크로 붙는다.
+    </p>
+
+    <p>
+      <strong>주의:</strong> <code>when { branch 'main' }</code> 은 멀티브랜치에서만 뜻이 있다. 3번 단계의 일반 Pipeline 잡에서는 브랜치 이름(<code>BRANCH_NAME</code>)이 비어 있어서 이 조건이 늘 거짓이 되고, 배포가 영영 안 된다. 그래서 일반 잡용 Jenkinsfile 에는 <code>params.DEPLOY</code> 만 걸었다.
+    </p>
+
+    <p class="gloss">
+      <b>멀티브랜치 파이프라인</b> — 저장소의 브랜치(와 PR)마다 하위 파이프라인 잡을 자동으로 만들고 지우는 잡 종류.<br>
+      <b>BRANCH_NAME</b> — 멀티브랜치에서 지금 도는 브랜치 이름을 담은 환경 변수. <code>when { branch … }</code> 이 이 값을 본다.<br>
+      <b>allOf / anyOf</b> — <code>when</code> 안에서 조건을 "모두 참" / "하나라도 참"으로 묶는 말.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>자주 걸리는 것</h3>
+
+    <table>
+      <tr><th>증상</th><th>원인</th><th>해결</th></tr>
+      <tr><td>시작하자마자 <code>WorkflowScript: 5: … @ line 5, column 27.</code> 와 <code>N errors</code> 로 끝남</td><td>선언형 구조 오류. <code>steps</code> 밖에 <code>sh</code> 를 썼거나, 괄호가 안 맞거나, 블록 두 개를 한 줄에 붙여 씀</td><td>앞의 숫자가 줄 번호, column 이 칸 위치. 블록은 한 줄에 하나씩. 처음엔 Snippet Generator 로 만든 줄을 붙여 넣는다</td></tr>
+      <tr><td><code>Invalid option type "timestamps"</code></td><td>Timestamper 플러그인이 없음</td><td>플러그인 설치, 또는 그 줄 삭제</td></tr>
+      <tr><td>Build with Parameters 가 안 생긴다 / 폴링이 안 돈다</td><td>Jenkinsfile 을 아직 한 번도 안 돌림</td><td>Build Now 로 한 번 돌린다</td></tr>
+      <tr><td><code>ERROR: Couldn't find any revision to build</code></td><td>Branch Specifier 가 <code>*/master</code></td><td><code>*/main</code></td></tr>
+      <tr><td>Deploy 가 항상 회색으로 건너뜀 (<code>skipped due to when conditional</code>)</td><td>일반 Pipeline 잡에 <code>when { branch 'main' }</code> 을 씀</td><td>9번 단계의 주의 참고. 일반 잡에서는 빼거나 멀티브랜치로</td></tr>
+      <tr><td>실패 메시지에 <code>nullconsole</code> 처럼 찍힌다</td><td>Jenkins URL 설정이 비어 <code>BUILD_URL</code> 이 없음</td><td>Manage Jenkins → System → Jenkins URL 에 <code>http://localhost:8080/</code></td></tr>
+      <tr><td><code>A secret was passed to "sh" using Groovy String interpolation</code> 경고</td><td>비밀값을 큰따옴표 문자열에 넣음</td><td><code>sh '…$GH_TOKEN…'</code> 처럼 작은따옴표로</td></tr>
+      <tr><td>커밋 한 번에 배포가 두 번</td><td>Freestyle·Pipeline·Multibranch 잡이 같은 main 을 같이 지켜봄</td><td>하나만 남기고 폴링을 끄거나 Disable</td></tr>
+    </table>
+
+    <!-- ============================================================ -->
+    <h3>다음 단계로 가기 전 정리</h3>
+    <ul>
+      <li>온프레미스 단계는 여기까지다. 지금까지 만든 것: 우분투에 직접 깐 젠킨스(8080), 잡 세 개, systemd 앱(8000).</li>
+      <li>다음부터는 젠킨스를 <strong>도커 컨테이너</strong>로 다시 띄운다(8090). 우분투 젠킨스는 지우지 않아도 되지만, 메모리를 아끼려면 <code>sudo systemctl stop jenkins</code> 와 <code>sudo systemctl disable jenkins</code> 로 꺼 둔다. 8000 앱도 <code>sudo systemctl disable --now cicd-hello</code> 로 꺼도 된다.</li>
+      <li><strong>Jenkinsfile 은 저장소에 남겨 둔다.</strong> 9번 글에서 이 파일을 도커용으로 고쳐 쓴다. 멀티브랜치로 바꾼 <code>when</code> 은 그대로 둬도 되고, 연습용 <code>feature/greeting</code> 브랜치는 지운다(<code>git push origin --delete feature/greeting</code>).</li>
+    </ul>
+
+    <p class="gloss">
+      <b>이 글의 용어 정리</b><br>
+      <b>Pipeline as Code / Jenkinsfile</b> — 빌드 절차를 코드 파일로 써서 저장소에 같이 넣는 방식 / 그 파일.<br>
+      <b>선언형 / 스크립트형</b> — 정해진 블록을 채우는 문법 / Groovy 코드를 자유롭게 쓰는 문법.<br>
+      <b>stage / steps / post / when</b> — 단계 / 단계 안의 실제 명령 / 끝난 뒤 할 일 / 단계를 할지 말지 조건.<br>
+      <b>Pipeline script from SCM</b> — 잡이 저장소에서 Jenkinsfile 을 읽어 오게 하는 설정.<br>
+      <b>Stage View</b> — 빌드를 단계별 칸으로 보여 주는 화면.<br>
+      <b>Replay</b> — 고친 Jenkinsfile 로 한 번만 다시 돌리기. 저장되지 않는다.<br>
+      <b>Snippet Generator</b> — 화면에서 골라 Jenkinsfile 한 줄을 만들어 주는 도우미.<br>
+      <b>멀티브랜치</b> — 브랜치마다 잡을 자동으로 만드는 잡 종류.
+    </p>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 볼 것</p>
+      <ul>
+        <li><a href="/learn/cicd-jenkins-job/">← 5. 젠킨스 대시보드로 빌드·배포 확인하기</a></li>
+        <li><a href="/learn/cicd-dind-dood/">7. DinD 와 DooD →</a> — 젠킨스가 도커를 쓰는 두 가지 방법</li>
+        <li><a href="/learn/git-branch-pr/">브랜치와 Pull Request</a> — 멀티브랜치가 지켜보는 흐름</li>
+        <li><a href="/learn/git-main-dev/">main 과 dev 로 일하기</a> — <code>when { branch }</code> 으로 브랜치마다 다른 서버에 배포하기</li>
+        <li><a href="/learn/github-actions/">GitHub Actions 첫걸음</a> — 같은 일을 YAML 로 쓰면</li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

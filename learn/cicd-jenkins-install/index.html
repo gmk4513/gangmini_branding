@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>온프레미스 서버에 젠킨스 설치하기 · gangmin</title>
+<meta name="description" content="우리 회사 서버 역할을 하는 WSL2 우분투에 Java 21 과 젠킨스 LTS 를 설치한다. 첫 화면 잠금 풀기, 플러그인, 관리자 계정, 관리 화면, GitHub 자격 증명 등록, 젠킨스 홈 폴더, 보안 기본값, 끄고 켜기까지.">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="gangmin">
+<meta property="og:title" content="온프레미스 서버에 젠킨스 설치하기">
+<meta property="og:description" content="WSL2 우분투에 젠킨스를 깔고 첫 설정까지. CI/CD 실습 4/13.">
+<meta property="og:url" content="https://gangmini.com/learn/cicd-jenkins-install/">
+<meta property="og:image" content="https://gangmini.com/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23E0452B'/></svg>">
+<!-- ?v= 는 캐시 깨기용이다. Cloudflare Pages 는 js·css 에 max-age=14400(4시간) 을
+     붙인다. 고쳐서 배포했으면 이 숫자를 함께 올려야 새 파일을 받아 간다. -->
+<link rel="stylesheet" href="../../style.css?v=20261002b">
+<link rel="stylesheet" href="../../notes/note.css?v=20261028">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <a class="back" href="/learn/">← 이론/용어</a>
+    <p class="eyebrow">PRACTICE · CI/CD 04/13</p>
+    <h2 class="masthead__title">온프레미스 서버에<br>— 젠킨스 설치하기</h2>
+    <div class="doc__meta">
+      <span class="tag">실습</span>
+      <span class="tag">Jenkins</span>
+      <span class="tag">온프레미스</span>
+      <span class="tag">우분투</span>
+      <span class="tag">systemd</span>
+      <span class="tag">자격 증명</span>
+      <time class="note__date">2026.11.10</time>
+    </div>
+  </header>
+
+  <main class="doc">
+
+    <p>
+      <a href="/learn/cicd-git-repo/">앞 단계</a>에서 GitHub 에 <code>cicd-hello</code> 저장소를 만들었다. 코드는 이제 한곳에 모인다.
+      다음은 <strong>그 코드를 받아서 테스트하고 서버에 올리는 일을 대신 해 줄 일꾼</strong>을 들이는 차례다. 가장 오래되고 지금도 회사에서 가장 많이 보는 일꾼이 젠킨스(Jenkins)다.
+    </p>
+    <p>
+      이번 글은 설치와 첫 설정만 한다. 실제로 빌드를 돌리는 건 다음 글부터다. 설치는 한 번만 하면 되지만, 여기서 보는 화면(관리 메뉴, 자격 증명, 젠킨스 홈 폴더)은 이후 글에서 계속 다시 온다.
+    </p>
+
+    <h4>이번 단계에서 할 것</h4>
+    <ol>
+      <li>온프레미스와 젠킨스의 구조를 그림으로 잡기</li>
+      <li>우분투(WSL2)에 Java 21 과 젠킨스 LTS 설치</li>
+      <li>브라우저에서 잠금 풀기 → 추천 플러그인 → 관리자 계정 → 주소 설정</li>
+      <li>관리 화면 둘러보기, GitHub 자격 증명 <code>github-token</code> 등록</li>
+      <li>젠킨스 홈 폴더 구조, 보안 기본값, 끄고 켜는 법</li>
+    </ol>
+    <p><strong>끝나면:</strong> 윈도우 브라우저에서 <code>http://localhost:8080</code> 을 열면 내가 만든 관리자 계정으로 젠킨스 대시보드에 들어가진다.</p>
+
+    <!-- ============================================================ -->
+    <h3>온프레미스란</h3>
+
+    <p>
+      <strong>온프레미스(on-premises)</strong>는 회사가 직접 가진 서버에 프로그램을 깔아 쓰는 방식이다. 서버실에 있는 컴퓨터든, 데이터센터에 빌린 자리에 넣어 둔 컴퓨터든 "우리가 관리하는 리눅스 한 대"에 직접 설치한다는 점이 같다.
+      반대말은 클라우드 서비스다. GitHub Actions 처럼 남이 돌려 주는 CI 를 쓰면 서버 관리는 안 해도 되지만, 사내망 안의 서버에 배포하거나 빌드 환경을 마음대로 바꾸기는 어렵다.
+      그래서 은행, 공공기관, 오래된 회사일수록 사내 서버에 젠킨스를 직접 깔아 둔 곳이 많다.
+    </p>
+    <p>
+      실습에서는 진짜 서버 대신 <strong>내 윈도우 안의 WSL2 우분투</strong>를 "회사 서버"로 친다. 명령은 전부 우분투 터미널에서 친다. 리눅스 서버에 SSH 로 접속해서 치는 것과 같은 명령이다.
+    </p>
+
+    <p class="gloss">
+      <b>온프레미스(on-premises, 줄여서 온프레)</b> — 클라우드 서비스를 빌려 쓰지 않고, 회사가 직접 관리하는 서버에 소프트웨어를 설치해 운영하는 방식.<br>
+      <b>WSL2</b> — 윈도우 안에서 진짜 리눅스 커널을 돌리는 기능. 실습에서는 이 안의 우분투를 서버 한 대처럼 쓴다. 준비는 <a href="/learn/cicd-setup/">실습 환경 준비</a> 글에서 했다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>젠킨스는 어떻게 생겼나</h3>
+
+    <figure class="fig">
+      <div class="fig__scroll">
+        <svg viewBox="0 0 640 260" role="img" aria-label="내 브라우저가 localhost:8080 으로 우분투 서버 안의 젠킨스 컨트롤러에 접속한다. 컨트롤러는 잡 설정, 빌드 기록, 플러그인, 자격 증명을 /var/lib/jenkins 에 보관한다. 빌드는 실행자(executor)가 워크스페이스 폴더에서 돌리고, 코드는 GitHub 에서 받아 온다. 다른 서버를 에이전트로 붙일 수도 있다.">
+          <rect class="d-box" x="16" y="80" width="110" height="60" rx="4"/>
+          <text class="d-t" x="71" y="105" text-anchor="middle">내 브라우저</text>
+          <text class="d-t-m" x="71" y="124" text-anchor="middle">localhost:8080</text>
+
+          <rect class="d-box-m" x="150" y="20" width="330" height="222" rx="4"/>
+          <text class="d-t-s" x="315" y="38" text-anchor="middle">우분투 서버 (WSL2) — 온프레미스</text>
+
+          <rect class="d-box" x="166" y="50" width="300" height="80" rx="3"/>
+          <text class="d-t" x="316" y="72" text-anchor="middle">젠킨스 컨트롤러</text>
+          <text class="d-t-s" x="316" y="92" text-anchor="middle">웹 화면 · 잡 설정 · 빌드 기록 · 플러그인 · 자격 증명</text>
+          <text class="d-t-m" x="316" y="114" text-anchor="middle">/var/lib/jenkins (젠킨스 홈)</text>
+
+          <rect class="d-box" x="166" y="150" width="140" height="76" rx="3"/>
+          <text class="d-t" x="236" y="174" text-anchor="middle">실행자 × 2</text>
+          <text class="d-t-s" x="236" y="194" text-anchor="middle">built-in node</text>
+          <text class="d-t-s" x="236" y="212" text-anchor="middle">빌드를 실제로 돌림</text>
+
+          <rect class="d-box" x="326" y="150" width="140" height="76" rx="3"/>
+          <text class="d-t" x="396" y="174" text-anchor="middle">워크스페이스</text>
+          <text class="d-t-m" x="396" y="194" text-anchor="middle">workspace/잡이름</text>
+          <text class="d-t-s" x="396" y="212" text-anchor="middle">코드를 받아 두는 폴더</text>
+
+          <rect class="d-box" x="512" y="60" width="112" height="60" rx="4"/>
+          <text class="d-t" x="568" y="85" text-anchor="middle">GitHub</text>
+          <text class="d-t-m" x="568" y="104" text-anchor="middle">cicd-hello</text>
+
+          <rect class="d-box" x="512" y="158" width="112" height="64" rx="4" style="stroke-dasharray:4 3"/>
+          <text class="d-t" x="568" y="184" text-anchor="middle">에이전트</text>
+          <text class="d-t-s" x="568" y="204" text-anchor="middle">다른 서버 (선택)</text>
+
+          <path class="d-line" d="M126,110 H159"/><polygon points="166,110 159,106 159,114" fill="#1A1D18"/>
+          <path class="d-line" d="M512,90 H473"/><polygon points="466,90 473,86 473,94" fill="#1A1D18"/>
+          <text class="d-t-s" x="489" y="82" text-anchor="middle">clone</text>
+          <path class="d-line" d="M306,188 H319"/><polygon points="326,188 319,184 319,192" fill="#1A1D18"/>
+          <path class="d-dash" d="M466,190 H512"/>
+        </svg>
+      </div>
+      <p class="fig__hint">← 옆으로 밀어 보기 →</p>
+      <figcaption>
+        젠킨스 한 대 = 컨트롤러(두뇌) + 실행자(손). 실습에서는 둘이 같은 우분투 안에 있다. 회사에서는 빌드를 다른 서버(에이전트)로 보내는 경우가 많다.
+      </figcaption>
+    </figure>
+
+    <p class="gloss">
+      <b>컨트롤러(controller)</b> — 젠킨스의 본체. 웹 화면을 띄우고, 설정과 기록을 저장하고, "이 빌드는 어디서 돌려라"를 정한다. 예전 문서에는 master 라고 적혀 있다.<br>
+      <b>에이전트(agent)·노드(node)</b> — 빌드를 실제로 돌리는 컴퓨터. 컨트롤러 자신도 노드 하나(built-in node)로 친다. 예전 이름은 slave.<br>
+      <b>실행자(executor)</b> — 노드 하나가 동시에 돌릴 수 있는 빌드 칸 수. 2 면 빌드 두 개까지 동시에 돈다.<br>
+      <b>잡(job)·프로젝트</b> — "어떤 저장소를 받아서 무엇을 하라"는 설정 한 묶음. <b>빌드(build)</b>는 그 잡을 한 번 돌린 것. 빌드마다 #1, #2 번호가 붙는다.<br>
+      <b>플러그인(plugin)</b> — 젠킨스에 기능을 더하는 부품. Git 연동, 파이프라인, 테스트 결과 그래프까지 거의 모든 기능이 플러그인이다.<br>
+      <b>워크스페이스(workspace)</b> — 잡이 코드를 받아 두고 명령을 실행하는 폴더. 잡마다 하나씩 생긴다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>1. Java 21 설치</h3>
+
+    <p>
+      젠킨스는 Java 로 만든 프로그램이라 Java 가 먼저 있어야 한다. 지금 젠킨스 LTS 는 <strong>Java 17 또는 21</strong> 에서 돈다. 우분투 24.04 에는 21 이 들어 있다.
+      우분투 터미널을 열고 친다.
+    </p>
+
+<pre><code>sudo apt update
+sudo apt install -y fontconfig openjdk-21-jre
+java -version</code></pre>
+
+<pre><code><span style="color:var(--ink-soft)">openjdk version "21.0.x" ...
+OpenJDK Runtime Environment (build 21.0.x+...-Ubuntu-...)
+OpenJDK 64-Bit Server VM ...</span></code></pre>
+
+    <p>첫 줄에 <code>21</code> 이 보이면 된다. 뒤의 작은 숫자는 설치한 날에 따라 다르다.</p>
+
+    <p class="gloss">
+      <b>JRE(Java Runtime Environment)</b> — Java 프로그램을 <em>실행</em>만 하는 데 필요한 것. 개발 도구까지 들어 있는 건 JDK 다. 젠킨스를 돌리기만 하니 JRE 면 된다.<br>
+      <b>fontconfig</b> — 글꼴 설정 라이브러리. 젠킨스가 그래프 그림을 만들 때 필요해서 공식 문서가 같이 깔라고 한다.<br>
+      <b>LTS(Long-Term Support)</b> — 장기 지원판. 젠킨스는 매주 나오는 weekly 판과 12주마다 안정화해서 내는 LTS 판이 있다. 회사 서버에는 LTS 를 쓴다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>2. 젠킨스 LTS 설치</h3>
+
+    <p>
+      우분투 기본 저장소에는 젠킨스가 없다. 젠킨스가 운영하는 apt 저장소를 추가하고 거기서 받는다. 아래는 <a href="https://www.jenkins.io/doc/book/installing/linux/">공식 설치 문서</a>의 Debian/Ubuntu LTS 줄이다.
+    </p>
+
+<pre><code># 1) 젠킨스 저장소의 서명 키를 받아 둔다
+sudo mkdir -p /etc/apt/keyrings
+sudo wget -O /etc/apt/keyrings/jenkins-keyring.asc \
+  https://pkg.jenkins.io/debian-stable/jenkins.io-2026.key
+
+# 2) 저장소 주소를 등록한다 (이 키로 서명된 것만 믿는다)
+echo "deb [signed-by=/etc/apt/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/" \
+  | sudo tee /etc/apt/sources.list.d/jenkins.list &gt; /dev/null
+
+# 3) 목록을 새로 받고 설치
+sudo apt update
+sudo apt install -y jenkins</code></pre>
+
+    <p>
+      <strong>주의:</strong> 키 파일 이름은 몇 년마다 바뀐다. 2025년 12월에 <code>jenkins.io-2023.key</code> 에서 <code>jenkins.io-2026.key</code> 로 바뀌었고(2026-11-10 공식 문서 기준), 인터넷의 예전 글에는 아직 2023 이 많다.
+      <code>apt update</code> 에서 <code>NO_PUBKEY</code> 나 <code>is not signed</code> 같은 에러가 나면 키가 낡은 것이다. 위 공식 문서를 열어 지금 적혀 있는 줄로 1)·2) 를 다시 한다.
+    </p>
+
+    <p class="gloss">
+      <b>apt 저장소</b> — 우분투가 프로그램을 받아 오는 창고 주소 목록. <code>/etc/apt/sources.list.d/</code> 에 파일을 하나 넣으면 창고가 하나 늘어난다.<br>
+      <b>서명 키(GPG key)</b> — 창고에서 받은 파일이 진짜 젠킨스가 만든 것인지 확인하는 열쇠. 키가 없거나 다르면 apt 가 설치를 거부한다. 중간에 누가 파일을 바꿔치기하는 걸 막는 장치다.
+    </p>
+
+    <p>설치가 끝나면 젠킨스는 <strong>서비스</strong>로 등록돼 바로 켜진다. 상태를 본다.</p>
+
+<pre><code>systemctl status jenkins</code></pre>
+
+<pre><code><span style="color:var(--ink-soft)">● jenkins.service - Jenkins Continuous Integration Server
+     Loaded: loaded (/usr/lib/systemd/system/jenkins.service; enabled; ...)
+     Active: active (running) since ...
+   Main PID: 1234 (java)</span></code></pre>
+
+    <p>
+      <code>active (running)</code> 이 보이면 된다. <code>q</code> 를 눌러 빠져나온다. 처음 켜질 때 1분 가까이 걸릴 수 있어서, <code>activating</code> 이면 잠깐 기다렸다가 다시 본다.
+    </p>
+
+    <p class="gloss">
+      <b>systemd·서비스</b> — 리눅스에서 "켜 두고 계속 돌아야 하는 프로그램"을 관리하는 장치. 서버가 켜지면 자동으로 띄우고, 죽으면 다시 살리고, 로그를 모아 둔다. <code>systemctl</code> 이 그 리모컨이다.<br>
+      <b>enabled</b> — 서버(여기서는 WSL)가 켜질 때 자동으로 시작하도록 등록돼 있다는 뜻.
+    </p>
+
+    <p>
+      WSL 에서 <code>System has not been booted with systemd</code> 가 나오면 systemd 가 꺼져 있는 것이다. <a href="/learn/cicd-setup/">실습 환경 준비</a> 글의 <code>/etc/wsl.conf</code> 설정을 확인하고, 윈도우 PowerShell 에서 <code>wsl --shutdown</code> 뒤 우분투를 다시 연다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>3. 브라우저로 첫 설정</h3>
+
+    <h4>3-1. 잠금 풀기 (Unlock Jenkins)</h4>
+    <p>
+      윈도우 브라우저에서 <code>http://localhost:8080</code> 을 연다. WSL2 는 우분투 안의 포트를 윈도우의 localhost 로 연결해 주기 때문에 그대로 열린다.
+      <strong>Unlock Jenkins</strong> 화면이 나오고, 관리자 비밀번호를 넣으라고 한다. 이 비밀번호는 설치할 때 서버 안 파일에 적혀 있다.
+    </p>
+
+<pre><code>sudo cat /var/lib/jenkins/secrets/initialAdminPassword</code></pre>
+
+<pre><code><span style="color:var(--ink-soft)">3f9c0a6e1b2d4c5e8f7a9b0c1d2e3f4a     ← 32자리 글자. 사람마다 다르다</span></code></pre>
+
+    <p>
+      이 줄을 복사해서 <strong>Administrator password</strong> 칸에 붙여 넣고 <strong>Continue</strong>.
+      이 파일을 서버 안에서만 볼 수 있게 한 이유는, 젠킨스 주소를 아는 아무나 먼저 들어와서 관리자가 되는 걸 막으려는 것이다.
+    </p>
+
+    <h4>3-2. 플러그인 설치 (Customize Jenkins)</h4>
+    <p>
+      <strong>Install suggested plugins</strong> 를 누른다. Git, Pipeline, Credentials, JUnit 처럼 거의 모든 회사가 쓰는 플러그인 묶음이 깔린다. 인터넷 속도에 따라 몇 분 걸린다.
+      몇 개가 빨갛게 실패하면 <strong>Retry</strong> 를 누른다. 대개 일시적인 다운로드 실패다.
+    </p>
+
+    <h4>3-3. 관리자 계정 (Create First Admin User)</h4>
+    <p>
+      아이디, 비밀번호, 이름, 이메일을 넣는다. 이 계정이 앞으로 쓰는 관리자다. 실습이라도 <code>admin/admin</code> 같은 비밀번호는 쓰지 않는다. 습관이 회사 서버까지 따라간다.
+      <strong>Save and Continue</strong>.
+    </p>
+
+    <h4>3-4. 주소 설정 (Instance Configuration)</h4>
+    <p>
+      <strong>Jenkins URL</strong> 에 <code>http://localhost:8080/</code> 이 채워져 있다. 그대로 둔다.
+      이 값은 젠킨스가 이메일·알림·GitHub 상태 표시에 "자기 주소"를 적을 때 쓴다. 회사 서버라면 <code>https://jenkins.회사.com/</code> 처럼 다른 사람이 들어올 수 있는 주소를 넣는다.
+      <strong>Save and Finish → Start using Jenkins</strong>.
+    </p>
+
+    <p>대시보드가 나오면 설치는 끝이다. 왼쪽 위 "Jenkins" 로고를 누르면 언제든 이 첫 화면으로 돌아온다.</p>
+
+    <p class="gloss">
+      <b>대시보드(dashboard)</b> — 젠킨스 첫 화면. 잡 목록과 각 잡의 마지막 빌드 상태(초록 체크·빨간 X), 날씨 아이콘(최근 빌드들이 얼마나 성공했나)이 보인다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>4. 관리 화면 둘러보기</h3>
+
+    <p>
+      왼쪽 메뉴 또는 오른쪽 위 톱니바퀴의 <strong>Manage Jenkins</strong> 로 들어간다. 메뉴가 많지만 실습에서 실제로 쓰는 건 네 개다.
+    </p>
+
+    <table>
+      <tr><th>메뉴</th><th>하는 일</th><th>이 시리즈에서</th></tr>
+      <tr><td><strong>System</strong></td><td>젠킨스 전체 설정. Jenkins URL, 관리자 이메일, 전역 환경 변수, 각 플러그인의 전역 설정</td><td>주소 바꿀 때</td></tr>
+      <tr><td><strong>Plugins</strong></td><td>플러그인 설치·업데이트·삭제. <em>Available plugins</em> 에서 검색해 설치</td><td>9번 글에서 Docker Pipeline 등을 더 깐다</td></tr>
+      <tr><td><strong>Nodes</strong></td><td>빌드를 돌리는 컴퓨터 목록과 실행자 수. 에이전트 추가도 여기</td><td>아래 보안 기본값</td></tr>
+      <tr><td><strong>Credentials</strong></td><td>비밀번호·토큰·SSH 키를 암호화해서 보관. 잡에서는 ID 로만 부른다</td><td>바로 아래에서 <code>github-token</code> 등록</td></tr>
+    </table>
+
+    <p>
+      그 밖에 <strong>Security</strong>(누가 무엇을 할 수 있나), <strong>Users</strong>(계정), <strong>Tools</strong>(JDK·Git·Maven 같은 도구 위치), <strong>System Log</strong>(젠킨스 자체 로그), <strong>Script Console</strong>(관리자용 Groovy 실행 창 — 서버 전체를 건드릴 수 있어서 조심)이 있다.
+      화면 위쪽에 노란 경고(업데이트 있음, 보안 경고)가 뜨면 무시하지 말고 한 번씩 읽는다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>5. GitHub 자격 증명 등록 — github-token</h3>
+
+    <p>
+      실습 저장소 <code>cicd-hello</code> 는 공개라 받아 오는 데는 비밀번호가 필요 없다. 그래도 지금 등록해 두는 이유가 있다.
+      비공개 저장소를 받을 때, 그리고 13번 글에서 젠킨스가 GitHub 에 <strong>커밋을 push</strong> 할 때 이 자격 증명을 쓴다. 등록 방법은 어느 비밀값이든 똑같아서 한 번 익혀 두면 된다.
+    </p>
+
+    <h4>5-1. GitHub 에서 토큰 만들기</h4>
+    <ol>
+      <li>GitHub 오른쪽 위 프로필 → <strong>Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token</strong></li>
+      <li>Token name: <code>jenkins-local</code>, Expiration: 30일 정도</li>
+      <li>Repository access: <strong>Only select repositories</strong> → <code>cicd-hello</code> (나중에 만들 <code>cicd-hello-manifests</code> 는 그때 토큰 설정에서 추가할 수 있다)</li>
+      <li>Permissions → Repository permissions → <strong>Contents: Read and write</strong></li>
+      <li><strong>Generate token</strong> → 나온 <code>github_pat_...</code> 문자열을 복사. 이 화면을 닫으면 다시 볼 수 없다</li>
+    </ol>
+
+    <p class="gloss">
+      <b>PAT(Personal Access Token, 개인 접근 토큰)</b> — GitHub 비밀번호 대신 쓰는 긴 문자열. 저장소·권한·만료일을 좁혀서 만들 수 있어서, 새어도 피해가 그 범위로 끝난다. GitHub 는 git 명령에 계정 비밀번호를 받지 않으니 토큰이 필수다.<br>
+      <b>Fine-grained token</b> — 저장소 단위로 권한을 고르는 새 방식 토큰. 예전 방식(classic)은 내 모든 저장소에 권한이 걸려서 위험하다.
+    </p>
+
+    <h4>5-2. 젠킨스에 넣기</h4>
+    <ol>
+      <li><strong>Manage Jenkins → Credentials</strong></li>
+      <li>표에서 Store 가 <strong>System</strong>, Domain 이 <strong>(global)</strong> 인 줄의 <code>(global)</code> 을 누른다</li>
+      <li><strong>+ Add Credentials</strong></li>
+      <li>Kind: <strong>Username with password</strong></li>
+      <li>Username: GitHub 아이디 / Password: 방금 복사한 토큰</li>
+      <li><strong>ID: <code>github-token</code></strong> (이 시리즈의 Jenkinsfile 이 이 이름으로 부른다. 철자가 다르면 못 찾는다)</li>
+      <li>Description: <code>GitHub PAT (cicd-hello)</code> → <strong>Create</strong></li>
+    </ol>
+
+    <p>
+      목록에 <code>github-token</code> 이 생기고, 비밀번호 칸은 다시 열어도 가려져 있다. 젠킨스는 이 값을 <code>/var/lib/jenkins/credentials.xml</code> 에 암호화해서 저장한다.
+      잡 설정과 Jenkinsfile 에는 값이 아니라 <strong>ID 만</strong> 적는다. 그래서 코드를 공개 저장소에 올려도 토큰은 새지 않는다.
+    </p>
+
+    <p class="gloss">
+      <b>자격 증명(credentials)</b> — 젠킨스가 대신 들고 있는 비밀값(비밀번호, 토큰, SSH 키, 인증서). 빌드할 때만 꺼내 쓰고 로그에는 <code>****</code> 로 가린다.<br>
+      <b>ID</b> — 자격 증명을 부르는 이름. 사람이 읽는 Description 과 달리 잡과 Jenkinsfile 이 이 값으로 찾는다. 비워 두면 무작위 문자열이 붙어서 나중에 쓰기 불편하다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>6. 젠킨스 홈 폴더 — 모든 게 여기 있다</h3>
+
+    <p>젠킨스의 설정, 잡, 빌드 기록, 플러그인은 전부 <strong>젠킨스 홈</strong> 한 폴더에 파일로 저장된다. 데이터베이스가 따로 없다.</p>
+
+<pre><code>sudo ls /var/lib/jenkins</code></pre>
+
+    <table>
+      <tr><th>경로</th><th>무엇</th></tr>
+      <tr><td><code>config.xml</code></td><td>젠킨스 전체 설정 (보안, 실행자 수 등)</td></tr>
+      <tr><td><code>jobs/잡이름/config.xml</code></td><td>잡 하나의 설정. 화면에서 고친 내용이 여기 저장된다</td></tr>
+      <tr><td><code>jobs/잡이름/builds/번호/</code></td><td>빌드 한 번의 기록. <code>log</code> 파일이 콘솔 출력이다</td></tr>
+      <tr><td><code>workspace/잡이름/</code></td><td>워크스페이스. 코드를 받아 빌드하는 곳</td></tr>
+      <tr><td><code>plugins/</code></td><td>설치된 플러그인 파일들</td></tr>
+      <tr><td><code>credentials.xml</code>, <code>secrets/</code></td><td>자격 증명(암호화)과 그걸 푸는 열쇠. <strong>함부로 복사해 돌리지 않는다</strong></td></tr>
+      <tr><td><code>users/</code></td><td>계정 정보</td></tr>
+    </table>
+
+    <p>
+      그래서 <strong>백업은 이 폴더를 통째로</strong> 하면 된다(<code>workspace/</code> 는 다시 받으면 되니 빼도 된다). 서버를 옮길 때도 이 폴더를 옮긴다.
+      폴더 주인은 <code>jenkins</code> 라는 리눅스 사용자다. 젠킨스는 이 사용자 권한으로 돌기 때문에, 빌드에서 치는 명령도 전부 <code>jenkins</code> 사용자로 실행된다. 다음 글에서 배포할 때 이게 중요해진다.
+    </p>
+
+<pre><code>id jenkins</code></pre>
+<pre><code><span style="color:var(--ink-soft)">uid=xxx(jenkins) gid=xxx(jenkins) groups=xxx(jenkins)</span></code></pre>
+
+    <p class="gloss">
+      <b>JENKINS_HOME</b> — 젠킨스 홈 폴더를 가리키는 이름. apt 로 깔면 <code>/var/lib/jenkins</code>, 도커로 띄우면 <code>/var/jenkins_home</code>(8번 글)이다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>7. 보안 기본값 두 가지</h3>
+
+    <h4>7-1. 로그인 안 한 사람은 아무것도 못 보게</h4>
+    <p>
+      <strong>Manage Jenkins → Security</strong> 에서 확인한다. 첫 설정 마법사를 거쳤다면 이미 이렇게 돼 있다.
+    </p>
+    <ul>
+      <li>Security Realm: <strong>Jenkins' own user database</strong> (젠킨스 안에 계정을 만든다)</li>
+      <li>Authorization: <strong>Logged-in users can do anything</strong></li>
+      <li>그 아래 <strong>Allow anonymous read access</strong> 는 <strong>꺼져 있어야</strong> 한다</li>
+    </ul>
+    <p>
+      익명 읽기를 켜면 로그인 안 한 사람도 잡 목록과 콘솔 출력을 본다. 콘솔에는 서버 경로, 내부 주소, 실수로 찍힌 비밀값이 섞이기 쉽다.
+      인터넷에 열린 젠킨스가 이 설정 하나로 털린 사례가 많다. 팀에서 쓸 때는 <em>Matrix-based security</em> 로 사람마다 권한을 나눈다.
+    </p>
+
+    <h4>7-2. 컨트롤러에서 빌드를 돌리는 문제</h4>
+    <p>
+      <strong>Manage Jenkins → Nodes → Built-In Node → Configure</strong> 를 보면 <strong>Number of executors</strong> 가 2 로 돼 있다. 컨트롤러 자신이 빌드를 두 개까지 돌린다는 뜻이다.
+    </p>
+    <p>
+      공식 권장은 <strong>0</strong> 이다. 컨트롤러에서 빌드가 돌면, 빌드 스크립트가 <code>jenkins</code> 사용자 권한으로 젠킨스 홈(<code>secrets/</code> 포함)을 읽을 수 있기 때문이다. 그래서 회사에서는 컨트롤러는 관리만, 빌드는 에이전트에서 한다.
+      다만 이 실습은 서버가 한 대뿐이라 <strong>2 로 둔다.</strong> 0 으로 바꾸면 빌드가 영원히 "대기 중"에 머문다. 에이전트로 빌드를 내보내는 방식은 11번 글에서 쿠버네티스 파드로 해 본다.
+    </p>
+
+    <p class="gloss">
+      <b>Security Realm(보안 영역)</b> — "이 사람이 누구인가"를 확인하는 방법. 젠킨스 자체 계정, 회사 LDAP, GitHub 로그인 등.<br>
+      <b>Authorization(권한 부여)</b> — "확인된 사람이 무엇을 할 수 있나". 둘을 합쳐 인증·인가라고 부른다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>8. 끄고 켜기</h3>
+
+<pre><code>sudo systemctl stop jenkins       # 끄기
+sudo systemctl start jenkins      # 켜기
+sudo systemctl restart jenkins    # 껐다 켜기 (플러그인 설치 뒤 등)
+sudo systemctl disable jenkins    # WSL 켤 때 자동 시작 안 함 (enable 은 반대)
+journalctl -u jenkins -f          # 젠킨스 로그 실시간 보기 (Ctrl+C 로 나감)</code></pre>
+
+    <p>
+      브라우저에서도 할 수 있다. 주소 뒤에 <code>/safeRestart</code> 를 붙여 열면 <strong>돌고 있는 빌드가 끝나길 기다렸다가</strong> 재시작한다. <code>/restart</code> 는 바로 재시작한다. 회사 서버에서는 남의 빌드를 끊지 않게 safeRestart 를 쓴다.
+    </p>
+    <p>
+      포트를 바꾸고 싶으면(8080 을 다른 프로그램이 쓰고 있을 때) 서비스 설정에 덮어쓴다.
+    </p>
+
+<pre><code>sudo systemctl edit jenkins</code></pre>
+<pre><code># 열린 편집기의 주석 사이 빈 곳에 적고 저장
+[Service]
+Environment="JENKINS_PORT=8081"</code></pre>
+<pre><code>sudo systemctl restart jenkins</code></pre>
+
+    <p>
+      WSL 은 우분투 창을 다 닫고 몇 분 지나면 통째로 잠든다. 그러면 젠킨스도 같이 멈춘다. 실습 중에는 우분투 창을 하나 열어 둔다. 진짜 서버라면 이런 일은 없다.
+    </p>
+
+    <!-- ============================================================ -->
+    <h3>자주 걸리는 것</h3>
+
+    <table>
+      <tr><th>증상</th><th>원인</th><th>해결</th></tr>
+      <tr><td><code>apt update</code> 에서 <code>NO_PUBKEY 7198F4B714ABFC68</code> / <code>is not signed</code></td><td>예전 글의 <code>jenkins.io-2023.key</code> 를 받았음. 지금 패키지는 2026 키로 서명돼 있다 (번호 <code>7198F4B714ABFC68</code> 가 새 키)</td><td>공식 설치 문서의 최신 키 주소로 키 받기·저장소 등록을 다시</td></tr>
+      <tr><td><code>systemctl status</code> 가 <code>failed</code></td><td>Java 가 없거나 버전이 낮음, 또는 8080 포트를 이미 누가 씀</td><td><code>journalctl -u jenkins -n 50</code> 로 마지막 로그 확인. <code>java -version</code>, <code>sudo ss -ltnp | grep 8080</code></td></tr>
+      <tr><td><code>System has not been booted with systemd</code></td><td>WSL 에서 systemd 가 꺼짐</td><td><code>/etc/wsl.conf</code> 에 <code>[boot]</code> <code>systemd=true</code> → PowerShell 에서 <code>wsl --shutdown</code></td></tr>
+      <tr><td>브라우저에서 localhost:8080 이 안 열림</td><td>젠킨스가 아직 켜지는 중, 또는 WSL 이 잠듦</td><td>1분 기다리기, 우분투 창 열고 <code>systemctl status jenkins</code></td></tr>
+      <tr><td>플러그인 설치가 여러 개 실패</td><td>다운로드가 잠깐 끊김</td><td>Retry. 계속 실패하면 나중에 Manage Jenkins → Plugins 에서 하나씩</td></tr>
+      <tr><td>관리자 비밀번호를 잊음</td><td>—</td><td>실습이면 <code>sudo systemctl stop jenkins</code> 후 <code>/var/lib/jenkins/config.xml</code> 의 <code>&lt;useSecurity&gt;true</code> 를 false 로 바꿔 켜고 비밀번호를 다시 정한 뒤 되돌린다. 회사 서버라면 관리자에게</td></tr>
+    </table>
+
+    <!-- ============================================================ -->
+    <h3>다음 단계로 가기 전 정리</h3>
+    <ul>
+      <li>젠킨스는 <strong>켜 둔다.</strong> 5·6번 글에서 바로 쓴다.</li>
+      <li>GitHub 토큰은 비밀번호 관리 도구 등 안전한 곳에만 둔다. 메모장·카톡에 붙여 두지 않는다.</li>
+      <li>쓰지 않는 날에는 <code>sudo systemctl stop jenkins</code> 로 메모리를 돌려받아도 된다.</li>
+    </ul>
+
+    <p class="gloss">
+      <b>이 글의 용어 정리</b><br>
+      <b>온프레미스</b> — 회사가 직접 관리하는 서버에 설치해 쓰는 방식.<br>
+      <b>컨트롤러 / 에이전트 / 실행자</b> — 젠킨스의 두뇌 / 빌드를 돌리는 컴퓨터 / 그 컴퓨터의 동시 빌드 칸.<br>
+      <b>잡 / 빌드 / 워크스페이스</b> — 할 일의 설정 / 그걸 한 번 돌린 것 / 돌리는 폴더.<br>
+      <b>플러그인</b> — 젠킨스 기능을 더하는 부품.<br>
+      <b>자격 증명</b> — 젠킨스가 보관하는 비밀값. 잡에서는 ID 로 부른다.<br>
+      <b>JENKINS_HOME</b> — 설정·기록이 전부 들어 있는 폴더. 백업 대상.<br>
+      <b>systemd / systemctl</b> — 서버 프로그램을 계속 돌게 관리하는 장치 / 그 리모컨.
+    </p>
+
+    <aside class="rel">
+      <p class="rel__head">이어서 볼 것</p>
+      <ul>
+        <li><a href="/learn/cicd-git-repo/">← 3. 버전 관리와 Git</a> — 실습 앱 저장소 만들기</li>
+        <li><a href="/learn/cicd-jenkins-job/">5. 젠킨스 대시보드로 빌드·배포 확인하기 →</a> — 첫 잡을 만들어 테스트하고 서버에 올린다</li>
+        <li><a href="/learn/cicd-overview/">CI/CD 한눈에</a> — 젠킨스가 전체 그림에서 어디에 있나</li>
+        <li><a href="/learn/github-actions/">GitHub Actions 첫걸음</a> — 같은 일을 클라우드 CI 로 하면</li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <footer class="foot">
+    <p>© <span id="year"></span> gangmin</p>
+  </footer>
+
+</div>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>
