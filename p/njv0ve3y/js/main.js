@@ -1,12 +1,12 @@
 // POV 숨바꼭질 — 1단계(회색 상자 버전): 건물 · 조작 · 숨고 도망가는 AI · 잡기 · 시간 기록
 import * as THREE from "three";
 import { Octree } from "three/addons/math/Octree.js";
-import { FH, CS, DOORS, BUILD_H, roomAt, findChar, ROOMS } from "./map.js?v=20261113145914";
-import { buildNav, nodeAt, bfs } from "./nav.js?v=20261113145914";
-import { buildWorld } from "./world.js?v=20261113145914";
-import { Player, OUTRO_LEN } from "./player.js?v=20261113145914";
-import { Runner } from "./ai.js?v=20261113145914";
-import { UI, fmt } from "./ui.js?v=20261113145914";
+import { FH, CS, DOORS, BUILD_H, roomAt, findChar, ROOMS } from "./map.js?v=20261113154252";
+import { buildNav, nodeAt, bfs } from "./nav.js?v=20261113154252";
+import { buildWorld } from "./world.js?v=20261113154252";
+import { Player, OUTRO_LEN } from "./player.js?v=20261113154252";
+import { Runner } from "./ai.js?v=20261113154252";
+import { UI, fmt } from "./ui.js?v=20261113154252";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
@@ -14,14 +14,14 @@ import { GTAOPass } from "three/addons/postprocessing/GTAOPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
-import { loadManifest, attachEnvironment } from "./assets.js?v=20261113145914";
-import { loadCharacters, makeModel, makeArm, charactersReady } from "./chars.js?v=20261113145914";
+import { loadManifest, attachEnvironment } from "./assets.js?v=20261113154252";
+import { loadCharacters, makeModel, makeArm, charactersReady } from "./chars.js?v=20261113154252";
 import { Capsule } from "three/addons/math/Capsule.js";
-import * as rank from "./ranking.js?v=20261113145914";
-import { buildCollision, FastOctree } from "./collide.js?v=20261113145914";
-import { openPanel, closePanel, panelOpen } from "./pose.js?v=20261113145914";
-import { initSound, unlock as unlockSound, play as playSound, step as stepSound, toggleMute, duration as soundDuration, stop as stopSound } from "./sound.js?v=20261113145914";
-import { createIntro } from "./intro.js?v=20261113145914";
+import * as rank from "./ranking.js?v=20261113154252";
+import { buildCollision, FastOctree } from "./collide.js?v=20261113154252";
+import { openPanel, closePanel, panelOpen } from "./pose.js?v=20261113154252";
+import { initSound, unlock as unlockSound, play as playSound, step as stepSound, toggleMute, duration as soundDuration, stop as stopSound } from "./sound.js?v=20261113154252";
+import { createIntro } from "./intro.js?v=20261113154252";
 
 const $ = (id) => document.getElementById(id);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -521,9 +521,10 @@ function showResult() {
     if (k < 1) requestAnimationFrame(count);
   };
   count();
-  const rank = list.indexOf(mine) + 1;
-  $("resultRank").textContent = rank > 0 ? "이 컴퓨터 기록 중 " + rank + "등" : "";
-  $("resultBadge").hidden = rank !== 1 || list.length < 2;
+  // '이 컴퓨터 기록 중 N등' · 신기록 표시는 뺐다 (2026-11-13 사용자 요청). 이 컴퓨터 기록은 오른쪽 탭에서 본다.
+  // (예전엔 여기 지역 변수 이름이 rank 라서 온라인 순위 모듈 rank 를 가려 등록 칸이 늘 숨었다)
+  $("resultRank").textContent = "";
+  $("resultBadge").hidden = true;
   renderRecords($("resultRecords"), list, mine);
   // 전체 순위: 시험 판 · 15초 안 판은 등록 칸을 숨긴다
   resultMs = elapsed * 1000;
@@ -591,7 +592,7 @@ addEventListener("resize", () => {
 // 확인용: 주소 끝에 ?test 를 붙이면 마우스 잠금 없이 바로 시작하고, 콘솔에서 __pov 로 만질 수 있다
 if (/[?&]test\b/.test(location.search)) {
   window.__pov = {
-    game, player, keys, tryGrab, renderer, composer, gtao, bloom, scene, camera, finish, intro, OUTRO_LIGHT, outroLight, hemi, brighten, setResultMs: (v) => { resultMs = v; },
+    game, player, keys, tryGrab, renderer, composer, gtao, bloom, scene, camera, finish, intro, OUTRO_LIGHT, outroLight, hemi, brighten, setResultMs: (v) => { resultMs = v; }, setElapsed: (v) => { elapsed = v; }, showResult,
     startIntro() { opened = true; state = "intro"; $("start").hidden = true; $("intro").hidden = false; intro.start(); },
     play() { state = "play"; $("start").hidden = true; $("hud").hidden = false; },
     get state() { return state; }, get elapsed() { return elapsed; },

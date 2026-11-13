@@ -3,9 +3,9 @@
 // anims_src.glb 한 파일의 동작(39개)을 모두가 같이 쓴다 (뼈 이름이 같으면 그대로 붙는다).
 import * as THREE from "three";
 import { clone as skClone } from "three/addons/utils/SkeletonUtils.js";
-import { loadGLB, ASSET_V, A } from "./assets.js?v=20261113145914";
+import { loadGLB, ASSET_V, A } from "./assets.js?v=20261113154252";
 import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
-import { retargetClip } from "./retarget.js?v=20261113145914";
+import { retargetClip } from "./retarget.js?v=20261113154252";
 
 // Mixamo 에서 받은 동작 (뼈대만 있는 FBX) → 라프산두 뼈대로 옮겨서 다른 동작과 똑같이 쓴다
 const MIXAMO = {

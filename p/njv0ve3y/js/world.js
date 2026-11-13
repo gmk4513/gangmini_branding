@@ -1,7 +1,7 @@
 // 설계도(map.js)를 3D 상자로 조립한다. 같은 재질끼리 하나로 합쳐서 그리기 · 충돌 · 시야 검사를 가볍게.
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { FLOORS, CS, FH, SLAB, W, BUILD_H, ROOMS, RAMPS, DOORS, DOOR_H, RAILS, cell, findChar, roomAt } from "./map.js?v=20261113145914";
+import { FLOORS, CS, FH, SLAB, W, BUILD_H, ROOMS, RAMPS, DOORS, DOOR_H, RAILS, cell, findChar, roomAt } from "./map.js?v=20261113154252";
 
 const FLOOR_COLORS = [0x8d8f96, 0x9c8c78, 0x7f9088];
 

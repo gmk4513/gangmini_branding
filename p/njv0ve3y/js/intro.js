@@ -7,9 +7,9 @@
 // 16.6~19.2 앞에서 얼굴 클로즈업, '대체 너 어디야!!!!!' (크게)
 // 가사 말풍선 시간은 소리 크기(작게 끊기는 곳)로 짐작한 값이라, 어긋나면 LINES 의 숫자만 고치면 된다.
 import * as THREE from "three";
-import { pose } from "./pose.js?v=20261113145914";
-import { play as playSound, stop as stopSound } from "./sound.js?v=20261113145914";
-import { CS } from "./map.js?v=20261113145914";
+import { pose } from "./pose.js?v=20261113154252";
+import { play as playSound, stop as stopSound } from "./sound.js?v=20261113154252";
+import { CS } from "./map.js?v=20261113154252";
 
 export const LINES = [
   [1.3, 4.9, "풀럽오너보이 예아 룩 라잌 대염 벌베리언"],
