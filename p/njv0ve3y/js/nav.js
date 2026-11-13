@@ -1,6 +1,6 @@
 // 길 찾기 — 건물 안 걸을 수 있는 칸마다 점 하나, 이웃 칸끼리 선으로 잇는다. (건물 밖 길은 빼고)
 // AI 는 이 점들을 따라 움직인다 (물리 계산 없이). three.js 를 쓰지 않아서 node 로도 검사할 수 있다.
-import { FLOORS, CS, FH, navigable as walkable, rampAt, cellHeight, cell, roomAt } from "./map.js?v=20261113n";
+import { FLOORS, CS, FH, navigable as walkable, rampAt, cellHeight, cell, roomAt } from "./map.js?v=20261113145914";
 
 export function buildNav() {
   const nodes = [];
