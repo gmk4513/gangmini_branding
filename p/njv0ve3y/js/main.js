@@ -1,12 +1,12 @@
 // POV 숨바꼭질 — 1단계(회색 상자 버전): 건물 · 조작 · 숨고 도망가는 AI · 잡기 · 시간 기록
 import * as THREE from "three";
 import { Octree } from "three/addons/math/Octree.js";
-import { FH, CS, DOORS, BUILD_H, roomAt, findChar, ROOMS } from "./map.js?v=20261113154252";
-import { buildNav, nodeAt, bfs } from "./nav.js?v=20261113154252";
-import { buildWorld } from "./world.js?v=20261113154252";
-import { Player, OUTRO_LEN } from "./player.js?v=20261113154252";
-import { Runner } from "./ai.js?v=20261113154252";
-import { UI, fmt } from "./ui.js?v=20261113154252";
+import { FH, CS, DOORS, BUILD_H, roomAt, findChar, ROOMS } from "./map.js?v=20261113155403";
+import { buildNav, nodeAt, bfs } from "./nav.js?v=20261113155403";
+import { buildWorld } from "./world.js?v=20261113155403";
+import { Player, OUTRO_LEN } from "./player.js?v=20261113155403";
+import { Runner } from "./ai.js?v=20261113155403";
+import { UI, fmt } from "./ui.js?v=20261113155403";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
@@ -14,14 +14,14 @@ import { GTAOPass } from "three/addons/postprocessing/GTAOPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
-import { loadManifest, attachEnvironment } from "./assets.js?v=20261113154252";
-import { loadCharacters, makeModel, makeArm, charactersReady } from "./chars.js?v=20261113154252";
+import { loadManifest, attachEnvironment } from "./assets.js?v=20261113155403";
+import { loadCharacters, makeModel, makeArm, charactersReady } from "./chars.js?v=20261113155403";
 import { Capsule } from "three/addons/math/Capsule.js";
-import * as rank from "./ranking.js?v=20261113154252";
-import { buildCollision, FastOctree } from "./collide.js?v=20261113154252";
-import { openPanel, closePanel, panelOpen } from "./pose.js?v=20261113154252";
-import { initSound, unlock as unlockSound, play as playSound, step as stepSound, toggleMute, duration as soundDuration, stop as stopSound } from "./sound.js?v=20261113154252";
-import { createIntro } from "./intro.js?v=20261113154252";
+import * as rank from "./ranking.js?v=20261113155403";
+import { buildCollision, FastOctree } from "./collide.js?v=20261113155403";
+import { openPanel, closePanel, panelOpen } from "./pose.js?v=20261113155403";
+import { initSound, unlock as unlockSound, play as playSound, step as stepSound, toggleMute, duration as soundDuration, stop as stopSound } from "./sound.js?v=20261113155403";
+import { createIntro } from "./intro.js?v=20261113155403";
 
 const $ = (id) => document.getElementById(id);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -55,7 +55,8 @@ composer.addPass(new RenderPass(scene, camera));
 const gtao = new GTAOPass(scene, camera, innerWidth, innerHeight);
 gtao.blendIntensity = 0.85;
 composer.addPass(gtao);
-const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.35, 0.4, 0.95);
+const BLOOM = 0.35;
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), BLOOM, 0.4, 0.95);
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
 // 결과 연출 때만: 어두운 곳을 끌어올린다 (감마). 1 은 1 그대로라 이미 밝은 흰 옷은 더 날아가지 않는다.
@@ -100,17 +101,21 @@ player.yaw = 0;
 // 숨는 사람 배치: 층마다 한 명씩 (순서는 무작위), 정문에서 충분히 먼 숨는 자리
 const front = DOORS.find((d) => d.front);
 const fromStart = bfs(nav, nav.at(front.k, front.x, front.y));
-const kinds = ["jeffrey", "mason", "kid"].sort(() => Math.random() - 0.5);
-kinds.forEach((kind, k) => {
-  const spots = game.hideSpots.filter((h) => nav.nodes[h].k === k && fromStart[h] > 10);
-  const id = spots[Math.floor(Math.random() * spots.length)];
-  const r = new Runner(game, kind, id);
-  r.home = id;
-  game.runners.push(r);
-  if (kind === "mason") game.mason = r;
-});
 const dj = findChar("D")[0];
-if (dj) game.runners.push(new Runner(game, "matthew", nav.at(dj.k, dj.x, dj.y)));
+// 다시 하기 때도 이걸로 새로 놓는다 (판마다 층 · 자리가 바뀜)
+function spawnRunners() {
+  const kinds = ["jeffrey", "mason", "kid"].sort(() => Math.random() - 0.5);
+  kinds.forEach((kind, k) => {
+    const spots = game.hideSpots.filter((h) => nav.nodes[h].k === k && fromStart[h] > 10);
+    const id = spots[Math.floor(Math.random() * spots.length)];
+    const r = new Runner(game, kind, id);
+    r.home = id;
+    game.runners.push(r);
+    if (kind === "mason") game.mason = r;
+  });
+  if (dj) game.runners.push(new Runner(game, "matthew", nav.at(dj.k, dj.x, dj.y)));
+}
+spawnRunners();
 // ---- 불러오는 중 화면 ----
 // 건물 · 캐릭터 · 소리 파일을 받는 동안 진행 막대를 보여 주고, 건물(+충돌)과 캐릭터가 준비되면 걷어 낸다.
 // 시작 화면 애니메이션은 그때부터 재생된다(body.ready).
@@ -206,7 +211,8 @@ let state = "start", elapsed = 0, opened = false;
 const intro = createIntro({ player, camera, world, ui: game.ui });
 // 인트로 뒤로는 '예아 브뤄 암마 고 할ㄷ 허! 대체 너 어디야!!!!!'를 반복: 소리가 끝나고 3초 뒤에 다시 (사용자 결정)
 const SHOUT_REST = 3;
-let shoutT = 3;
+const SHOUT_START = 3;
+let shoutT = SHOUT_START;
 function endIntro() {
   $("intro").hidden = true;
   if (state === "intro") state = "play";
@@ -236,8 +242,43 @@ const lock = () => {
 $("btnStart").onclick = () => { unlockSound(); lock(); };
 $("pause").onclick = (e) => { if (e.target === $("pause")) lock(); };   // 카드 밖(어두운 곳)을 눌러도 이어서
 $("btnResume").onclick = (e) => { e.stopPropagation(); lock(); };
-// 다시 하기: 처음 사이트를 켰을 때와 똑같이 (시작 화면 → 인트로 → 게임). 2026-11-13 사용자 결정
-function restart() { location.reload(); }
+// 다시 하기: 처음 켰을 때와 똑같이 (시작 화면 → 인트로 → 게임). 2026-11-13 사용자 결정.
+// 예전엔 페이지를 새로 불러와서(location.reload) 불러오는 중 화면이 또 나왔다 → 이미 받은 건물 · 캐릭터는 그대로 두고
+// 판에 관한 것만 처음 상태로 되돌린다 (2026-11-13 사용자 요청)
+function restart() {
+  document.exitPointerLock();
+  // 소리
+  stopSound(shoutAudio); shoutAudio = null;
+  stopSound(ceremonyAudio); ceremonyAudio = null;
+  // 숨는 사람들: 지우고 새 자리에 다시 (풀업보이 · 잡힌 사람 포함)
+  for (const r of game.runners) { if (r.voice) stopSound(r.voice); scene.remove(r.mesh); }
+  game.runners.length = 0; game.mason = null;
+  spawnRunners();
+  game.dP = null; game.playerNode = -1; game.playerRoom = null;
+  for (const [, el] of game.ui.tags) el.remove();
+  game.ui.tags.clear();
+  game.ui.clearBubbles();
+  game.ui.setTargets(targets());
+  // 세레모니 관객 · 조명
+  for (const m of audience) scene.remove(m.obj);
+  audience = [];
+  outroLight.intensity = 0; hemi.intensity = 0.7; renderer.toneMappingExposure = 1.05;
+  brighten.enabled = false; bloom.strength = BLOOM;
+  // 라프산두
+  player.setCrouch(false); player.holding = false; player.freeLook = false;
+  player.vel.set(0, 0, 0);
+  player.home = start; player.spawn(start.x, start.y + 0.05, start.z); player.yaw = 0; player.pitch = 0;
+  if (player.model) { player.model.setCig(false); player.model.setMic(false); player.model.play("rest", 1, 0); }
+  // 시간 · 상태 · 화면
+  elapsed = 0; finishIn = -1; shoutT = SHOUT_START; outroT = 0; opened = false;
+  game.ui.setTime(0);
+  for (const id of ["result", "pause", "outro", "hud", "intro", "hint"]) $(id).hidden = true;
+  submitted = false; $("btnSubmit").disabled = false; $("submitMsg").textContent = "";
+  renderRecords($("startRecords"), loadRecords());
+  refreshOnline($("startOnline"));
+  state = "start";
+  $("start").hidden = false;
+}
 $("btnRestart").onclick = (e) => { e.stopPropagation(); restart(); };
 // 멈춤: 버튼(작게) · P 키 · Esc
 function pauseGame() { if (state === "play") { document.exitPointerLock(); state = "pause"; $("pause").hidden = false; } }
@@ -396,7 +437,7 @@ function titleScene(dt) {
 
 // 다 잡았다: 바로 결과 창 대신 약 5초 연출 (클릭하면 건너뜀) → 결과 창
 let outroT = 0;
-let shoutAudio = null;
+let shoutAudio = null, ceremonyAudio = null;
 // 세레모니 관객: 라프산두 앞쪽, 조금 떨어진 곳에 다섯 명이 앉아서 본다 (게임 속 캐릭터와 따로 새로 만든 모델)
 const AUDIENCE = ["kid", "jeffrey", "mason", "clone", "matthew"];   // 라프산두가 볼 때 왼쪽 → 오른쪽
 let audience = [];
@@ -491,7 +532,7 @@ function finish() {
   player.setCrouch(false); player.holding = false;
   // 세레모니 노래 = 인트로 노래 그대로 (말풍선 없이). 외치던 소리는 끊는다
   stopSound(shoutAudio); shoutAudio = null;
-  playSound("rap_intro", { volume: 1 });
+  ceremonyAudio = playSound("rap_intro", { volume: 1 });
   if (player.model) { const ok = player.model.clipDuration("smoke") > 1; player.model.play(ok ? "smoke" : "cheer", 1, 0.3); player.model.setMic(false); player.model.setCig(ok); }
   seatAudience();
   // 밝게: 라프산두 머리 위 천장 쪽에 큰 빛 + 하늘빛 · 노출 올림

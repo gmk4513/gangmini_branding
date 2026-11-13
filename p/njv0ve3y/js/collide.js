@@ -6,7 +6,7 @@
 //  - Tripo 소품(소파 · 자판기 …): 겉을 감싸는 상자
 import * as THREE from "three";
 import { Octree } from "three/addons/math/Octree.js";
-import { RAMPS, CS, FH, FLOORS } from "./map.js?v=20261113154252";
+import { RAMPS, CS, FH, FLOORS } from "./map.js?v=20261113155403";
 
 // three.js Octree 는 깊이 제한(maxLevel)을 무시하고 늘 16단계까지 쪼갠다. 큰 벽 · 바닥 삼각형이 많이 만나는
 // 곳에서 칸이 끝없이 늘어나 준비에 몇 초씩 걸렸다(회색 상자만으로도 약 2.8초). 7단계에서 멈춘다.
