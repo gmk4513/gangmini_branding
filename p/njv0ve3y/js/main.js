@@ -114,14 +114,30 @@ if (dj) game.runners.push(new Runner(game, "matthew", nav.at(dj.k, dj.x, dj.y)))
 // ---- 불러오는 중 화면 ----
 // 건물 · 캐릭터 · 소리 파일을 받는 동안 진행 막대를 보여 주고, 건물(+충돌)과 캐릭터가 준비되면 걷어 낸다.
 // 시작 화면 애니메이션은 그때부터 재생된다(body.ready).
-const loadState = { chars: false, env: false, shown: 0 };
+// 진행 막대는 '받은 바이트 / 전체 바이트'(manifest.json 의 bytes, tools/asset_bytes.py 가 적는다).
+// 파일 단위로 세면 큰 파일(수 MB)을 받는 동안 막대가 멈춘 것처럼 보였다
+const loadState = { chars: false, env: false, shown: 0, got: 0, total: 0 };
 THREE.DefaultLoadingManager.onProgress = (url, done, total) => { loadState.files = [done, total]; updateLoading(); };
+const _fetch = window.fetch.bind(window);
+window.fetch = async (input, init) => {
+  const res = await _fetch(input, init);
+  const url = typeof input === "string" ? input : input.url;
+  if (!/assets\//.test(url) || /manifest\.json/.test(url) || !res.body || !window.TransformStream || document.body.classList.contains("ready")) return res;
+  const counted = res.body.pipeThrough(new TransformStream({ transform(chunk, ctl) { loadState.got += chunk.byteLength; updateLoading(); ctl.enqueue(chunk); } }));
+  return new Response(counted, { status: res.status, statusText: res.statusText, headers: res.headers });
+};
+let _lastDraw = 0;
 function updateLoading() {
   const [d, t] = loadState.files || [0, 1];
-  const pct = Math.round(((d / Math.max(1, t)) * 0.8 + (loadState.chars ? 0.1 : 0) + (loadState.env ? 0.1 : 0)) * 100);
+  const frac = loadState.total ? Math.min(1, loadState.got / loadState.total) : d / Math.max(1, t);
+  const pct = Math.round((frac * 0.9 + (loadState.chars ? 0.05 : 0) + (loadState.env ? 0.05 : 0)) * 100);
   loadState.shown = Math.max(loadState.shown, Math.min(pct, 99));
-  $("loadBar").style.width = loadState.shown + "%";
-  $("loadPct").textContent = loadState.shown + "%";
+  const now = performance.now();
+  if (now - _lastDraw > 80 || (loadState.chars && loadState.env)) {
+    _lastDraw = now;
+    $("loadBar").style.width = loadState.shown + "%";
+    $("loadPct").textContent = loadState.shown + "%" + (loadState.total ? ` · ${(loadState.got / 1e6).toFixed(1)} / ${(loadState.total / 1e6).toFixed(1)}MB` : "");
+  }
   if (loadState.chars && loadState.env && !document.body.classList.contains("ready")) {
     $("loadBar").style.width = "100%"; $("loadPct").textContent = "100%";
     setTimeout(() => { document.body.classList.add("ready"); $("loading").classList.add("gone"); $("btnStart").disabled = false; }, 350);
@@ -139,7 +155,7 @@ loadCharacters().then((names) => {
 }).catch((e) => console.warn("[chars] 못 읽음", e)).finally(() => { loadState.chars = true; updateLoading(); });
 
 // Blender 건물(있으면) 불러오기. 없으면 회색 상자 그대로
-loadManifest().then((m) => m && attachEnvironment(scene, world, m.env, m.version)).then((n) => {
+loadManifest().then((m) => { if (m && m.bytes) { loadState.total = m.bytes; updateLoading(); } return m; }).then((m) => m && attachEnvironment(scene, world, m.env, m.version)).then((n) => {
   if (!n) return;
   console.log("[assets] 건물 GLB", n);
   // 충돌을 보이는 건물 모양으로 바꾼다 (회색 상자는 시야 검사 · 카메라용으로만 남는다)

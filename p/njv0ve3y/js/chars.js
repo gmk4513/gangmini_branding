@@ -3,7 +3,7 @@
 // anims_src.glb 한 파일의 동작(39개)을 모두가 같이 쓴다 (뼈 이름이 같으면 그대로 붙는다).
 import * as THREE from "three";
 import { clone as skClone } from "three/addons/utils/SkeletonUtils.js";
-import { loadGLB } from "./assets.js";
+import { loadGLB, ASSET_V } from "./assets.js";
 import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
 import { retargetClip } from "./retarget.js";
 
@@ -35,19 +35,21 @@ let capInfo = null;
 
 export async function loadCharacters() {
   const files = [...new Set(Object.values(FILES))];
-  await Promise.all(files.map(async (f) => { gltfs[f] = await loadGLB(f); }));
+  // Mixamo 동작(FBX)도 모델과 동시에 받기 시작한다 (옮겨 붙이기는 모델이 온 뒤에)
+  const fbx = new FBXLoader();
+  const fbxs = Object.entries(MIXAMO).map(([name, url]) => [name, fbx.loadAsync(url + ASSET_V).catch((e) => { console.warn("[chars] Mixamo 동작 못 읽음", name, e); return null; })]);
+  await Promise.all(files.map(async (f) => { gltfs[f] = await loadGLB(f + ASSET_V); }));
   const src = gltfs[FILES.rapsandu];
   let hips = null;
   src.scene.traverse((o) => { if (!hips && /Hips$/.test(o.name)) hips = o; });
   clips = {};
   for (const c of src.animations) clips[c.name] = fixClip(c, hips ? hips.position : null);
-  const fbx = new FBXLoader();
-  await Promise.all(Object.entries(MIXAMO).map(async ([name, url]) => {
-    try {
-      const f = await fbx.loadAsync(url);
-      clips[name] = fixClip(retargetClip(f, f.animations[0], src.scene, name), hips ? hips.position : null);
-    } catch (e) { console.warn("[chars] Mixamo 동작 못 읽음", name, e); }
-  }));
+  for (const [name, p] of fbxs) {
+    const f = await p;
+    if (!f) continue;
+    try { clips[name] = fixClip(retargetClip(f, f.animations[0], src.scene, name), hips ? hips.position : null); }
+    catch (e) { console.warn("[chars] Mixamo 동작 못 옮김", name, e); }
+  }
   // 점프: Tripo 프리셋은 제자리에서 여러 번 깡충거린다 → 첫 번째 뜀(0~0.46초)만 쓴다
   if (clips.jump) clips.jump = THREE.AnimationUtils.subclip(clips.jump, "jump", 0, 11, 24);
   // 2026-11-12 세 번째 모델(챙이 캐릭터 왼쪽을 향한 4면도)은 모자가 그림대로라 손질하지 않는다.

@@ -9,6 +9,10 @@ const draco = new DRACOLoader();
 draco.setDecoderPath("https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/libs/draco/gltf/");
 loader.setDRACOLoader(draco);
 
+// 캐릭터 · 동작 · 소리 파일 버전. 사이트가 이 파일들을 1주일 동안 브라우저에 맡겨 두게 해서(두 번째부터 바로 열림),
+// 파일을 바꾸면 이 값을 바꿔야 새 파일을 받는다. (건물은 manifest.json 의 version 을 쓴다)
+export const ASSET_V = "?v=20261113b";
+
 export function loadGLB(url) {
   return new Promise((res, rej) => loader.load(url, res, undefined, rej));
 }

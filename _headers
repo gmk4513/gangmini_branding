@@ -1,0 +1,4 @@
+# POV 숨바꼭질 게임 파일(모델 · 동작 · 소리)은 브라우저에 1주일 맡겨 둔다 — 두 번째부터 바로 열림.
+# 파일을 바꾸면 게임 쪽 주소의 ?v= 가 바뀌어서 새로 받는다 (js/assets.js ASSET_V, manifest.json version)
+/p/njv0ve3y/assets/*
+  Cache-Control: public, max-age=604800
