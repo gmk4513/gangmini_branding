@@ -12,9 +12,14 @@ loader.setDRACOLoader(draco);
 // 캐릭터 · 동작 · 소리 파일 버전. 사이트가 이 파일들을 1주일 동안 브라우저에 맡겨 두게 해서(두 번째부터 바로 열림),
 // 파일을 바꾸면 이 값을 바꿔야 새 파일을 받는다. (건물은 manifest.json 의 version 을 쓴다)
 export const ASSET_V = "?v=20261113b";
+// 게임 파일(assets/...)을 받을 곳. 비워 두면 이 페이지와 같은 곳.
+// gangmini.com 은 Cloudflare 무료 요금제라 국내 일부 통신사에서 20KB/s 로 느려서(2.7MB 에 2분),
+// 사이트 저장소(공개 GitHub)의 같은 파일을 jsDelivr 로 받는다 — tools/export_site.py 가 index.html 의 meta 에 커밋 고정 주소를 적는다
+export const ASSET_BASE = (document.querySelector('meta[name="asset-base"]') || {}).content || "";
+export const A = (p) => (p.startsWith("assets/") ? ASSET_BASE + p : p);
 
 export function loadGLB(url) {
-  return new Promise((res, rej) => loader.load(url, res, undefined, rej));
+  return new Promise((res, rej) => loader.load(A(url), res, undefined, rej));
 }
 
 export async function loadManifest() {
@@ -32,7 +37,7 @@ const lmCache = {};
 let VER = "";   // manifest.json 의 version. 다시 구울 때마다 바뀌어서 브라우저가 옛 파일을 쓰지 않는다
 function lightmap(n) {
   if (!lmCache[n]) {
-    const t = texLoader.load(`assets/env/lm_F${n}.jpg${VER}`);
+    const t = texLoader.load(A(`assets/env/lm_F${n}.jpg${VER}`));
     t.flipY = false;                       // glTF UV 방향
     t.colorSpace = THREE.SRGBColorSpace;   // 감마를 걸어 저장했으니 sRGB 로 읽어 선형으로 되돌린다
     t.channel = 1;                         // 두 번째 UV (Lightmap)

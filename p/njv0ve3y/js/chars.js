@@ -3,7 +3,7 @@
 // anims_src.glb 한 파일의 동작(39개)을 모두가 같이 쓴다 (뼈 이름이 같으면 그대로 붙는다).
 import * as THREE from "three";
 import { clone as skClone } from "three/addons/utils/SkeletonUtils.js";
-import { loadGLB, ASSET_V } from "./assets.js";
+import { loadGLB, ASSET_V, A } from "./assets.js";
 import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
 import { retargetClip } from "./retarget.js";
 
@@ -37,7 +37,7 @@ export async function loadCharacters() {
   const files = [...new Set(Object.values(FILES))];
   // Mixamo 동작(FBX)도 모델과 동시에 받기 시작한다 (옮겨 붙이기는 모델이 온 뒤에)
   const fbx = new FBXLoader();
-  const fbxs = Object.entries(MIXAMO).map(([name, url]) => [name, fbx.loadAsync(url + ASSET_V).catch((e) => { console.warn("[chars] Mixamo 동작 못 읽음", name, e); return null; })]);
+  const fbxs = Object.entries(MIXAMO).map(([name, url]) => [name, fbx.loadAsync(A(url) + ASSET_V).catch((e) => { console.warn("[chars] Mixamo 동작 못 읽음", name, e); return null; })]);
   await Promise.all(files.map(async (f) => { gltfs[f] = await loadGLB(f + ASSET_V); }));
   const src = gltfs[FILES.rapsandu];
   let hips = null;

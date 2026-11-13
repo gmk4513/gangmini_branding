@@ -4,7 +4,7 @@
 //  kid_lines  키드밀리 '나는 키드밀리~ / 자꾸 차가 밀리~ / 그래서 자꾸 지각하지~ / 티~원~'
 // 브라우저는 사람이 한 번 클릭한 뒤에야 소리를 낼 수 있어서, 시작 버튼에서 unlock() 한다.
 import * as THREE from "three";
-import { ASSET_V } from "./assets.js";
+import { ASSET_V, A } from "./assets.js";
 
 //  step0~5    발소리 (사용자가 준 352870__potatokingxii__footsteps-dirt-gravel.wav 에서 또렷한 걸음 6개를 잘라 냄)
 const FILES = {
@@ -25,7 +25,7 @@ export function initSound(camera) {
   camera.add(listener);
   makeSfx(listener.context);
   const loader = new THREE.AudioLoader();
-  for (const [k, url] of Object.entries(FILES)) loader.load(url + ASSET_V, (b) => (buffers[k] = b), undefined, (e) => console.warn("[sound] 못 읽음", url, e));
+  for (const [k, url] of Object.entries(FILES)) loader.load(A(url) + ASSET_V, (b) => (buffers[k] = b), undefined, (e) => console.warn("[sound] 못 읽음", url, e));
 }
 
 export const soundReady = (name) => !!buffers[name];
