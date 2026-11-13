@@ -1,8 +1,8 @@
 // 라프산두 — 캡슐 충돌(three.js FPS 예제 방식) + 1인칭/3인칭 카메라 + 손 뻗기
 import * as THREE from "three";
 import { Capsule } from "three/addons/math/Capsule.js";
-import { pose, previewMove, previewView } from "./pose.js";
-import { step as stepSound, play as playSound } from "./sound.js";
+import { pose, previewMove, previewView } from "./pose.js?v=20261113n";
+import { step as stepSound, play as playSound } from "./sound.js?v=20261113n";
 
 // 캐릭터를 12% 키운 것(js/chars.js SIZE)에 맞춘 몸 크기. 반지름은 팔 · 옷자락까지 벽에 안 묻히게 넉넉히
 const R = 0.42, HEIGHT = 1.96, EYE = 1.8;
