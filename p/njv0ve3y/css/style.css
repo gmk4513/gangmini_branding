@@ -1,0 +1,153 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #1b1d22; color: #f4f1ea; font-family: "Noto Sans KR", system-ui, sans-serif; }
+#app canvas { display: block; }
+[hidden] { display: none !important; }
+
+#hud { position: fixed; inset: 0; pointer-events: none; }
+#time { position: absolute; top: 18px; left: 22px; font: 900 34px/1 "Noto Sans KR", sans-serif; text-shadow: 0 2px 8px #000a; font-variant-numeric: tabular-nums; }
+#targets { position: absolute; top: 18px; right: 22px; display: flex; gap: 8px; }
+#targets span { background: #000a; border-radius: 999px; padding: 6px 14px; font-weight: 700; font-size: 15px; }
+#targets span.got { background: #e8622c; }
+#floor { position: absolute; bottom: 20px; left: 22px; font-weight: 900; font-size: 22px; background: #000a; padding: 6px 14px; border-radius: 10px; }
+#cross { position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: #fffd; box-shadow: 0 0 0 2px #0006; }
+#hint { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); background: #000b; padding: 10px 18px; border-radius: 12px; font-size: 15px; white-space: nowrap; }
+
+#bubbles { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+.bubble { position: absolute; transform: translate(-50%, -100%); background: #fff; color: #1f2430; font-weight: 700; font-size: 16px; padding: 6px 12px; border-radius: 13px; white-space: nowrap; box-shadow: 0 4px 14px #0007; display: none; }
+.bubble::after { content: ""; position: absolute; left: 50%; bottom: -6px; margin-left: -6px; border: 6px solid transparent; border-top-color: #fff; border-bottom: 0; }
+.bubble.big { font-size: 22px; font-weight: 900; color: #b8441a; }
+.bubble.me:not(.head) { transform: translate(-50%, -50%) !important; font-size: 15px; }
+.bubble.me.big:not(.head) { font-size: 26px; padding: 9px 18px; animation: shout .35s ease-out; }
+.bubble.me.head { font-size: 14px; }
+.nametag { position: absolute; transform: translate(-50%, -100%); color: #fff; font-weight: 700; font-size: 11px; padding: 2px 7px; border-radius: 8px; background: #0008; white-space: nowrap; display: none; letter-spacing: .02em; }
+.bubble.me.big.head { font-size: 20px; }
+@keyframes shout { from { transform: translate(-50%, -50%) scale(.6); } to { transform: translate(-50%, -50%) scale(1); } }
+
+.screen { position: fixed; inset: 0; display: grid; place-items: center; background: #1b1d22cc; backdrop-filter: blur(3px); cursor: pointer; }
+.card { background: #f7f4ee; color: #1f2430; border-radius: 22px; padding: 34px 40px; width: min(560px, 92vw); max-height: 92vh; overflow: auto; cursor: default; box-shadow: 0 20px 60px #0008; }
+.card.small { width: auto; text-align: center; }
+.tag { display: inline-block; margin: 0 0 8px; background: #e8622c; color: #fff; font-weight: 700; font-size: 13px; padding: 4px 10px; border-radius: 999px; }
+h1 { margin: 0 0 8px; font-size: 44px; font-weight: 900; }
+h2 { margin: 18px 0 8px; font-size: 22px; }
+.sub { margin: 0 0 16px; line-height: 1.6; color: #3a4050; }
+.keys { list-style: none; padding: 0; margin: 0 0 18px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; font-size: 14px; color: #3a4050; }
+button { font: 900 20px "Noto Sans KR", sans-serif; background: #e8622c; color: #fff; border: 0; border-radius: 14px; padding: 14px 28px; cursor: pointer; width: 100%; }
+button:hover { background: #d4541f; }
+.records { margin: 0; padding: 0; list-style: none; font-variant-numeric: tabular-nums; }
+.records li { display: flex; gap: 12px; align-items: baseline; padding: 4px 0; border-bottom: 1px solid #e4ded3; }
+.records li b { width: 22px; color: #b8441a; }
+.records li small { margin-left: auto; color: #5a6070; }
+.records li.mine { background: #fff1e6; font-weight: 700; }
+.big { font-size: 56px; font-weight: 900; margin: 4px 0; color: #e8622c; }
+.fine { margin: 16px 0 0; font-size: 12px; color: #5a6070; }
+
+/* 자세 설정 창 (P) */
+button.ghost { background: transparent; color: #e8622c; border: 2px solid #e8622c; font-size: 15px; padding: 9px 16px; margin-top: 6px; }
+button.ghost:hover { background: #e8622c18; }
+#posePanel { position: fixed; top: 16px; right: 16px; bottom: 16px; width: 330px; overflow: auto; background: #15171ce8; color: #eee; border-radius: 16px; padding: 16px; font-size: 14px; box-shadow: 0 12px 40px #000a; z-index: 20; }
+#posePanel button { width: auto; font-size: 13px; padding: 6px 10px; border-radius: 8px; background: #2a2e37; color: #ddd; font-weight: 700; }
+#posePanel button.on { background: #e8622c; color: #fff; }
+.pp-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 16px; }
+.pp-tabs, .pp-view, .pp-foot { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+.pp-view { color: #aaa; }
+.pp-row { display: grid; grid-template-columns: 92px 1fr 52px; gap: 8px; align-items: center; margin: 8px 0; }
+.pp-row select { grid-column: 2 / 4; background: #2a2e37; color: #eee; border: 0; border-radius: 6px; padding: 6px; font-size: 13px; }
+.pp-row output { text-align: right; color: #f3a37f; font-variant-numeric: tabular-nums; }
+#posePanel h4 { margin: 14px 0 4px; font-size: 13px; color: #aaa; }
+.pp-hint, .pp-note { color: #999; font-size: 12px; line-height: 1.5; margin: 6px 0 0; }
+
+/* 결과 연출 */
+#intro, #outro { position: fixed; inset: 0; z-index: 15; cursor: pointer; pointer-events: auto; }
+#intro .bar, #outro .bar { position: absolute; left: 0; right: 0; height: 0; background: #000; animation: bars .6s ease-out forwards; }
+#intro .bar.top, #outro .bar.top { top: 0; } #intro .bar.bottom, #outro .bar.bottom { bottom: 0; }
+@keyframes bars { to { height: 11vh; } }
+#outro .outro-text { position: absolute; left: 0; right: 0; top: 13%; text-align: center; color: #fff; text-shadow: 0 4px 24px #000c; }
+#outro .outro-big { margin: 0; font: 900 clamp(48px, 9vw, 120px) "Noto Sans KR", sans-serif; letter-spacing: -.02em; opacity: 0; transform: scale(2.2); animation: slam .5s .5s cubic-bezier(.2, 1.6, .4, 1) forwards; }
+#outro .outro-time { margin: 6px 0 0; font: 800 clamp(24px, 3.5vw, 44px) "Noto Sans KR", sans-serif; color: #ffd27a; opacity: 0; animation: rise .5s 1.3s ease-out forwards; }
+#intro .outro-skip, #outro .outro-skip { position: absolute; bottom: 13vh; left: 0; right: 0; text-align: center; color: #fff9; font-size: 13px; opacity: 0; animation: rise .4s 2.2s forwards; }
+@keyframes slam { to { opacity: 1; transform: scale(1); } }
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+#intro .bar { animation-duration: .01s; }
+#intro .intro-title { position: absolute; left: 0; right: 0; top: 26%; text-align: center; color: #fff; text-shadow: 0 4px 30px #000; opacity: 0; animation: titleIn 5.2s 0.4s ease-out forwards; }
+#intro .intro-big { margin: 0; font: 900 clamp(44px, 8vw, 110px) "Noto Sans KR", sans-serif; letter-spacing: -.02em; }
+#intro .intro-sub { margin: 8px 0 0; font: 700 clamp(14px, 1.6vw, 20px) "Noto Sans KR", sans-serif; color: #ffd27a; }
+@keyframes titleIn { 0% { opacity: 0; transform: translateY(14px) scale(.96); } 15% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-8px); } }
+
+.bubble b.hot { color: #e0262e; font-weight: 900; }
+
+/* ---------- 시작 · 결과 화면 (뒤에서 3D 장면이 움직이고, 글자 · 버튼이 차례로 등장) ---------- */
+.screen.title { background: none; backdrop-filter: none; display: block; cursor: default; overflow: hidden; }
+.screen.title .vignette { position: absolute; inset: 0; background: linear-gradient(90deg, #08090ce6 0%, #08090cb3 38%, #08090c33 70%, #08090c99 100%), linear-gradient(0deg, #08090cd9 0%, transparent 35%); pointer-events: none; }
+.title-left { position: absolute; left: 6vw; top: 50%; transform: translateY(-50%); width: min(560px, 46vw); color: #f3f1ec; }
+.title-right { position: absolute; right: 5vw; top: 50%; transform: translateY(-50%); width: min(300px, 26vw); background: #14161cd0; border: 1px solid #ffffff1a; border-radius: 18px; padding: 18px 20px; color: #e9e6df; box-shadow: 0 20px 50px #0009; }
+.title-right h2 { margin: 0 0 8px; font-size: 16px; color: #ffd27a; }
+.title-right .records li { border-color: #ffffff14; color: #e9e6df; }
+.screen.title .fine { position: absolute; right: 5vw; bottom: 3vh; margin: 0; color: #fff8; font-size: 12px; text-align: right; max-width: 40vw; }
+.logo { margin: 6px 0 6px; line-height: .95; }
+.logo .pov { display: block; font: 900 clamp(70px, 11vw, 150px) "Noto Sans KR", sans-serif; letter-spacing: -.03em; color: #fff; text-shadow: 0 0 18px #fff8, 0 0 42px #ffb35a88; animation: neon 3.2s .4s infinite, dropIn .7s cubic-bezier(.2, 1.4, .4, 1) both; }
+.logo .word { display: block; font: 900 clamp(40px, 6vw, 82px) "Noto Sans KR", sans-serif; letter-spacing: -.02em; color: #ffd27a; }
+.logo.small .word { font-size: clamp(44px, 6.5vw, 88px); color: #fff; }
+.logo .word .ch { display: inline-block; opacity: 0; transform: translateY(-40px) rotate(-8deg); animation: chIn .55s cubic-bezier(.2, 1.5, .4, 1) forwards; animation-delay: calc(.55s + var(--i) * .09s); }
+@keyframes chIn { to { opacity: 1; transform: none; } }
+@keyframes dropIn { from { opacity: 0; transform: translateY(-60px) scale(1.2); } to { opacity: 1; transform: none; } }
+@keyframes neon { 0%, 18%, 22%, 62%, 66%, 100% { opacity: 1; } 20%, 64% { opacity: .55; } }
+.feat { margin: 2px 0 10px; color: #ffd27a; font-weight: 700; letter-spacing: .04em; }
+.title-left .sub { color: #d8d4cc; line-height: 1.6; margin: 0 0 14px; }
+.title-left .tag { background: #e8622c; }
+.cast { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 18px; }
+.cast span { background: #ffffff14; border: 1px solid #ffffff22; border-radius: 999px; padding: 4px 10px; font-size: 13px; font-weight: 700; }
+.cast .me { background: #e8622c; border-color: #e8622c; }
+.cast .vs { background: none; border: 0; color: #ffd27a; font-weight: 900; }
+.go { width: auto; padding: 16px 46px; font-size: 22px; border-radius: 16px; box-shadow: 0 0 0 0 #e8622c88; animation: pulse 1.8s 2.4s infinite; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 #e8622c99; } 70% { box-shadow: 0 0 0 18px #e8622c00; } 100% { box-shadow: 0 0 0 0 #e8622c00; } }
+.title-left .keys { margin: 18px 0 0; color: #cfcac0; grid-template-columns: repeat(4, auto); justify-content: start; column-gap: 16px; font-size: 13px; }
+.pop { opacity: 0; transform: translateY(14px); animation: popIn .5s ease-out forwards; animation-delay: var(--d, 0s); }
+.pop-r { opacity: 0; transform: translate(30px, -50%); animation: popR .6s ease-out forwards; animation-delay: var(--d, 0s); }
+@keyframes popIn { to { opacity: 1; transform: none; } }
+@keyframes popR { to { opacity: 1; transform: translate(0, -50%); } }
+.go.pop { animation: popIn .5s ease-out forwards, pulse 1.8s 2.4s infinite; animation-delay: var(--d, 0s), 2.4s; }
+#result .big.count { font: 900 clamp(56px, 8vw, 104px) "Noto Sans KR", sans-serif; color: #ffd27a; margin: 4px 0 6px; font-variant-numeric: tabular-nums; text-shadow: 0 6px 30px #000a; }
+#result .rank { font-size: 18px; color: #e9e6df; margin: 0 0 20px; display: flex; gap: 10px; align-items: center; }
+#result .badge { background: #e0262e; color: #fff; font-weight: 900; font-size: 14px; padding: 4px 10px; border-radius: 999px; animation: badge 1s 1.9s both cubic-bezier(.2, 1.8, .4, 1); }
+@keyframes badge { from { transform: scale(0) rotate(-20deg); } to { transform: none; } }
+@media (max-width: 900px) { .title-right { display: none; } .title-left { width: 86vw; } }
+
+/* 불러오는 중 */
+#loading { position: fixed; inset: 0; z-index: 30; display: grid; place-content: center; justify-items: center; gap: 14px; background: radial-gradient(ellipse at center, #1a1c22 0%, #08090c 75%); color: #eee; transition: opacity .6s ease, visibility .6s; }
+#loading.gone { opacity: 0; visibility: hidden; pointer-events: none; }
+.load-logo { margin: 0; font: 900 clamp(48px, 7vw, 96px) "Noto Sans KR", sans-serif; letter-spacing: -.02em; color: #fff; text-shadow: 0 0 18px #fff6, 0 0 40px #ffb35a66; animation: neon 2.4s infinite; }
+.load-logo span { color: #ffd27a; text-shadow: none; }
+.load-track { width: min(420px, 70vw); height: 8px; border-radius: 999px; background: #ffffff1a; overflow: hidden; }
+#loadBar { width: 0; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #e8622c, #ffd27a); transition: width .3s ease; }
+.load-text { margin: 0; color: #bbb; font-size: 14px; }
+.load-text b { color: #ffd27a; font-variant-numeric: tabular-nums; }
+/* 다 불러오기 전에는 시작 화면 애니메이션을 멈춰 둔다 */
+body:not(.ready) .screen.title * { animation-play-state: paused !important; }
+button:disabled { opacity: .5; cursor: wait; }
+/* 출연진: 풀업보이(가짜 메이슨홈) · 매튜(잡을 수 없는 DJ)는 옅게 */
+.cast .faint { opacity: .4; }
+
+/* 멈춤 버튼 (작게, 시간 옆) + 멈춤 화면 버튼 */
+#btnPause { position: absolute; top: 20px; left: 150px; width: 34px; height: 34px; padding: 0; border-radius: 10px; font: 900 15px/1 "Noto Sans KR", sans-serif; background: #00000066; color: #fff; border: 1px solid #ffffff44; pointer-events: auto; }
+#btnPause:hover { background: #e8622c; border-color: #e8622c; }
+.pause-card { min-width: 300px; }
+.pause-btns { display: flex; gap: 10px; margin-top: 8px; }
+.pause-btns button { flex: 1; font-size: 17px; padding: 12px 18px; }
+.pause-tip { margin: 10px 0 0; font-size: 12px; color: #777; }
+
+/* 순위: 전체(온라인) / 이 컴퓨터 탭 */
+.rank-tabs { display: flex; gap: 6px; margin: 0 0 10px; }
+.rank-tabs button { flex: 1; padding: 7px 0; font-size: 14px; border-radius: 10px; background: #ffffff10; color: #e9e6df; border: 1px solid #ffffff22; box-shadow: none; animation: none; }
+.rank-tabs button.on { background: #e8622c; border-color: #e8622c; color: #fff; }
+.title-right .records { max-height: 46vh; overflow-y: auto; }
+.records.online li .who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px; }
+.records.online li .tm { margin-left: auto; color: #ffd27a; }
+.title-right .records li.mine { background: #e8622c33; }
+.records li.empty { color: #9aa; border: none; }
+/* 결과 화면: 닉네임 등록 */
+.name-form { display: flex; gap: 8px; margin: 0 0 6px; }
+.name-form input { width: 190px; padding: 11px 14px; font: 600 16px "Noto Sans KR", sans-serif; border-radius: 12px; border: 1px solid #ffffff33; background: #0008; color: #fff; outline: none; }
+.name-form input:focus { border-color: #ffd27a; }
+.name-form button { flex: none; width: auto; padding: 11px 18px; font-size: 16px; border-radius: 12px; animation: none; }
+.submit-msg { min-height: 20px; margin: 0 0 16px; font-size: 14px; color: #ffd27a; }

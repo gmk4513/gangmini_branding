@@ -114,6 +114,7 @@ gangmini.com/learn/ → 이론/용어 목록
 `p/0b9yefxo/` = 감스트의 뽀또 샷건치기 (사업IDEA/9.감스트_샷건치기/tools/export_site.py 로 복사. 순위표는 bamti-bomb `/api/shotgun/*`).
 `p/3gnaxk84/` = 30초 구전국밥 찾기 (AI 강의 1회차 실습 완성본. 원본 `사업IDEA/AI 강의자료/구전국밥_찾기/index.html` 에 robots noindex 한 줄만 더해 복사).
 `p/v7rkq2xe/` = 바이스벌사의 보이스발사 (feat. 경찰피하기) — 3D, 비공식 팬 게임 (사업IDEA/10.바이스벌사의 경찰피하기/tools/export_site.py 로 복사. 순위표는 bamti-bomb 일반 순위표 `viceversa`).
+`p/njv0ve3y/` = POV 숨바꼭질 (feat. 오카시, 키드밀리) — 3D, 비공식 팬 게임 (사업IDEA/11.POV 숨바꼭질(feat.오카시,키드밀리)/tools/export_site.py 로 복사. 순위표는 bamti-bomb 일반 순위표 `pov`, 시간이 짧을수록 위).
 저장소가 공개라 완전한 비공개는 아니다. 정식 공개할 때 번호 폴더로 옮기고 data.js 에 넣는다.
 번호 없는 항목은 날짜 순서 자리에 들어간다 (app.js).
 2026-10-27 번호 재정렬: #4 데스크톱 펫(10/07), #5 범퍼카, #6 라임놀이 (사용자 결정. 범퍼카·라임놀이 릴스 캡션의 번호와 다를 수 있음)
