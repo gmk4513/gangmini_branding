@@ -151,3 +151,39 @@ button:disabled { opacity: .5; cursor: wait; }
 .name-form input:focus { border-color: #ffd27a; }
 .name-form button { flex: none; width: auto; padding: 11px 18px; font-size: 16px; border-radius: 12px; animation: none; }
 .submit-msg { min-height: 20px; margin: 0 0 16px; font-size: 14px; color: #ffd27a; }
+
+/* 휴대폰 안내 (html.mobile 일 때만 보이고, 나머지 화면은 숨긴다) */
+#mobile { display: none; }
+html.mobile body > *:not(#mobile) { display: none !important; }
+html.mobile, html.mobile body { overflow: auto; height: auto; }
+html.mobile #mobile { display: flex; flex-direction: column; align-items: center; gap: 12px; min-height: 100vh; padding: 36px 20px 40px; box-sizing: border-box; text-align: center; color: #eee; background: radial-gradient(ellipse at top, #22252d 0%, #0b0c10 70%); }
+#mobile .m-logo { margin: 4px 0 0; font: 900 52px/1.05 "Noto Sans KR", sans-serif; color: #fff; text-shadow: 0 0 16px #fff6, 0 0 36px #ffb35a66; }
+#mobile .m-logo span { display: block; color: #ffd27a; text-shadow: none; }
+#mobile .m-feat { margin: 0; color: #ffd27a; font-weight: 700; font-size: 14px; }
+#mobile .m-say { margin: 6px 0 0; font-size: 15px; line-height: 1.6; color: #ccc; }
+#mobile .m-say b { color: #fff; }
+#mobile .m-pc { margin: 8px 0 0; padding: 14px 16px; width: 100%; max-width: 380px; box-sizing: border-box; border-radius: 16px; background: #e8622c22; border: 1px solid #e8622c88; font-size: 14px; line-height: 1.6; color: #f3e4da; }
+#mobile .m-pc b { font-size: 17px; color: #fff; }
+#mobile .m-btns { display: flex; gap: 10px; width: 100%; max-width: 380px; }
+#mobile .m-btns button { flex: 1; padding: 14px 0; font-size: 17px; border-radius: 14px; }
+#mobile .m-msg { min-height: 20px; margin: 0; font-size: 13px; color: #ffd27a; word-break: break-all; user-select: text; }
+#mobile .m-rank { width: 100%; max-width: 380px; padding: 14px 16px; box-sizing: border-box; border-radius: 16px; background: #14161cd0; border: 1px solid #ffffff1a; text-align: left; }
+#mobile .m-rank h2 { margin: 0 0 8px; font-size: 15px; color: #ffd27a; }
+#mobile .m-rank ol { margin: 0; padding: 0; list-style: none; font-variant-numeric: tabular-nums; }
+#mobile .m-rank li { display: flex; gap: 10px; padding: 6px 0; border-bottom: 1px solid #ffffff14; font-size: 14px; }
+#mobile .m-rank li b { width: 18px; color: #e8622c; }
+#mobile .m-rank li span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#mobile .m-rank li em { font-style: normal; color: #ffd27a; }
+#mobile .m-rank li.empty { color: #9aa; border: none; }
+#mobile .m-anyway { margin-top: 6px; background: none; border: none; box-shadow: none; animation: none; color: #888; font-size: 13px; text-decoration: underline; padding: 6px; }
+
+/* 링크 미리보기 그림 (?og): 게임 화면 위에 글자만, 나머지 화면은 숨김 */
+#ogcard { display: none; }
+body.og > section, body.og #hud, body.og #hint, body.og #bubbles { display: none !important; }
+body.og #ogcard { display: block; position: fixed; left: 5.5vw; top: 50%; transform: translateY(-50%); z-index: 50; color: #fff; }
+#ogcard .tag { display: inline-block; margin: 0 0 1.4vw; }
+#ogcard .og-logo { margin: 0; font: 900 8.6vw/0.98 "Noto Sans KR", sans-serif; text-shadow: 0 0 2vw #fff7, 0 0.4vw 2vw #000c; }
+#ogcard .og-logo span { color: #ffd27a; }
+#ogcard .og-feat { margin: 1.2vw 0 0; font: 700 2.3vw "Noto Sans KR", sans-serif; color: #ffd27a; text-shadow: 0 0.2vw 1vw #000; }
+#ogcard .og-say { margin: 0.6vw 0 0; font: 700 2.6vw "Noto Sans KR", sans-serif; text-shadow: 0 0.2vw 1vw #000; }
+body.og::after { content: ""; position: fixed; inset: 0; z-index: 40; pointer-events: none; background: linear-gradient(90deg, #000b 0%, #0006 35%, #0000 60%); }

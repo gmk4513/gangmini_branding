@@ -1,8 +1,8 @@
 // 숨는 사람들 — 숨어 있다가 술래가 가까이 오면 도망간다. 사람마다 개인기가 하나씩.
 import * as THREE from "three";
-import { bfs, pickFlee, fleeCosts, pathTo, clearLine, roomOf } from "./nav.js?v=20261113155403";
-import { rampAt, CS } from "./map.js?v=20261113155403";
-import { makeModel } from "./chars.js?v=20261113155403";
+import { bfs, pickFlee, fleeCosts, pathTo, clearLine, roomOf } from "./nav.js?v=20261113161434";
+import { rampAt, CS } from "./map.js?v=20261113161434";
+import { makeModel } from "./chars.js?v=20261113161434";
 
 export const CAST = {
   jeffrey: { name: "제프리화이트", color: 0x2f6fd6, tag: "제프리화이트" },

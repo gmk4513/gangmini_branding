@@ -1,12 +1,12 @@
 // POV 숨바꼭질 — 1단계(회색 상자 버전): 건물 · 조작 · 숨고 도망가는 AI · 잡기 · 시간 기록
 import * as THREE from "three";
 import { Octree } from "three/addons/math/Octree.js";
-import { FH, CS, DOORS, BUILD_H, roomAt, findChar, ROOMS } from "./map.js?v=20261113155403";
-import { buildNav, nodeAt, bfs } from "./nav.js?v=20261113155403";
-import { buildWorld } from "./world.js?v=20261113155403";
-import { Player, OUTRO_LEN } from "./player.js?v=20261113155403";
-import { Runner } from "./ai.js?v=20261113155403";
-import { UI, fmt } from "./ui.js?v=20261113155403";
+import { FH, CS, DOORS, BUILD_H, roomAt, findChar, ROOMS } from "./map.js?v=20261113161434";
+import { buildNav, nodeAt, bfs } from "./nav.js?v=20261113161434";
+import { buildWorld } from "./world.js?v=20261113161434";
+import { Player, OUTRO_LEN } from "./player.js?v=20261113161434";
+import { Runner } from "./ai.js?v=20261113161434";
+import { UI, fmt } from "./ui.js?v=20261113161434";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
@@ -14,14 +14,14 @@ import { GTAOPass } from "three/addons/postprocessing/GTAOPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
-import { loadManifest, attachEnvironment } from "./assets.js?v=20261113155403";
-import { loadCharacters, makeModel, makeArm, charactersReady } from "./chars.js?v=20261113155403";
+import { loadManifest, attachEnvironment } from "./assets.js?v=20261113161434";
+import { loadCharacters, makeModel, makeArm, charactersReady } from "./chars.js?v=20261113161434";
 import { Capsule } from "three/addons/math/Capsule.js";
-import * as rank from "./ranking.js?v=20261113155403";
-import { buildCollision, FastOctree } from "./collide.js?v=20261113155403";
-import { openPanel, closePanel, panelOpen } from "./pose.js?v=20261113155403";
-import { initSound, unlock as unlockSound, play as playSound, step as stepSound, toggleMute, duration as soundDuration, stop as stopSound } from "./sound.js?v=20261113155403";
-import { createIntro } from "./intro.js?v=20261113155403";
+import * as rank from "./ranking.js?v=20261113161434";
+import { buildCollision, FastOctree } from "./collide.js?v=20261113161434";
+import { openPanel, closePanel, panelOpen } from "./pose.js?v=20261113161434";
+import { initSound, unlock as unlockSound, play as playSound, step as stepSound, toggleMute, duration as soundDuration, stop as stopSound } from "./sound.js?v=20261113161434";
+import { createIntro } from "./intro.js?v=20261113161434";
 
 const $ = (id) => document.getElementById(id);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -435,6 +435,37 @@ function titleScene(dt) {
   camera.lookAt(cx + 0.6 + s * 0.8, 2.0, cz);
 }
 
+// ---- 링크 미리보기 그림(og.jpg) 찍기용: ?og ----
+// 정문 앞 라프산두 + 문 앞에서 겁먹은 셋. 글자는 index.html #ogcard. tools/make_og.py 가 헤드리스 크롬으로 1200x630 을 찍는다
+const OG = /[?&]og(=|&|$)/.test(location.search);
+// 값: 정문 가운데 기준 [x, y, z]. cast = [종류, x, z, 돌림, 동작], rap = 라프산두 [x, z, 돌림]. ?og 일 때 window.OG_SHOT 으로 바로 고쳐 볼 수 있다
+const OG_SHOT = {
+  cam: [1.3, 1.5, 5.2], look: [-1.75, 1.25, 0.9],
+  rap: [-0.45, 2.5, 0.6],
+  cast: [["kid", 0.15, 0.7, -0.15, "scared_01"], ["jeffrey", 1.05, 1.0, -0.35, "scared_01"], ["mason", 1.95, 1.2, -0.55, "scared_01"]],
+};
+if (OG) window.OG_SHOT = OG_SHOT;
+let ogCast = null;
+function ogScene(dt) {
+  const fd = world.frontDoor;
+  const cx = fd ? fd.center.x : 11.25, cz = fd ? fd.center.z : 30;
+  if (!ogCast && charactersReady()) {
+    document.body.classList.add("og");
+    ogCast = OG_SHOT.cast.map(([k, , , , clip]) => { const m = makeModel(k); m.play(clip, 1, 0); m.update(0.9); scene.add(m.obj); return m; });
+  }
+  if (ogCast) OG_SHOT.cast.forEach(([, x, z, ry], i) => { const o = ogCast[i].obj; o.position.set(cx + x, 0, cz + z); o.rotation.y = Math.PI + ry; });
+  const [rx, rz, rr] = OG_SHOT.rap;
+  const p = new THREE.Vector3(cx + rx, 0, cz + rz);
+  player.spawn(p.x, 0.05, p.z);
+  player.body.position.copy(p); player.body.rotation.set(0, rr, 0); player.body.visible = true;   // 셋을 노려본다
+  if (player.armVM) player.armVM.obj.visible = false;
+  player.hand.visible = false;
+  if (player.model) { player.model.play("standing_relax", 1, 0); player.model.setStyle && player.model.setStyle("swag"); player.model.setOverlay({ hunch: 0.5, rightHand: 1, leftArm: 1 }); player.model.reach(0); player.model.update(dt); }
+  const c = OG_SHOT.cam, l = OG_SHOT.look;
+  camera.position.set(cx + c[0], c[1], cz + c[2]);
+  camera.lookAt(cx + l[0], l[1], cz + l[2]);
+}
+
 // 다 잡았다: 바로 결과 창 대신 약 5초 연출 (클릭하면 건너뜀) → 결과 창
 let outroT = 0;
 let shoutAudio = null, ceremonyAudio = null;
@@ -614,7 +645,7 @@ function frame() {
     for (const m of audience) m.update(dt);
     if (outroT > OUTRO_LEN) showResult();
   } else {
-    if (state === "start") titleScene(dt);
+    if (state === "start") { if (OG) ogScene(dt); else titleScene(dt); }
     else if (state === "end") { outroT += dt; player.outroTick(dt, outroT % OUTRO_LEN); for (const m of audience) m.update(dt); }   // 결과 화면 뒤에서도 계속 돈다
     else if (panelOpen()) player.previewTick(dt); else player.placeCamera();
   }

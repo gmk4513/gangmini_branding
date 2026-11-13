@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<meta name="asset-base" content="https://cdn.jsdelivr.net/gh/gmk4513/gangmini_branding@12f8e747f88cd6ad2cb1df7cfd7263a95e92cab1/p/njv0ve3y/">
+<meta name="asset-base" content="">
 <!--
   POV 술래잡기 — 비공식 팬 게임 (비영리 · 수익화 없음)
   등장 인물 · 레이블과 관계가 없으며 공식 승인을 받지 않았습니다. 권리자가 요청하면 바로 내립니다.
@@ -13,17 +13,54 @@
 -->
 <meta name="description" content="비공식 팬 게임 · 비영리 · 수익화 없음. 인트로 노래: Baadboy - 키드밀리 & 오카시">
 <title>POV 술래잡기 — 비공식 팬 게임</title>
+<!-- 링크 미리보기 (DM · 카톡). 그림은 ?og 장면을 크롬 탭에서 1200x630 으로 찍은 것 (CLAUDE.md '링크 미리보기').
+     카톡은 미리보기를 저장해 두니 그림을 바꾸면 보내는 링크 끝에 ?s=2 처럼 붙인다 -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://gangmini.com/p/njv0ve3y/">
+<meta property="og:title" content="POV 술래잡기 (feat. 오카시, 키드밀리)">
+<meta property="og:description" content="라프산두가 3층 건물에 숨은 제프리화이트 · 메이슨홈 · 키드밀리를 잡으러 간다! 셋 다 잡는 데 몇 초? · PC 게임 · 비공식 팬 게임">
+<meta property="og:image" content="https://gangmini.com/p/njv0ve3y/assets/ui/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261113155403">
+<link rel="stylesheet" href="css/style.css?v=20261113161434">
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
 } }
 </script>
+<script>
+  /* 휴대폰 · 태블릿(키보드 · 마우스 없음): 게임 파일(14MB)을 받지 않고 'PC 에서 해 주세요' 안내만.
+     인스타 DM 링크는 대부분 폰으로 열린다. ?pc=1 이면 그냥 연다 */
+  (function () {
+    var ua = navigator.userAgent;
+    var ipad = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+    var coarse = window.matchMedia && matchMedia("(pointer: coarse)").matches && !matchMedia("(any-pointer: fine)").matches;
+    window.POV_MOBILE = /[?&]mobile=1/.test(location.search) || !/[?&]pc=1/.test(location.search) && (/Android|iPhone|iPad|iPod|Mobile/i.test(ua) || ipad || coarse);
+    if (window.POV_MOBILE) document.documentElement.classList.add("mobile");
+  })();
+</script>
 </head>
 <body>
 <div id="app"></div>
+
+<!-- 링크 미리보기 그림용 글자 (?og 일 때만) -->
+<div id="ogcard"><p class="tag">비공식 팬 게임</p><p class="og-logo">POV<br><span>술래잡기</span></p><p class="og-feat">feat. 오카시 · 키드밀리</p><p class="og-say">셋 다 잡는 데 몇 초?</p></div>
+
+<!-- 휴대폰으로 열었을 때 -->
+<section id="mobile">
+  <p class="tag">비공식 팬 게임</p>
+  <p class="m-logo">POV <span>술래잡기</span></p>
+  <p class="m-feat">feat. 오카시 · 키드밀리</p>
+  <p class="m-say">라프산두가 3층 건물에 숨은<br><b>제프리화이트 · 메이슨홈 · 키드밀리</b>를<br>잡으러 간다! 셋 다 잡는 데 걸린 시간으로 순위 경쟁</p>
+  <div class="m-pc">💻 <b>PC 전용 게임이에요</b><br>키보드 · 마우스로 해야 해서 휴대폰에서는 할 수 없어요.<br>링크를 PC 로 보내서 열어 주세요!</div>
+  <div class="m-btns"><button id="mCopy">링크 복사</button><button id="mShare" class="ghost">공유하기</button></div>
+  <p id="mMsg" class="m-msg"></p>
+  <div class="m-rank"><h2>🏆 전체 순위</h2><ol id="mRank"><li class="empty">불러오는 중…</li></ol></div>
+  <button id="mAnyway" class="m-anyway">그래도 열어 보기 (키보드 · 마우스가 있으면)</button>
+</section>
 
 <!-- 불러오는 중 -->
 <section id="loading">
@@ -106,6 +143,29 @@
   <p class="fine">이 게임은 팬이 만든 비공식 게임이며, 등장 인물 · 레이블과 관계가 없습니다.</p>
 </section>
 
-<script type="module" src="js/main.js?v=20261113155403"></script>
+<script type="module">
+  // 휴대폰이면 게임을 불러오지 않는다 (위 POV_MOBILE). '그래도 열어 보기'를 누르면 그때 불러온다
+  const go = () => import("./js/main.js?v=20261113161434");
+  if (!window.POV_MOBILE) go();
+  else {
+    const $ = (id) => document.getElementById(id);
+    const url = location.origin + location.pathname;
+    const msg = (t) => { $("mMsg").textContent = t; };
+    $("mCopy").onclick = async () => {
+      try { await navigator.clipboard.writeText(url); msg("복사했어요! PC 에서 붙여 넣어 열어 주세요"); }
+      catch (e) { msg(url); }   // 인앱 브라우저처럼 복사가 막히면 주소를 보여 준다 (길게 눌러 복사)
+    };
+    if (navigator.share) $("mShare").onclick = () => navigator.share({ title: "POV 술래잡기", text: "PC 로 해 보기 · 비공식 팬 게임", url }).catch(() => {});
+    else $("mShare").hidden = true;
+    $("mAnyway").onclick = () => { document.documentElement.classList.remove("mobile"); window.POV_MOBILE = false; go(); };
+    const fmt = (ms) => { const s = ms / 1000, m = Math.floor(s / 60), r = s - m * 60; return m + ":" + (r < 10 ? "0" : "") + r.toFixed(1); };
+    const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    fetch("https://bamti-bomb.fly.dev/api/scores/pov?limit=5").then((r) => r.json()).then((r) => {
+      const rows = r.rows || [];
+      $("mRank").innerHTML = rows.length ? rows.map((x, i) => `<li><b>${i + 1}</b><span>${esc(x.n)}</span><em>${fmt(x.s)}</em></li>`).join("")
+        : '<li class="empty">아직 기록이 없어요. PC 로 첫 기록을 세워 보세요!</li>';
+    }).catch(() => { $("mRank").innerHTML = '<li class="empty">순위를 불러오지 못했어요</li>'; });
+  }
+</script>
 </body>
 </html>
